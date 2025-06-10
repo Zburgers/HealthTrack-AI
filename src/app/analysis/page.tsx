@@ -17,6 +17,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Download, ListChecks, FileQuestion, Loader2, InfoIcon, User, CalendarDays, Tag, Fingerprint, HeartPulse, ClipboardList } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { Patient, NewCaseFormValues } from '@/types';
+import { cn } from '@/lib/utils';
 
 
 const SoapSection: React.FC<{ title: string; content?: string }> = ({ title, content }) => {
@@ -29,12 +30,13 @@ const SoapSection: React.FC<{ title: string; content?: string }> = ({ title, con
   );
 };
 
-const ParsedSoapNotesDisplay: React.FC<{ notes: string }> = ({ notes }) => {
+const ParsedSoapNotesDisplay: React.FC<{ notes?: string }> = ({ notes }) => {
   const sections = useMemo(() => {
-    const s = notes?.match(/S:([\s\S]*?)(O:|A:|P:|$)/i)?.[1]?.trim() || '';
-    const o = notes?.match(/O:([\s\S]*?)(A:|P:|$)/i)?.[1]?.trim() || '';
-    const a = notes?.match(/A:([\s\S]*?)(P:|$)/i)?.[1]?.trim() || '';
-    const p = notes?.match(/P:([\s\S]*?)$/i)?.[1]?.trim() || '';
+    if (!notes) return { s: '', o: '', a: '', p: '' };
+    const s = notes.match(/S:([\s\S]*?)(O:|A:|P:|$)/i)?.[1]?.trim() || '';
+    const o = notes.match(/O:([\s\S]*?)(A:|P:|$)/i)?.[1]?.trim() || '';
+    const a = notes.match(/A:([\s\S]*?)(P:|$)/i)?.[1]?.trim() || '';
+    const p = notes.match(/P:([\s\S]*?)$/i)?.[1]?.trim() || '';
     return { s, o, a, p };
   }, [notes]);
 
@@ -80,8 +82,7 @@ export default function AnalysisPage() {
 
   const [isSimilarCasesOpen, setIsSimilarCasesOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-
-  // Moved useMemo to be called unconditionally
+  
   const riskScoreExplanation = useMemo(() => {
     if (!currentCaseDisplayData) return "Risk score based on provided data.";
     let factors = [];
@@ -142,7 +143,7 @@ export default function AnalysisPage() {
       age = patient.age;
       gender = patient.gender;
       conditionsOrComplaint = patient.conditions.slice(0,2).join(', ') + (patient.conditions.length > 2 ? '...' : '');
-      visitDate = patient.lastVisit ? parseISO(patient.lastVisit) : undefined;
+      visitDate = patient.lastVisit ? parseISO(patient.lastVisit) : undefined; // Use parseISO for string dates
       caseId = patient.id;
     } else { 
       const formValues = currentCaseDisplayData as NewCaseFormValues;
@@ -150,7 +151,7 @@ export default function AnalysisPage() {
       age = formValues.age;
       gender = formValues.gender;
       conditionsOrComplaint = formValues.primaryComplaint;
-      visitDate = formValues.visitDate;
+      visitDate = formValues.visitDate; // Already a Date object from the form
       caseId = "New Case Analysis";
     }
 
@@ -172,7 +173,7 @@ export default function AnalysisPage() {
     
     let vitalsData: Array<{label: string; value?: string; unit: string}> = [];
 
-    if ('id' in currentCaseDisplayData && 'vitals' in currentCaseDisplayData) { // Patient
+    if ('id' in currentCaseDisplayData && 'vitals' in currentCaseDisplayData) { 
         const patientVitals = (currentCaseDisplayData as Patient).vitals;
         vitalsData = [
             { label: 'BP', value: patientVitals.bp, unit: 'mmHg' },
@@ -181,7 +182,7 @@ export default function AnalysisPage() {
             { label: 'Temp', value: patientVitals.temp, unit: '°C' },
             { label: 'SpO₂', value: patientVitals.spo2, unit: '%' },
         ];
-    } else { // NewCaseFormValues
+    } else { 
         const formVitals = currentCaseDisplayData as NewCaseFormValues;
          vitalsData = [
             { label: 'BP', value: formVitals.bp, unit: 'mmHg' },
@@ -195,11 +196,9 @@ export default function AnalysisPage() {
     const filteredVitals = vitalsData
       .map(vital => {
           let displayValue = String(vital.value || '').trim();
-          // Remove unit from value if already present
           if (vital.unit && displayValue.toLowerCase().endsWith(vital.unit.toLowerCase())) {
               displayValue = displayValue.substring(0, displayValue.length - vital.unit.length).trim();
           }
-           // Specific common case for BP like "120/80 mmHg"
           if (vital.unit === 'mmHg' && displayValue.toLowerCase().endsWith('mmhg')) {
             displayValue = displayValue.substring(0, displayValue.length - 4).trim();
           }
@@ -225,6 +224,13 @@ export default function AnalysisPage() {
           </Card>
         </motion.div>
     );
+  };
+
+  const getRiskScoreBorderColor = (score: number): string => {
+    const normalizedScore = (score >= 0 && score <= 1) ? Math.round(score * 100) : Math.round(score);
+    if (normalizedScore >= 70) return 'border-red-500';
+    if (normalizedScore >= 40) return 'border-yellow-500';
+    return 'border-green-500';
   };
 
 
@@ -254,6 +260,7 @@ export default function AnalysisPage() {
     );
   }
   
+  const riskScoreBorderClass = getRiskScoreBorderColor(analysisResult.riskScore);
 
   return (
     <MainLayout>
@@ -285,7 +292,7 @@ export default function AnalysisPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1 space-y-6">
               <motion.div {...cardAnimationProps(0.1)}>
-                <Card className="shadow-lg">
+                <Card className={cn("shadow-lg border-l-4", riskScoreBorderClass)}>
                   <CardHeader className="flex flex-row justify-between items-start pb-3">
                     <div>
                       <CardTitle className="font-headline text-xl">Risk Score</CardTitle>
@@ -329,7 +336,10 @@ export default function AnalysisPage() {
                           <Badge 
                             key={index} 
                             variant="outline" 
-                            className={`text-sm px-3 py-1.5 border-2 rounded-full cursor-pointer transition-all duration-150 ease-in-out hover:shadow-md hover:scale-105 ${getIcdColorClass(index)}`}
+                            className={cn(
+                              "text-sm px-3 py-1.5 border-2 rounded-full cursor-pointer transition-all duration-150 ease-in-out hover:shadow-md hover:scale-105",
+                              getIcdColorClass(index)
+                            )}
                             onClick={() => { /* Logic for modal from patient detail page if needed */}}
                           >
                             {tag}
@@ -356,7 +366,7 @@ export default function AnalysisPage() {
                   </div>
                   <SoapNotesEditor 
                     currentNotes={editableSoapNotes} 
-                    onNotesChange={handleSoapNotesChange} // ensure this updates parent state
+                    onNotesChange={handleSoapNotesChange}
                     onResetNotes={handleResetSoapNotes}
                   />
                 </CardContent>
