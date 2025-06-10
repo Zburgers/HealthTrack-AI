@@ -13,7 +13,7 @@ import SimilarCasesPanel from '@/components/results/SimilarCasesPanel';
 import ExportModal from '@/components/results/ExportModal';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ArrowLeft, Download, ListChecks, FileQuestion, Loader2, InfoIcon, User, CalendarDays, Tag, Fingerprint } from 'lucide-react';
+import { ArrowLeft, Download, ListChecks, FileQuestion, Loader2, InfoIcon, User, CalendarDays, Tag, Fingerprint, HeartPulse, ClipboardList } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { Patient, NewCaseFormValues } from '@/types';
 
@@ -30,10 +30,10 @@ const SoapSection: React.FC<{ title: string; content?: string }> = ({ title, con
 
 const ParsedSoapNotesDisplay: React.FC<{ notes: string }> = ({ notes }) => {
   const sections = useMemo(() => {
-    const s = notes?.match(/S:([\s\S]*?)(O:|A:|P:|$)/i)?.[1] || '';
-    const o = notes?.match(/O:([\s\S]*?)(A:|P:|$)/i)?.[1] || '';
-    const a = notes?.match(/A:([\s\S]*?)(P:|$)/i)?.[1] || '';
-    const p = notes?.match(/P:([\s\S]*?)$/i)?.[1] || '';
+    const s = notes?.match(/S:([\s\S]*?)(O:|A:|P:|$)/i)?.[1]?.trim() || '';
+    const o = notes?.match(/O:([\s\S]*?)(A:|P:|$)/i)?.[1]?.trim() || '';
+    const a = notes?.match(/A:([\s\S]*?)(P:|$)/i)?.[1]?.trim() || '';
+    const p = notes?.match(/P:([\s\S]*?)$/i)?.[1]?.trim() || '';
     return { s, o, a, p };
   }, [notes]);
 
@@ -51,11 +51,25 @@ const ParsedSoapNotesDisplay: React.FC<{ notes: string }> = ({ notes }) => {
   );
 };
 
+const icdColorClasses = [
+  "bg-sky-100 text-sky-700 border-sky-300 hover:bg-sky-200",
+  "bg-lime-100 text-lime-700 border-lime-300 hover:bg-lime-200",
+  "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-300 hover:bg-fuchsia-200",
+  "bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200",
+  "bg-teal-100 text-teal-700 border-teal-300 hover:bg-teal-200",
+  "bg-pink-100 text-pink-700 border-pink-300 hover:bg-pink-200",
+];
+
+const getIcdColorClass = (index: number) => {
+  return icdColorClasses[index % icdColorClasses.length];
+};
+
 
 export default function AnalysisPage() {
-  const { analysisResult, analysisReturnPath, currentCaseDisplayData, setAnalysisResult: setAppState } = useAppState();
+  const { analysisResult, analysisReturnPath, currentCaseDisplayData, setAnalysisResult: setAppStateContext } = useAppState();
   const router = useRouter();
   const [isLoadingContext, setIsLoadingContext] = useState(true);
+  const [editableSoapNotes, setEditableSoapNotes] = useState('');
 
   const [isSimilarCasesOpen, setIsSimilarCasesOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -63,11 +77,11 @@ export default function AnalysisPage() {
   const riskScoreExplanation = useMemo(() => {
     if (!currentCaseDisplayData) return "Risk score based on provided data.";
     let factors = [];
-    if ('id' in currentCaseDisplayData && 'conditions' in currentCaseDisplayData) { // Patient
+    if ('id' in currentCaseDisplayData && 'conditions' in currentCaseDisplayData) { 
         const patient = currentCaseDisplayData as Patient;
         if (patient.conditions.length > 0) factors.push(`conditions like ${patient.conditions.slice(0,2).join(', ')}`);
         if (patient.primaryComplaint) factors.push(`primary complaint: "${patient.primaryComplaint}"`);
-    } else if (currentCaseDisplayData) { // NewCaseFormValues (check if it's not null/undefined)
+    } else if (currentCaseDisplayData) { 
         const form = currentCaseDisplayData as NewCaseFormValues;
         if (form.primaryComplaint) factors.push(`primary complaint: "${form.primaryComplaint}"`);
         if (form.previousConditions) factors.push(`previous conditions: "${form.previousConditions}"`);
@@ -78,6 +92,9 @@ export default function AnalysisPage() {
   useEffect(() => {
     if (typeof analysisResult !== 'undefined' && typeof currentCaseDisplayData !== 'undefined') {
       setIsLoadingContext(false);
+      if (analysisResult?.soapNotes) {
+        setEditableSoapNotes(analysisResult.soapNotes);
+      }
     }
   }, [analysisResult, currentCaseDisplayData]);
 
@@ -87,8 +104,18 @@ export default function AnalysisPage() {
       // For existing cases, do not clear context immediately to allow browser back to analysis
     } else {
       // Came from new case form
-      setAppState(null, null, null); // Clear result, return path, and case data
+      setAppStateContext(null, null, null); // Clear result, return path, and case data
       router.push('/new-case');
+    }
+  };
+
+  const handleSoapNotesChange = (newNotes: string) => {
+    setEditableSoapNotes(newNotes);
+  };
+
+  const handleResetSoapNotes = () => {
+    if (analysisResult?.soapNotes) {
+      setEditableSoapNotes(analysisResult.soapNotes);
     }
   };
 
@@ -135,30 +162,42 @@ export default function AnalysisPage() {
   
   const getVitalsSummary = () => {
     if (!currentCaseDisplayData) return null;
-    let vitals: Partial<Patient['vitals'] | NewCaseFormValues> = {};
+    let vitalsMap: Record<string, string | undefined> = {};
+    let vitalsToDisplay: Array<{label: string; value?: string; unit: string}> = [];
 
     if ('id' in currentCaseDisplayData && 'vitals' in currentCaseDisplayData) { // Patient
-        vitals = (currentCaseDisplayData as Patient).vitals;
+        const patientVitals = (currentCaseDisplayData as Patient).vitals;
+        vitalsToDisplay = [
+            { label: 'BP', value: patientVitals.bp, unit: 'mmHg' },
+            { label: 'HR', value: patientVitals.hr, unit: 'bpm' },
+            { label: 'RR', value: patientVitals.rr, unit: '/min' },
+            { label: 'Temp', value: patientVitals.temp, unit: '°C' },
+            { label: 'SpO₂', value: patientVitals.spo2, unit: '%' },
+        ];
     } else { // NewCaseFormValues
         const formVitals = currentCaseDisplayData as NewCaseFormValues;
-        vitals = { bp: formVitals.bp, hr: formVitals.hr, rr: formVitals.rr, temp: formVitals.temp, spo2: formVitals.spo2 };
+         vitalsToDisplay = [
+            { label: 'BP', value: formVitals.bp, unit: 'mmHg' },
+            { label: 'HR', value: formVitals.hr, unit: 'bpm' },
+            { label: 'RR', value: formVitals.rr, unit: '/min' },
+            { label: 'Temp', value: formVitals.temp, unit: '°C' },
+            { label: 'SpO₂', value: formVitals.spo2, unit: '%' },
+        ];
     }
     
-    const vitalEntries = Object.entries(vitals).filter(([_, value]) => value && String(value).trim() !== '');
-    if (vitalEntries.length === 0) return null;
+    const filteredVitals = vitalsToDisplay.filter(vital => vital.value && String(vital.value).trim() !== '');
+    if (filteredVitals.length === 0) return null;
 
     return (
         <Card className="shadow-lg">
-            <CardHeader>
-                <CardTitle className="font-headline text-xl">Vitals Summary</CardTitle>
+            <CardHeader className="pb-3">
+                <CardTitle className="font-headline text-xl flex items-center"><HeartPulse className="mr-2 h-5 w-5 text-primary" />Vitals Summary</CardTitle>
             </CardHeader>
             <CardContent>
-                <ul className="space-y-1 text-sm">
-                    {vitals.bp && <li><strong>BP:</strong> {vitals.bp} mmHg</li>}
-                    {vitals.hr && <li><strong>HR:</strong> {vitals.hr} bpm</li>}
-                    {vitals.rr && <li><strong>RR:</strong> {vitals.rr} /min</li>}
-                    {vitals.temp && <li><strong>Temp:</strong> {vitals.temp} °C</li>}
-                    {vitals.spo2 && <li><strong>SpO₂:</strong> {vitals.spo2} %</li>}
+                <ul className="space-y-1.5 text-sm">
+                    {filteredVitals.map(vital => (
+                         <li key={vital.label}><strong>{vital.label}:</strong> {vital.value} {vital.unit}</li>
+                    ))}
                 </ul>
             </CardContent>
         </Card>
@@ -169,7 +208,7 @@ export default function AnalysisPage() {
   if (isLoadingContext) {
     return (
       <MainLayout>
-        <div className="flex flex-col items-center justify-center text-center py-10">
+        <div className="flex flex-col items-center justify-center text-center py-10 min-h-[calc(100vh-200px)]">
           <Loader2 className="w-16 h-16 text-primary animate-spin mb-4" />
           <h1 className="font-headline text-2xl font-semibold">Loading Analysis Results...</h1>
         </div>
@@ -180,7 +219,7 @@ export default function AnalysisPage() {
   if (!analysisResult) {
     return (
       <MainLayout>
-        <div className="flex flex-col items-center justify-center text-center py-10">
+        <div className="flex flex-col items-center justify-center text-center py-10 min-h-[calc(100vh-200px)]">
           <FileQuestion className="w-16 h-16 text-muted-foreground mb-4" />
           <h1 className="font-headline text-2xl font-semibold mb-2">No Analysis Result Found</h1>
           <p className="text-muted-foreground mb-6">
@@ -218,8 +257,11 @@ export default function AnalysisPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1 space-y-6">
               <Card className="shadow-lg">
-                <CardHeader className="flex flex-row justify-between items-center">
-                  <CardTitle className="font-headline text-xl">Risk Score</CardTitle>
+                <CardHeader className="flex flex-row justify-between items-start pb-3">
+                  <div>
+                    <CardTitle className="font-headline text-xl">Risk Score</CardTitle>
+                     <CardDescription className="text-xs">Estimated patient risk.</CardDescription>
+                  </div>
                   <Tooltip delayDuration={100}>
                     <TooltipTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary">
@@ -232,13 +274,12 @@ export default function AnalysisPage() {
                     </TooltipContent>
                   </Tooltip>
                 </CardHeader>
-                <CardContent className="flex flex-col items-center">
+                <CardContent className="flex flex-col items-center pt-0">
                   <RiskGauge score={analysisResult.riskScore} />
                   <p className="text-sm text-muted-foreground mt-2 text-center">
-                    This score represents the estimated patient risk based on the provided data.
-                    {analysisResult.riskScore >= 70 && " High risk indicates need for urgent attention."}
-                    {analysisResult.riskScore < 70 && analysisResult.riskScore >= 40 && " Medium risk suggests careful monitoring."}
-                    {analysisResult.riskScore < 40 && " Low risk, continue routine monitoring."}
+                    {analysisResult.riskScore >= 70 && "High risk indicates need for urgent attention."}
+                    {analysisResult.riskScore < 70 && analysisResult.riskScore >= 40 && "Medium risk suggests careful monitoring."}
+                    {analysisResult.riskScore < 40 && "Low risk, continue routine monitoring."}
                   </p>
                 </CardContent>
               </Card>
@@ -246,15 +287,19 @@ export default function AnalysisPage() {
               {getVitalsSummary()}
 
               <Card className="shadow-lg">
-                <CardHeader>
-                  <CardTitle className="font-headline text-xl">Identified ICD-10 Codes</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className="font-headline text-xl flex items-center"><Tag className="mr-2 h-5 w-5 text-primary"/>Identified ICD-10 Codes</CardTitle>
                   <CardDescription>Relevant codes based on symptoms and observations.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {analysisResult.icd10Tags.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {analysisResult.icd10Tags.map((tag, index) => (
-                        <Badge key={index} variant="secondary" className="text-sm px-3 py-1 bg-secondary text-secondary-foreground">
+                        <Badge 
+                          key={index} 
+                          variant="outline" 
+                          className={`text-sm px-3 py-1.5 border-2 transition-all duration-150 ease-in-out hover:opacity-80 ${getIcdColorClass(index)}`}
+                        >
                           {tag}
                         </Badge>
                       ))}
@@ -268,15 +313,19 @@ export default function AnalysisPage() {
 
             <div className="lg:col-span-2">
               <Card className="shadow-lg h-full">
-                <CardHeader>
-                  <CardTitle className="font-headline text-xl">Draft SOAP Notes</CardTitle>
-                  <CardDescription>Review the AI-generated clinical notes below, or edit in the text area.</CardDescription>
+                <CardHeader className="pb-3">
+                  <CardTitle className="font-headline text-xl flex items-center"><ClipboardList className="mr-2 h-5 w-5 text-primary"/>Draft SOAP Notes</CardTitle>
+                  <CardDescription>Review the AI-generated clinical notes. Edit in the text area below.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="p-3 border rounded-md bg-secondary/30 max-h-80 overflow-y-auto mb-4">
-                    <ParsedSoapNotesDisplay notes={analysisResult.soapNotes} />
+                  <div className="p-4 border rounded-md bg-secondary/30 max-h-80 overflow-y-auto mb-4 shadow-inner">
+                    <ParsedSoapNotesDisplay notes={editableSoapNotes} />
                   </div>
-                  <SoapNotesEditor initialNotes={analysisResult.soapNotes} />
+                  <SoapNotesEditor 
+                    currentNotes={editableSoapNotes} 
+                    onNotesChange={handleSoapNotesChange}
+                    onResetNotes={handleResetSoapNotes}
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -289,3 +338,4 @@ export default function AnalysisPage() {
     </MainLayout>
   );
 }
+
