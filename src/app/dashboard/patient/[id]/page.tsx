@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useAppState } from '@/context/AppStateContext';
-import RiskGauge from '@/components/results/RiskGauge';
+// RiskGauge is not used here directly anymore, but on the /analysis page
 import {
   ArrowLeft,
   UserCircle,
@@ -25,13 +25,12 @@ import {
   Wind,
   Gauge,
   Percent,
-  Sheet, // Placeholder for specific vital icons if needed
+  Sheet, 
   FileText,
   AlertTriangle,
   BarChart3
 } from 'lucide-react';
 
-// Helper to get risk score color - consistent with dashboard
 const getRiskScoreColor = (score: number): string => {
   if (score >= 0.7) return 'text-red-600';
   if (score >= 0.4) return 'text-yellow-600';
@@ -74,8 +73,9 @@ export default function PatientDetailPage() {
 
   const handleViewFullAnalysis = () => {
     if (patient.aiAnalysis) {
-      setAnalysisResult(patient.aiAnalysis);
-      router.push('/results');
+      // Set the return path to this patient's detail page
+      setAnalysisResult(patient.aiAnalysis, `/dashboard/patient/${patient.id}`);
+      router.push('/analysis'); // Navigate to the unified analysis page
     }
   };
 
@@ -92,7 +92,6 @@ export default function PatientDetailPage() {
           </Button>
         </div>
 
-        {/* Patient Summary Panel */}
         <Card className="shadow-lg">
           <CardHeader className="flex flex-row items-start space-x-4">
             <Image
@@ -113,7 +112,7 @@ export default function PatientDetailPage() {
                 <AlertTriangle className={`h-5 w-5 mr-1.5 ${getRiskScoreColor(patient.riskScore)}`} />
                 <span className="text-sm font-medium text-foreground">Risk Score: </span>
                 <span className={`ml-1 font-bold text-lg ${getRiskScoreColor(patient.riskScore)}`}>
-                  {(patient.riskScore * 100).toFixed(0)}%
+                  {(patient.riskScore * 100).toFixed(0)}% 
                 </span>
               </div>
             </div>
@@ -139,7 +138,6 @@ export default function PatientDetailPage() {
         </Card>
 
         <Accordion type="multiple" defaultValue={['vitals', 'observations', 'ai-analysis']} className="w-full space-y-4">
-          {/* Vitals Panel */}
           <AccordionItem value="vitals" className="border rounded-lg shadow-md bg-card">
             <AccordionTrigger className="px-6 py-4 text-lg font-semibold hover:no-underline">
               <div className="flex items-center">
@@ -151,7 +149,7 @@ export default function PatientDetailPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {Object.entries(patient.vitals).map(([key, value]) => {
                   const displayInfo = vitalKeyToDisplayInfo[key];
-                  const IconComponent = displayInfo?.icon || Stethoscope; // Default icon
+                  const IconComponent = displayInfo?.icon || Stethoscope;
                   if (!value) return null;
                   return (
                     <Card key={key} className="bg-secondary/30 p-3">
@@ -169,7 +167,6 @@ export default function PatientDetailPage() {
             </AccordionContent>
           </AccordionItem>
 
-          {/* Doctor's Observations Panel */}
           <AccordionItem value="observations" className="border rounded-lg shadow-md bg-card">
             <AccordionTrigger className="px-6 py-4 text-lg font-semibold hover:no-underline">
               <div className="flex items-center">
@@ -182,7 +179,6 @@ export default function PatientDetailPage() {
             </AccordionContent>
           </AccordionItem>
 
-          {/* AI Analysis Summary Panel */}
           {patient.aiAnalysis && (
             <AccordionItem value="ai-analysis" className="border rounded-lg shadow-md bg-card">
               <AccordionTrigger className="px-6 py-4 text-lg font-semibold hover:no-underline">

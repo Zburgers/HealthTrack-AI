@@ -1,6 +1,9 @@
 
 'use client';
 
+// This component is being deprecated and its contents moved to /app/analysis/page.tsx
+// It can be deleted after confirming the new /analysis page works correctly.
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import RiskGauge from './RiskGauge';
@@ -13,8 +16,7 @@ import { ArrowLeft, Download, ListChecks } from 'lucide-react';
 import { useAppState } from '@/context/AppStateContext';
 import { useRouter } from 'next/navigation';
 
-// No longer needs 'result' as a prop, will get it from context
-export default function ResultsDisplay() {
+export default function ResultsDisplay_DEPRECATED() {
   const { analysisResult, analysisReturnPath, setAnalysisResult: setAppState } = useAppState();
   const router = useRouter();
 
@@ -23,23 +25,15 @@ export default function ResultsDisplay() {
 
   const handleBackOrReset = () => {
     if (analysisReturnPath) {
-      // Navigate to the stored return path (e.g., patient detail page)
-      // Do NOT clear analysisResult or analysisReturnPath from context here,
-      // so user can use browser back to return to these results.
       router.push(analysisReturnPath);
     } else {
-      // This is for results from a new case submission
-      setAppState(null, null); // Clear both result and return path
+      setAppState(null, null); 
       router.push('/new-case');
     }
   };
 
-  // If analysisResult is not available in context, this component shouldn't render its main content.
-  // ResultsPage should handle showing a "No results" message.
-  // This is a safeguard.
   if (!analysisResult) {
-    console.warn("ResultsDisplay: analysisResult from context is null. This component might not display correctly or should be conditionally rendered by parent.");
-    // Optionally, return a loader or a minimal message, but ResultsPage is the primary guard.
+    console.warn("DEPRECATED ResultsDisplay: analysisResult from context is null. This component should not be rendered directly. Use /analysis page.");
     return null; 
   }
 
@@ -50,7 +44,7 @@ export default function ResultsDisplay() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           {analysisReturnPath ? 'Back to Patient File' : 'Start New Case'}
         </Button>
-        <h1 className="font-headline text-3xl font-bold text-primary">Analysis Results</h1>
+        <h1 className="font-headline text-3xl font-bold text-primary">Analysis Results (DEPRECATED COMPONENT)</h1>
         <div className="space-x-2">
           <Button variant="outline" onClick={() => setIsSimilarCasesOpen(true)}>
             <ListChecks className="mr-2 h-4 w-4" /> Similar Cases
@@ -117,3 +111,4 @@ export default function ResultsDisplay() {
     </div>
   );
 }
+

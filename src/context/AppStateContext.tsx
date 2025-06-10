@@ -26,11 +26,11 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
       }
     } else {
       console.log('AppStateContext: No analysisResult found in sessionStorage.');
-      setAnalysisResultState(null); // Ensure state is null if not in session storage
+      setAnalysisResultState(null); 
     }
 
     const storedReturnPathItem = sessionStorage.getItem('healthTrackAIAnalysisReturnPath');
-    if (storedReturnPathItem && storedReturnPathItem !== 'null') {
+    if (storedReturnPathItem && storedReturnPathItem !== 'null') { // Ensure 'null' string isn't treated as a path
       setAnalysisReturnPathState(storedReturnPathItem);
       console.log('AppStateContext: Loaded analysisReturnPath from sessionStorage:', storedReturnPathItem);
     } else {
@@ -41,9 +41,10 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
 
   const setAnalysisResult = (
     resultData: AnalyzePatientSymptomsOutput | null,
-    returnPathForThisResult?: string | null 
+    returnPathForThisResult?: string | null // Make it explicit: undefined means don't change, null means clear
   ) => {
-    console.log('AppStateContext: setAnalysisResult called with:', resultData, 'and returnPath:', returnPathForThisResult);
+    console.log('AppStateContext: setAnalysisResult called with result:', resultData, 'and returnPath:', returnPathForThisResult);
+    
     setAnalysisResultState(resultData);
     if (resultData) {
       sessionStorage.setItem('healthTrackAIAnalysisResult', JSON.stringify(resultData));
@@ -51,13 +52,14 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
       sessionStorage.removeItem('healthTrackAIAnalysisResult');
     }
 
-    // If returnPathForThisResult is explicitly provided (string or null), update it.
-    // If it's undefined (not passed), the current analysisReturnPath state and sessionStorage item remain untouched.
+    // Only update returnPath if it's explicitly provided (string or null).
+    // If `returnPathForThisResult` is undefined, the existing path state remains unchanged.
     if (typeof returnPathForThisResult !== 'undefined') {
       setAnalysisReturnPathState(returnPathForThisResult); 
       if (returnPathForThisResult) { 
         sessionStorage.setItem('healthTrackAIAnalysisReturnPath', returnPathForThisResult);
       } else { 
+        // Explicitly null means we should clear it from session storage too
         sessionStorage.removeItem('healthTrackAIAnalysisReturnPath');
       }
     }

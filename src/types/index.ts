@@ -6,12 +6,11 @@ export interface Patient {
   id: string;
   name: string;
   avatarUrl: string;
-  dataAiHint: string; // For dashboard card image
-  riskScore: number; // 0-1, used on dashboard and detail
-  conditions: string[]; // Key conditions for dashboard and detail
+  dataAiHint: string; 
+  riskScore: number; // 0-1 (e.g. 0.75 for 75%) or 0-100 (e.g. 75 for 75%)
+  conditions: string[]; 
   lastVisit: string;
 
-  // Detailed information
   age: number;
   gender: 'Male' | 'Female' | 'Other' | string;
   primaryComplaint: string;
@@ -21,7 +20,7 @@ export interface Patient {
     rr?: string;
     temp?: string;
     spo2?: string;
-    [key: string]: string | undefined; // Allow other vitals
+    [key: string]: string | undefined; 
   };
   doctorsObservations: string;
   aiAnalysis: AnalyzePatientSymptomsOutput;
@@ -29,10 +28,13 @@ export interface Patient {
 
 export interface AppState {
   analysisResult: AnalyzePatientSymptomsOutput | null;
-  setAnalysisResult: (result: AnalyzePatientSymptomsOutput | null) => void;
+  analysisReturnPath: string | null; // Path to return to after viewing analysis (e.g. patient detail page)
+  setAnalysisResult: (
+    result: AnalyzePatientSymptomsOutput | null,
+    returnPath?: string | null // Explicitly pass null if it's a new case with no prior page
+  ) => void;
 }
 
-// Used for displaying vitals with icons
 export interface VitalDisplayInfo {
   key: keyof Patient['vitals'];
   label: string;

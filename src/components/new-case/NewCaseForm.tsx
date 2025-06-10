@@ -70,8 +70,9 @@ export default function NewCaseForm() {
           title: 'Analysis Successful',
           description: 'Patient case analysis complete.',
         });
-        // For a new case, explicitly set returnPath to null
+        // For a new case, set returnPath to null
         setAnalysisResult(response.data, null); 
+        router.push('/analysis'); // Navigate to the new analysis page
       } else {
         throw new Error(response.error || 'Analysis failed. Please try again.');
       }

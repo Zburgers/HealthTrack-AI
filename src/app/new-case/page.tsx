@@ -1,25 +1,14 @@
+
 'use client';
 
 import MainLayout from '@/components/layout/MainLayout';
 import NewCaseForm from '@/components/new-case/NewCaseForm';
-import { useAppState } from '@/context/AppStateContext';
-import ResultsDisplay from '@/components/results/ResultsDisplay';
+// ResultsDisplay is no longer shown directly on this page. 
+// Navigation will go to /analysis after form submission.
 
 export default function NewCasePage() {
-  const { analysisResult, setAnalysisResult } = useAppState();
-
-  if (analysisResult) {
-    // If there's an analysis result, show the results display
-    // This allows navigating back to this page to see the last result
-    // or could be cleared when a new form is started.
-    return (
-       <MainLayout>
-        <ResultsDisplay result={analysisResult} onReset={() => setAnalysisResult(null)} />
-      </MainLayout>
-    );
-  }
-  
-  // Otherwise, show the form
+  // This page now only renders the NewCaseForm.
+  // The form submission logic will handle navigation to the analysis page.
   return (
     <MainLayout>
       <div className="max-w-3xl mx-auto">
