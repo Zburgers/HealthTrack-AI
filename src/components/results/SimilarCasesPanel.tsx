@@ -62,6 +62,10 @@ interface SimilarCasesPanelProps {
 }
 
 export default function SimilarCasesPanel({ isOpen, onOpenChange }: SimilarCasesPanelProps) {
+  const sortedAndLimitedCases = [...mockSimilarCases] // Create a copy to avoid mutating the original array
+    .sort((a, b) => b.matchConfidence - a.matchConfidence) // Sort by matchConfidence descending
+    .slice(0, 5); // Take the top 5 cases
+
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-lg md:max-w-xl lg:max-w-2xl p-0">
@@ -73,7 +77,7 @@ export default function SimilarCasesPanel({ isOpen, onOpenChange }: SimilarCases
         </SheetHeader>
         <ScrollArea className="h-[calc(100vh-160px)]"> {/* Adjust height as needed */}
           <div className="p-6 space-y-6">
-            {mockSimilarCases.length > 0 ? mockSimilarCases.map((c) => (
+            {sortedAndLimitedCases.length > 0 ? sortedAndLimitedCases.map((c) => (
               <Card key={c.id} className="shadow-md hover:shadow-lg transition-shadow overflow-hidden">
                 <CardHeader className="flex flex-row items-start space-x-4 bg-secondary/50 p-4">
                   <Image
@@ -89,7 +93,7 @@ export default function SimilarCasesPanel({ isOpen, onOpenChange }: SimilarCases
                      <div className="flex items-center text-sm text-muted-foreground mt-1">
                       <BarChart3 className="h-4 w-4 mr-1 text-primary" />
                       Match Confidence: 
-                      <Badge variant={c.matchConfidence > 0.8 ? "default" : "secondary"} className={`ml-2 ${c.matchConfidence > 0.8 ? 'bg-green-500 text-white' : 'bg-yellow-500 text-black'}`}>
+                      <Badge variant={c.matchConfidence > 0.8 ? "default" : "secondary"} className={`ml-2 ${c.matchConfidence > 0.8 ? 'bg-green-500 text-white' : c.matchConfidence > 0.7 ? 'bg-yellow-500 text-black' : 'bg-orange-500 text-white'}`}>
                         {(c.matchConfidence * 100).toFixed(0)}%
                       </Badge>
                     </div>
