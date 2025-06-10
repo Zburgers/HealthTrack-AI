@@ -1,3 +1,4 @@
+
 // This file centralizes the configuration for the application, primarily from environment variables.
 // Ensure you have a .env.local file in the root of your project with these variables defined.
 
@@ -13,20 +14,42 @@ export const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // Optional, for Analytics
 };
 
-// Check for missing Firebase configuration keys during development
+// Placeholders to check against - ensure these match the exact strings used as defaults if any.
+const PLACEHOLDER_API_KEY = "YOUR_ACTUAL_API_KEY_HERE";
+const PLACEHOLDER_AUTH_DOMAIN = "YOUR_ACTUAL_AUTH_DOMAIN_HERE";
+const PLACEHOLDER_PROJECT_ID = "YOUR_ACTUAL_PROJECT_ID_HERE";
+const PLACEHOLDER_APP_ID = "YOUR_ACTUAL_APP_ID_HERE";
+// Add other placeholders if necessary, e.g., for storageBucket, messagingSenderId
+
+// Check for missing or placeholder Firebase configuration keys.
+// Throw errors during development for easier debugging.
 if (process.env.NODE_ENV !== 'production') {
-  const requiredFirebaseKeys: (keyof typeof firebaseConfig)[] = [
-    'apiKey',
-    'authDomain',
-    'projectId',
-    'storageBucket',
-    'messagingSenderId',
-    'appId',
+  const criticalKeys: Array<{ key: keyof typeof firebaseConfig, envVarName: string, placeholder?: string }> = [
+    { key: 'apiKey', envVarName: 'NEXT_PUBLIC_FIREBASE_API_KEY', placeholder: PLACEHOLDER_API_KEY },
+    { key: 'authDomain', envVarName: 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN', placeholder: PLACEHOLDER_AUTH_DOMAIN },
+    { key: 'projectId', envVarName: 'NEXT_PUBLIC_FIREBASE_PROJECT_ID', placeholder: PLACEHOLDER_PROJECT_ID },
+    { key: 'appId', envVarName: 'NEXT_PUBLIC_FIREBASE_APP_ID', placeholder: PLACEHOLDER_APP_ID },
+    // storageBucket and messagingSenderId are often not strictly required for auth to initialize
+    // but are good to have for full Firebase functionality. Add them here if they become critical.
+    // { key: 'storageBucket', envVarName: 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET', placeholder: "YOUR_ACTUAL_STORAGE_BUCKET_HERE" },
+    // { key: 'messagingSenderId', envVarName: 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID', placeholder: "YOUR_ACTUAL_MESSAGING_SENDER_ID_HERE" },
   ];
-  for (const key of requiredFirebaseKeys) {
-    if (!firebaseConfig[key]) {
-      console.warn(
-        `Firebase config key "${key}" is missing. Please check your .env.local file and ensure NEXT_PUBLIC_FIREBASE_${key.toUpperCase()} is set.`
+
+  for (const { key, envVarName, placeholder } of criticalKeys) {
+    const value = firebaseConfig[key];
+    if (!value) {
+      throw new Error(
+        `Firebase configuration error: The environment variable "${envVarName}" for config key "${key}" is missing or empty in your .env.local file. ` +
+        `Please set it with the correct value from your Firebase project settings. ` +
+        `After updating .env.local, you MUST restart your Next.js development server.`
+      );
+    }
+    // Check if the value exactly matches a known placeholder
+    if (placeholder && value === placeholder) {
+      throw new Error(
+        `Firebase configuration error: The environment variable "${envVarName}" for config key "${key}" appears to be using the placeholder value ("${value}"). ` +
+        `Please replace it with your actual credential from your Firebase project in .env.local. ` +
+        `After updating .env.local, you MUST restart your Next.js development server.`
       );
     }
   }
