@@ -13,6 +13,7 @@ import SimilarCasesPanel from '@/components/results/SimilarCasesPanel';
 import ExportModal from '@/components/results/ExportModal';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { motion } from 'framer-motion';
 import { ArrowLeft, Download, ListChecks, FileQuestion, Loader2, InfoIcon, User, CalendarDays, Tag, Fingerprint, HeartPulse, ClipboardList } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { Patient, NewCaseFormValues } from '@/types';
@@ -64,6 +65,12 @@ const getIcdColorClass = (index: number) => {
   return icdColorClasses[index % icdColorClasses.length];
 };
 
+const cardAnimationProps = (delay: number = 0) => ({
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.5, delay }
+});
+
 
 export default function AnalysisPage() {
   const { analysisResult, analysisReturnPath, currentCaseDisplayData, setAnalysisResult: setAppStateContext } = useAppState();
@@ -74,6 +81,7 @@ export default function AnalysisPage() {
   const [isSimilarCasesOpen, setIsSimilarCasesOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
+  // Moved useMemo to be called unconditionally
   const riskScoreExplanation = useMemo(() => {
     if (!currentCaseDisplayData) return "Risk score based on provided data.";
     let factors = [];
@@ -98,13 +106,12 @@ export default function AnalysisPage() {
     }
   }, [analysisResult, currentCaseDisplayData]);
 
+
   const handleBackNavigation = () => {
     if (analysisReturnPath) {
       router.push(analysisReturnPath);
-      // For existing cases, do not clear context immediately to allow browser back to analysis
     } else {
-      // Came from new case form
-      setAppStateContext(null, null, null); // Clear result, return path, and case data
+      setAppStateContext(null, null, null); 
       router.push('/new-case');
     }
   };
@@ -129,7 +136,7 @@ export default function AnalysisPage() {
     let visitDate: Date | string | undefined;
     let caseId: string | undefined;
 
-    if ('id' in currentCaseDisplayData && 'conditions' in currentCaseDisplayData) { // It's a Patient object
+    if ('id' in currentCaseDisplayData && 'conditions' in currentCaseDisplayData) { 
       const patient = currentCaseDisplayData as Patient;
       name = patient.name;
       age = patient.age;
@@ -137,7 +144,7 @@ export default function AnalysisPage() {
       conditionsOrComplaint = patient.conditions.slice(0,2).join(', ') + (patient.conditions.length > 2 ? '...' : '');
       visitDate = patient.lastVisit ? parseISO(patient.lastVisit) : undefined;
       caseId = patient.id;
-    } else { // It's NewCaseFormValues
+    } else { 
       const formValues = currentCaseDisplayData as NewCaseFormValues;
       name = formValues.patientName;
       age = formValues.age;
@@ -148,7 +155,7 @@ export default function AnalysisPage() {
     }
 
     return (
-      <div className="mb-6 p-4 border border-border rounded-lg bg-card shadow-sm">
+      <motion.div {...cardAnimationProps(0)} className="mb-6 p-4 border border-border rounded-lg bg-card shadow-sm">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
           {name && <div className="flex items-center"><User className="w-4 h-4 mr-1.5 text-primary" /> <strong className="text-foreground mr-1">{name}</strong> ({age}{gender?.charAt(0).toUpperCase()})</div>}
           {visitDate && <div className="flex items-center"><CalendarDays className="w-4 h-4 mr-1.5 text-primary" /> Visited: {format(new Date(visitDate), "MMM dd, yyyy")}</div>}
@@ -156,18 +163,18 @@ export default function AnalysisPage() {
         {conditionsOrComplaint && <div className="mt-1.5 flex items-center text-sm text-muted-foreground"><Tag className="w-4 h-4 mr-1.5 text-primary" /> {conditionsOrComplaint}</div>}
         {caseId && !caseId.startsWith("New") && <div className="mt-1.5 flex items-center text-xs text-muted-foreground"><Fingerprint className="w-3 h-3 mr-1.5 text-primary" /> Case ID: {caseId}</div>}
         <p className="text-xs text-muted-foreground mt-1">Analysis Generated: {format(new Date(), "MMM dd, yyyy, p")}</p>
-      </div>
+      </motion.div>
     );
   };
   
   const getVitalsSummary = () => {
     if (!currentCaseDisplayData) return null;
-    let vitalsMap: Record<string, string | undefined> = {};
-    let vitalsToDisplay: Array<{label: string; value?: string; unit: string}> = [];
+    
+    let vitalsData: Array<{label: string; value?: string; unit: string}> = [];
 
     if ('id' in currentCaseDisplayData && 'vitals' in currentCaseDisplayData) { // Patient
         const patientVitals = (currentCaseDisplayData as Patient).vitals;
-        vitalsToDisplay = [
+        vitalsData = [
             { label: 'BP', value: patientVitals.bp, unit: 'mmHg' },
             { label: 'HR', value: patientVitals.hr, unit: 'bpm' },
             { label: 'RR', value: patientVitals.rr, unit: '/min' },
@@ -176,7 +183,7 @@ export default function AnalysisPage() {
         ];
     } else { // NewCaseFormValues
         const formVitals = currentCaseDisplayData as NewCaseFormValues;
-         vitalsToDisplay = [
+         vitalsData = [
             { label: 'BP', value: formVitals.bp, unit: 'mmHg' },
             { label: 'HR', value: formVitals.hr, unit: 'bpm' },
             { label: 'RR', value: formVitals.rr, unit: '/min' },
@@ -185,22 +192,38 @@ export default function AnalysisPage() {
         ];
     }
     
-    const filteredVitals = vitalsToDisplay.filter(vital => vital.value && String(vital.value).trim() !== '');
+    const filteredVitals = vitalsData
+      .map(vital => {
+          let displayValue = String(vital.value || '').trim();
+          // Remove unit from value if already present
+          if (vital.unit && displayValue.toLowerCase().endsWith(vital.unit.toLowerCase())) {
+              displayValue = displayValue.substring(0, displayValue.length - vital.unit.length).trim();
+          }
+           // Specific common case for BP like "120/80 mmHg"
+          if (vital.unit === 'mmHg' && displayValue.toLowerCase().endsWith('mmhg')) {
+            displayValue = displayValue.substring(0, displayValue.length - 4).trim();
+          }
+          return { ...vital, value: displayValue };
+      })
+      .filter(vital => vital.value && vital.value !== '');
+
     if (filteredVitals.length === 0) return null;
 
     return (
-        <Card className="shadow-lg">
-            <CardHeader className="pb-3">
-                <CardTitle className="font-headline text-xl flex items-center"><HeartPulse className="mr-2 h-5 w-5 text-primary" />Vitals Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <ul className="space-y-1.5 text-sm">
-                    {filteredVitals.map(vital => (
-                         <li key={vital.label}><strong>{vital.label}:</strong> {vital.value} {vital.unit}</li>
-                    ))}
-                </ul>
-            </CardContent>
-        </Card>
+        <motion.div {...cardAnimationProps(0.2)}>
+          <Card className="shadow-lg">
+              <CardHeader className="pb-3">
+                  <CardTitle className="font-headline text-xl flex items-center"><HeartPulse className="mr-2 h-5 w-5 text-primary" />Vitals Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                  <ul className="space-y-1.5 text-sm">
+                      {filteredVitals.map(vital => (
+                           <li key={vital.label}><strong>{vital.label}:</strong> {vital.value} {vital.unit}</li>
+                      ))}
+                  </ul>
+              </CardContent>
+          </Card>
+        </motion.div>
     );
   };
 
@@ -236,7 +259,12 @@ export default function AnalysisPage() {
     <MainLayout>
       <TooltipProvider>
         <div className="space-y-8">
-          <div className="flex justify-between items-center">
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex justify-between items-center"
+          >
             <Button variant="outline" onClick={handleBackNavigation}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
@@ -250,68 +278,73 @@ export default function AnalysisPage() {
                 <Download className="mr-2 h-4 w-4" /> Export Report
               </Button>
             </div>
-          </div>
+          </motion.div>
 
           {getPatientHeaderInfo()}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1 space-y-6">
-              <Card className="shadow-lg">
-                <CardHeader className="flex flex-row justify-between items-start pb-3">
-                  <div>
-                    <CardTitle className="font-headline text-xl">Risk Score</CardTitle>
-                     <CardDescription className="text-xs">Estimated patient risk.</CardDescription>
-                  </div>
-                  <Tooltip delayDuration={100}>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary">
-                        <InfoIcon className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs text-sm">
-                      <p className="font-semibold text-primary mb-1">Risk Score Explanation</p>
-                      <p>{riskScoreExplanation}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </CardHeader>
-                <CardContent className="flex flex-col items-center pt-0">
-                  <RiskGauge score={analysisResult.riskScore} />
-                  <p className="text-sm text-muted-foreground mt-2 text-center">
-                    {analysisResult.riskScore >= 70 && "High risk indicates need for urgent attention."}
-                    {analysisResult.riskScore < 70 && analysisResult.riskScore >= 40 && "Medium risk suggests careful monitoring."}
-                    {analysisResult.riskScore < 40 && "Low risk, continue routine monitoring."}
-                  </p>
-                </CardContent>
-              </Card>
-
+              <motion.div {...cardAnimationProps(0.1)}>
+                <Card className="shadow-lg">
+                  <CardHeader className="flex flex-row justify-between items-start pb-3">
+                    <div>
+                      <CardTitle className="font-headline text-xl">Risk Score</CardTitle>
+                       <CardDescription className="text-xs">Estimated patient risk.</CardDescription>
+                    </div>
+                    <Tooltip delayDuration={100}>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary">
+                          <InfoIcon className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs text-sm p-3 bg-popover text-popover-foreground shadow-lg rounded-md border">
+                        <p className="font-semibold text-primary mb-1">Risk Score Explanation</p>
+                        <p>{riskScoreExplanation}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardHeader>
+                  <CardContent className="flex flex-col items-center pt-0">
+                    <RiskGauge score={analysisResult.riskScore} />
+                    <p className="text-sm text-muted-foreground mt-2 text-center">
+                      {analysisResult.riskScore >= 70 && "High risk indicates need for urgent attention."}
+                      {analysisResult.riskScore < 70 && analysisResult.riskScore >= 40 && "Medium risk suggests careful monitoring."}
+                      {analysisResult.riskScore < 40 && "Low risk, continue routine monitoring."}
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+              
               {getVitalsSummary()}
 
-              <Card className="shadow-lg">
-                <CardHeader className="pb-3">
-                  <CardTitle className="font-headline text-xl flex items-center"><Tag className="mr-2 h-5 w-5 text-primary"/>Identified ICD-10 Codes</CardTitle>
-                  <CardDescription>Relevant codes based on symptoms and observations.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {analysisResult.icd10Tags.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {analysisResult.icd10Tags.map((tag, index) => (
-                        <Badge 
-                          key={index} 
-                          variant="outline" 
-                          className={`text-sm px-3 py-1.5 border-2 transition-all duration-150 ease-in-out hover:opacity-80 ${getIcdColorClass(index)}`}
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No specific ICD-10 codes identified.</p>
-                  )}
-                </CardContent>
-              </Card>
+              <motion.div {...cardAnimationProps(0.3)}>
+                <Card className="shadow-lg">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="font-headline text-xl flex items-center"><Tag className="mr-2 h-5 w-5 text-primary"/>Identified ICD-10 Codes</CardTitle>
+                    <CardDescription>Relevant codes based on symptoms and observations.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {analysisResult.icd10Tags.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {analysisResult.icd10Tags.map((tag, index) => (
+                          <Badge 
+                            key={index} 
+                            variant="outline" 
+                            className={`text-sm px-3 py-1.5 border-2 rounded-full cursor-pointer transition-all duration-150 ease-in-out hover:shadow-md hover:scale-105 ${getIcdColorClass(index)}`}
+                            onClick={() => { /* Logic for modal from patient detail page if needed */}}
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No specific ICD-10 codes identified.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
             </div>
 
-            <div className="lg:col-span-2">
+            <motion.div className="lg:col-span-2" {...cardAnimationProps(0.4)}>
               <Card className="shadow-lg h-full">
                 <CardHeader className="pb-3">
                   <CardTitle className="font-headline text-xl flex items-center"><ClipboardList className="mr-2 h-5 w-5 text-primary"/>Draft SOAP Notes</CardTitle>
@@ -323,12 +356,12 @@ export default function AnalysisPage() {
                   </div>
                   <SoapNotesEditor 
                     currentNotes={editableSoapNotes} 
-                    onNotesChange={handleSoapNotesChange}
+                    onNotesChange={handleSoapNotesChange} // ensure this updates parent state
                     onResetNotes={handleResetSoapNotes}
                   />
                 </CardContent>
               </Card>
-            </div>
+            </motion.div>
           </div>
 
           <SimilarCasesPanel isOpen={isSimilarCasesOpen} onOpenChange={setIsSimilarCasesOpen} />
@@ -338,4 +371,3 @@ export default function AnalysisPage() {
     </MainLayout>
   );
 }
-
