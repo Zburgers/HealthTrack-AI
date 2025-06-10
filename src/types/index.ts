@@ -1,31 +1,40 @@
+
 import type { AnalyzePatientSymptomsOutput } from "@/ai/flows/analyze-patient-symptoms";
+import type { LucideIcon } from "lucide-react";
 
 export interface Patient {
   id: string;
   name: string;
+  avatarUrl: string;
+  dataAiHint: string; // For dashboard card image
+  riskScore: number; // 0-1, used on dashboard and detail
+  conditions: string[]; // Key conditions for dashboard and detail
+  lastVisit: string;
+
+  // Detailed information
   age: number;
-  gender: 'Male' | 'Female' | 'Other';
-  // Add other relevant patient fields
+  gender: 'Male' | 'Female' | 'Other' | string;
+  primaryComplaint: string;
+  vitals: {
+    bp?: string;
+    hr?: string;
+    rr?: string;
+    temp?: string;
+    spo2?: string;
+    [key: string]: string | undefined; // Allow other vitals
+  };
+  doctorsObservations: string;
+  aiAnalysis: AnalyzePatientSymptomsOutput;
 }
 
-export interface Case {
-  id: string;
-  patientId: string;
-  patientInfo: string; // Summary or link to full Patient object
-  vitals: string;
-  observations: string;
-  analysisResult?: AnalyzePatientSymptomsOutput;
-  createdAt: Date;
-}
-
-// You can expand this file with more types as your application grows.
-// For example, types for user profiles, settings, etc.
-
-// For the global state context
 export interface AppState {
   analysisResult: AnalyzePatientSymptomsOutput | null;
   setAnalysisResult: (result: AnalyzePatientSymptomsOutput | null) => void;
-  // Potentially add other global states like loading indicators for AI calls, etc.
-  // isLoadingAnalysis: boolean;
-  // setIsLoadingAnalysis: (loading: boolean) => void;
+}
+
+// Used for displaying vitals with icons
+export interface VitalDisplayInfo {
+  key: keyof Patient['vitals'];
+  label: string;
+  icon: LucideIcon;
 }

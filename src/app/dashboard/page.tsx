@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -7,23 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import MainLayout from '@/components/layout/MainLayout';
 import { PlusCircle, User, AlertTriangle, Activity } from 'lucide-react';
 import Image from 'next/image';
-
-interface Patient {
-  id: string;
-  name: string;
-  avatarUrl: string;
-  dataAiHint: string;
-  riskScore: number; // 0-1
-  conditions: string[];
-  lastVisit: string;
-}
-
-const mockPatients: Patient[] = [
-  { id: '1', name: 'John Doe', avatarUrl: 'https://placehold.co/100x100.png', dataAiHint: 'man portrait', riskScore: 0.75, conditions: ['Hypertension', 'Diabetes'], lastVisit: '2024-07-15' },
-  { id: '2', name: 'Jane Smith', avatarUrl: 'https://placehold.co/100x100.png', dataAiHint: 'woman portrait', riskScore: 0.45, conditions: ['Asthma'], lastVisit: '2024-07-10' },
-  { id: '3', name: 'Robert Johnson', avatarUrl: 'https://placehold.co/100x100.png', dataAiHint: 'senior man', riskScore: 0.90, conditions: ['Heart Disease', 'COPD'], lastVisit: '2024-07-18' },
-  { id: '4', name: 'Emily White', avatarUrl: 'https://placehold.co/100x100.png', dataAiHint: 'young woman', riskScore: 0.20, conditions: ['Migraine'], lastVisit: '2024-07-01' },
-];
+import { mockPatients } from '@/lib/mock-data'; // Import mock data
+import type { Patient } from '@/types'; // Import Patient type
 
 const getRiskScoreColor = (score: number): string => {
   if (score >= 0.7) return 'bg-red-500'; // High risk
@@ -51,14 +37,14 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {mockPatients.map((patient) => (
-            <Card key={patient.id} className={`shadow-lg hover:shadow-xl transition-shadow duration-300 border-l-4 ${getRiskScoreBorderColor(patient.riskScore)}`}>
+          {mockPatients.map((patient: Patient) => (
+            <Card key={patient.id} className={`shadow-lg hover:shadow-xl transition-shadow duration-300 border-l-4 ${getRiskScoreBorderColor(patient.riskScore)} flex flex-col`}>
               <CardHeader className="flex flex-row items-center space-x-4 pb-2">
-                <Image 
-                  src={patient.avatarUrl} 
-                  alt={patient.name} 
-                  width={60} 
-                  height={60} 
+                <Image
+                  src={patient.avatarUrl}
+                  alt={patient.name}
+                  width={60}
+                  height={60}
                   className="rounded-full"
                   data-ai-hint={patient.dataAiHint}
                 />
@@ -67,7 +53,7 @@ export default function DashboardPage() {
                   <CardDescription className="text-xs text-muted-foreground">Last Visit: {patient.lastVisit}</CardDescription>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-grow">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center">
                     <AlertTriangle className={`h-5 w-5 mr-1 ${getRiskScoreColor(patient.riskScore).replace('bg-', 'text-')}`} />
@@ -77,7 +63,7 @@ export default function DashboardPage() {
                     {(patient.riskScore * 100).toFixed(0)}%
                   </Badge>
                 </div>
-                
+
                 <div className="space-y-1">
                   <h4 className="text-sm font-medium text-foreground mb-1">Key Conditions:</h4>
                   <div className="flex flex-wrap gap-1">
@@ -88,10 +74,14 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="w-full mt-4 text-primary border-primary hover:bg-primary/10">
-                  View Details
-                </Button>
               </CardContent>
+              <div className="p-6 pt-0 mt-auto">
+                <Button variant="outline" size="sm" className="w-full text-primary border-primary hover:bg-primary/10" asChild>
+                  <Link href={`/dashboard/patient/${patient.id}`}>
+                    View Details
+                  </Link>
+                </Button>
+              </div>
             </Card>
           ))}
         </div>
