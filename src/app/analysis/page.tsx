@@ -30,10 +30,10 @@ const SoapSection: React.FC<{ title: string; content?: string }> = ({ title, con
 
 const ParsedSoapNotesDisplay: React.FC<{ notes: string }> = ({ notes }) => {
   const sections = useMemo(() => {
-    const s = notes.match(/S:([\s\S]*?)(O:|A:|P:|$)/i)?.[1] || '';
-    const o = notes.match(/O:([\s\S]*?)(A:|P:|$)/i)?.[1] || '';
-    const a = notes.match(/A:([\s\S]*?)(P:|$)/i)?.[1] || '';
-    const p = notes.match(/P:([\s\S]*?)$/i)?.[1] || '';
+    const s = notes?.match(/S:([\s\S]*?)(O:|A:|P:|$)/i)?.[1] || '';
+    const o = notes?.match(/O:([\s\S]*?)(A:|P:|$)/i)?.[1] || '';
+    const a = notes?.match(/A:([\s\S]*?)(P:|$)/i)?.[1] || '';
+    const p = notes?.match(/P:([\s\S]*?)$/i)?.[1] || '';
     return { s, o, a, p };
   }, [notes]);
 
@@ -59,6 +59,21 @@ export default function AnalysisPage() {
 
   const [isSimilarCasesOpen, setIsSimilarCasesOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  const riskScoreExplanation = useMemo(() => {
+    if (!currentCaseDisplayData) return "Risk score based on provided data.";
+    let factors = [];
+    if ('id' in currentCaseDisplayData && 'conditions' in currentCaseDisplayData) { // Patient
+        const patient = currentCaseDisplayData as Patient;
+        if (patient.conditions.length > 0) factors.push(`conditions like ${patient.conditions.slice(0,2).join(', ')}`);
+        if (patient.primaryComplaint) factors.push(`primary complaint: "${patient.primaryComplaint}"`);
+    } else if (currentCaseDisplayData) { // NewCaseFormValues (check if it's not null/undefined)
+        const form = currentCaseDisplayData as NewCaseFormValues;
+        if (form.primaryComplaint) factors.push(`primary complaint: "${form.primaryComplaint}"`);
+        if (form.previousConditions) factors.push(`previous conditions: "${form.previousConditions}"`);
+    }
+    return factors.length > 0 ? `Influenced by ${factors.join(' and ')}.` : "Based on overall clinical picture.";
+  }, [currentCaseDisplayData]);
 
   useEffect(() => {
     if (typeof analysisResult !== 'undefined' && typeof currentCaseDisplayData !== 'undefined') {
@@ -122,7 +137,7 @@ export default function AnalysisPage() {
     if (!currentCaseDisplayData) return null;
     let vitals: Partial<Patient['vitals'] | NewCaseFormValues> = {};
 
-    if ('id' in currentCaseDisplayData) { // Patient
+    if ('id' in currentCaseDisplayData && 'vitals' in currentCaseDisplayData) { // Patient
         vitals = (currentCaseDisplayData as Patient).vitals;
     } else { // NewCaseFormValues
         const formVitals = currentCaseDisplayData as NewCaseFormValues;
@@ -177,21 +192,6 @@ export default function AnalysisPage() {
     );
   }
   
-  const riskScoreExplanation = useMemo(() => {
-    if (!currentCaseDisplayData) return "Risk score based on provided data.";
-    let factors = [];
-    if ('id' in currentCaseDisplayData) { // Patient
-        const patient = currentCaseDisplayData as Patient;
-        if (patient.conditions.length > 0) factors.push(`conditions like ${patient.conditions.slice(0,2).join(', ')}`);
-        if (patient.primaryComplaint) factors.push(`primary complaint: "${patient.primaryComplaint}"`);
-    } else { // NewCaseFormValues
-        const form = currentCaseDisplayData as NewCaseFormValues;
-        if (form.primaryComplaint) factors.push(`primary complaint: "${form.primaryComplaint}"`);
-        if (form.previousConditions) factors.push(`previous conditions: "${form.previousConditions}"`);
-    }
-    return factors.length > 0 ? `Influenced by ${factors.join(' and ')}.` : "Based on overall clinical picture.";
-  }, [currentCaseDisplayData]);
-
 
   return (
     <MainLayout>
