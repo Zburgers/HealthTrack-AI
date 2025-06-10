@@ -73,6 +73,13 @@ const cardAnimationProps = (delay: number = 0) => ({
   transition: { duration: 0.5, delay }
 });
 
+const getRiskScoreBorderColor = (score: number): string => {
+  const normalizedScore = (score >= 0 && score <= 1) ? Math.round(score * 100) : Math.round(score);
+  if (normalizedScore >= 70) return 'border-red-500';
+  if (normalizedScore >= 40) return 'border-yellow-500';
+  return 'border-green-500';
+};
+
 
 export default function AnalysisPage() {
   const { analysisResult, analysisReturnPath, currentCaseDisplayData, setAnalysisResult: setAppStateContext } = useAppState();
@@ -104,6 +111,13 @@ export default function AnalysisPage() {
       if (analysisResult?.soapNotes) {
         setEditableSoapNotes(analysisResult.soapNotes);
       }
+    } else {
+      // Handle case where context might not be ready yet, or if user lands here directly.
+      // We could redirect to /new-case or /dashboard if essential context is missing after a timeout.
+      // For now, we just ensure isLoadingContext is false if analysisResult is explicitly null (cleared).
+      if(analysisResult === null && currentCaseDisplayData === null) {
+        setIsLoadingContext(false);
+      }
     }
   }, [analysisResult, currentCaseDisplayData]);
 
@@ -111,6 +125,8 @@ export default function AnalysisPage() {
   const handleBackNavigation = () => {
     if (analysisReturnPath) {
       router.push(analysisReturnPath);
+      // Do not clear context here; allows browser back to return to analysis.
+      // Context is cleared when originating from NewCaseForm and navigating back.
     } else {
       setAppStateContext(null, null, null); 
       router.push('/new-case');
@@ -143,7 +159,7 @@ export default function AnalysisPage() {
       age = patient.age;
       gender = patient.gender;
       conditionsOrComplaint = patient.conditions.slice(0,2).join(', ') + (patient.conditions.length > 2 ? '...' : '');
-      visitDate = patient.lastVisit ? parseISO(patient.lastVisit) : undefined; // Use parseISO for string dates
+      visitDate = patient.lastVisit ? parseISO(patient.lastVisit) : undefined; 
       caseId = patient.id;
     } else { 
       const formValues = currentCaseDisplayData as NewCaseFormValues;
@@ -151,7 +167,7 @@ export default function AnalysisPage() {
       age = formValues.age;
       gender = formValues.gender;
       conditionsOrComplaint = formValues.primaryComplaint;
-      visitDate = formValues.visitDate; // Already a Date object from the form
+      visitDate = formValues.visitDate; 
       caseId = "New Case Analysis";
     }
 
@@ -196,9 +212,11 @@ export default function AnalysisPage() {
     const filteredVitals = vitalsData
       .map(vital => {
           let displayValue = String(vital.value || '').trim();
+          // Ensure unit is not duplicated if already present in the value string
           if (vital.unit && displayValue.toLowerCase().endsWith(vital.unit.toLowerCase())) {
               displayValue = displayValue.substring(0, displayValue.length - vital.unit.length).trim();
           }
+           // Specific check for mmHg which sometimes gets duplicated or has varied casing
           if (vital.unit === 'mmHg' && displayValue.toLowerCase().endsWith('mmhg')) {
             displayValue = displayValue.substring(0, displayValue.length - 4).trim();
           }
@@ -224,13 +242,6 @@ export default function AnalysisPage() {
           </Card>
         </motion.div>
     );
-  };
-
-  const getRiskScoreBorderColor = (score: number): string => {
-    const normalizedScore = (score >= 0 && score <= 1) ? Math.round(score * 100) : Math.round(score);
-    if (normalizedScore >= 70) return 'border-red-500';
-    if (normalizedScore >= 40) return 'border-yellow-500';
-    return 'border-green-500';
   };
 
 
@@ -381,3 +392,5 @@ export default function AnalysisPage() {
     </MainLayout>
   );
 }
+
+    
