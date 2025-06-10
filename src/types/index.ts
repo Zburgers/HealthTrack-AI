@@ -2,6 +2,7 @@
 import type { AnalyzePatientSymptomsOutput } from "@/ai/flows/analyze-patient-symptoms";
 import type { LucideProps } from "lucide-react"; // Changed from LucideIcon for better flexibility
 import React from "react"; // Import React for React.ElementType
+import type { NewCaseFormValues } from "@/components/new-case/NewCaseForm";
 
 // Define a map for alert icons to ensure type safety and allow string keys from data
 // This map will be defined where it's used, e.g., in the dashboard component,
@@ -40,11 +41,13 @@ export interface Patient {
 }
 
 export interface AppState {
-  analysisResult: AnalyzePatientSymptomsOutput | null;
-  analysisReturnPath: string | null;
+  analysisResult: AnalyzePatientSymptomsOutput | null | undefined; // undefined during initial load
+  analysisReturnPath: string | null | undefined; // undefined during initial load
+  currentCaseDisplayData: Patient | NewCaseFormValues | null | undefined; // undefined during initial load
   setAnalysisResult: (
-    result: AnalyzePatientSymptomsOutput | null,
-    returnPath?: string | null
+    resultData: AnalyzePatientSymptomsOutput | null,
+    returnPath?: string | null, // Explicitly pass null if it's a new case or to clear it
+    caseDisplayData?: Patient | NewCaseFormValues | null
   ) => void;
 }
 

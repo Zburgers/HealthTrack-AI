@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -19,7 +20,6 @@ export default function SoapNotesEditor({ initialNotes }: SoapNotesEditorProps) 
   }, [initialNotes]);
 
   const handleSave = () => {
-    // In a real app, this would save to a backend.
     console.log('Saving SOAP notes:', notes);
     toast({
       title: 'Notes Saved (Simulated)',
@@ -40,15 +40,15 @@ export default function SoapNotesEditor({ initialNotes }: SoapNotesEditorProps) 
       <Textarea
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
-        placeholder="Enter SOAP notes here..."
-        className="min-h-[300px] md:min-h-[400px] lg:min-h-[calc(100vh-400px)] resize-y text-base leading-relaxed p-4 border rounded-md shadow-sm focus:ring-primary focus:border-primary bg-secondary/30"
+        placeholder="Edit SOAP notes here..."
+        className="min-h-[200px] md:min-h-[250px] resize-y text-base leading-relaxed p-4 border rounded-md shadow-sm focus:ring-primary focus:border-primary bg-background"
       />
       <div className="flex justify-end space-x-3">
         <Button variant="outline" onClick={handleReset} disabled={notes === initialNotes}>
-          <RotateCcw className="mr-2 h-4 w-4" /> Reset
+          <RotateCcw className="mr-2 h-4 w-4" /> Reset Draft
         </Button>
         <Button onClick={handleSave}>
-          <Save className="mr-2 h-4 w-4" /> Save Notes
+          <Save className="mr-2 h-4 w-4" /> ✔ Save Final Note
         </Button>
       </div>
     </div>

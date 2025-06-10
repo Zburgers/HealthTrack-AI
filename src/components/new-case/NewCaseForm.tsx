@@ -68,7 +68,7 @@ export default function NewCaseForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       patientName: '',
-      age: undefined, // Use undefined for number inputs for placeholder to show
+      age: undefined, 
       gender: undefined,
       visitDate: new Date(),
       primaryComplaint: '',
@@ -87,7 +87,6 @@ export default function NewCaseForm() {
   async function onSubmit(values: NewCaseFormValues) {
     setIsSubmitting(true);
 
-    // Prepare patientInformation string for the AI
     let patientInfoString = `Patient: ${values.patientName}, ${values.age} y/o ${values.gender}. Visit Date: ${format(values.visitDate, 'PPP')}.`;
     patientInfoString += `\nPrimary Complaint: ${values.primaryComplaint}.`;
     if (values.previousConditions) {
@@ -100,7 +99,6 @@ export default function NewCaseForm() {
       patientInfoString += `\nCase Type: ${values.caseType}.`;
     }
     
-    // Prepare vitals string for the AI
     const vitalParts: string[] = [];
     if (values.bp) vitalParts.push(`BP ${values.bp} mmHg`);
     if (values.hr) vitalParts.push(`HR ${values.hr} bpm`);
@@ -115,12 +113,10 @@ export default function NewCaseForm() {
       observations: values.observations,
     };
     
-    // Include all form values for potential database saving action
     const fullCaseDataForDb = {
         ...values,
-        visitDate: values.visitDate.toISOString(), // Store as ISO string for DB
+        visitDate: values.visitDate.toISOString(),
     };
-
 
     try {
       const response = await submitNewCase(analysisInput, fullCaseDataForDb);
@@ -130,7 +126,8 @@ export default function NewCaseForm() {
           title: 'Analysis Successful',
           description: 'Patient case analysis complete. Redirecting...',
         });
-        setAnalysisResult(response.data, null); 
+        // For a new case, returnPath is null, caseDisplayData is the form values
+        setAnalysisResult(response.data, null, values); 
         router.push('/analysis');
       } else {
         throw new Error(response.error || 'Analysis failed. Please try again.');
@@ -412,5 +409,3 @@ export default function NewCaseForm() {
     </Form>
   );
 }
-
-    
