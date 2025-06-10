@@ -54,9 +54,6 @@ export default function Header() {
           <Button variant="ghost" asChild>
             <Link href="/new-case"><PlusCircle className="mr-2 h-4 w-4" />New Case</Link>
           </Button>
-           <Button variant="ghost" asChild>
-            <Link href="/analysis"><BarChart3 className="mr-2 h-4 w-4" />Analysis</Link>
-          </Button>
         </nav>
 
         {user && (
@@ -83,9 +80,9 @@ export default function Header() {
                 <LayoutDashboard className="mr-2 h-4 w-4" />
                 <span>Dashboard</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push('/analysis')}>
-                <BarChart3 className="mr-2 h-4 w-4" />
-                <span>Current Analysis</span>
+              <DropdownMenuItem onClick={() => router.push('/new-case')}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                <span>New Case</span>
               </DropdownMenuItem>
               <DropdownMenuItem disabled>
                 <Settings className="mr-2 h-4 w-4" />
