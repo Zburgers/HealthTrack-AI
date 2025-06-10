@@ -8,7 +8,7 @@ import NewCaseForm from '@/components/new-case/NewCaseForm';
 
 export default function NewCasePage() {
   // This page now only renders the NewCaseForm.
-  // The form submission logic will handle navigation to the analysis page.
+  // The form submission logic will handle navigation to the /analysis page.
   return (
     <MainLayout>
       <div className="max-w-3xl mx-auto">

@@ -72,7 +72,7 @@ export default function NewCaseForm() {
         });
         // For a new case, set returnPath to null
         setAnalysisResult(response.data, null); 
-        router.push('/analysis'); // Navigate to the new analysis page
+        router.push('/analysis'); // Navigate to the new unified analysis page
       } else {
         throw new Error(response.error || 'Analysis failed. Please try again.');
       }

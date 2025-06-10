@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -14,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, UserCircle, Settings, LayoutDashboard, PlusCircle, FileText } from 'lucide-react';
+import { LogOut, UserCircle, Settings, LayoutDashboard, PlusCircle, FileText, BarChart3 } from 'lucide-react';
 
 export default function Header() {
   const { user } = useAuth();
@@ -53,9 +54,9 @@ export default function Header() {
           <Button variant="ghost" asChild>
             <Link href="/new-case"><PlusCircle className="mr-2 h-4 w-4" />New Case</Link>
           </Button>
-           {/* <Button variant="ghost" asChild>
-            <Link href="/results"><FileText className="mr-2 h-4 w-4" />Results</Link>
-          </Button> */}
+           <Button variant="ghost" asChild>
+            <Link href="/analysis"><BarChart3 className="mr-2 h-4 w-4" />Analysis</Link>
+          </Button>
         </nav>
 
         {user && (
@@ -81,6 +82,10 @@ export default function Header() {
               <DropdownMenuItem onClick={() => router.push('/dashboard')}>
                 <LayoutDashboard className="mr-2 h-4 w-4" />
                 <span>Dashboard</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/analysis')}>
+                <BarChart3 className="mr-2 h-4 w-4" />
+                <span>Current Analysis</span>
               </DropdownMenuItem>
               <DropdownMenuItem disabled>
                 <Settings className="mr-2 h-4 w-4" />

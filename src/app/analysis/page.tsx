@@ -17,12 +17,14 @@ import { ArrowLeft, Download, ListChecks, FileQuestion, Loader2 } from 'lucide-r
 export default function AnalysisPage() {
   const { analysisResult, analysisReturnPath, setAnalysisResult } = useAppState();
   const router = useRouter();
-  const [isLoadingContext, setIsLoadingContext] = useState(true);
+  const [isLoadingContext, setIsLoadingContext] = useState(true); // To handle initial context load
 
   const [isSimilarCasesOpen, setIsSimilarCasesOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   useEffect(() => {
+    // This effect ensures we don't flash "No Analysis Result Found"
+    // while the context might still be loading from sessionStorage.
     if (typeof analysisResult !== 'undefined') {
       setIsLoadingContext(false);
     }
@@ -39,7 +41,7 @@ export default function AnalysisPage() {
     }
   };
 
-  if (isLoadingContext && analysisResult === null) {
+  if (isLoadingContext && analysisResult === null) { // Check if context is loading and result is not yet available
     return (
       <MainLayout>
         <div className="flex flex-col items-center justify-center text-center py-10">

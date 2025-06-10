@@ -32,8 +32,8 @@ import {
 } from 'lucide-react';
 
 const getRiskScoreColor = (score: number): string => {
-  if (score >= 0.7) return 'text-red-600';
-  if (score >= 0.4) return 'text-yellow-600';
+  if (score >= 70) return 'text-red-600'; // score is now 0-100
+  if (score >= 40) return 'text-yellow-600';
   return 'text-green-600';
 };
 
@@ -70,12 +70,14 @@ export default function PatientDetailPage() {
       </MainLayout>
     );
   }
+  
+  const patientRiskScore = patient.aiAnalysis?.riskScore ?? patient.riskScore;
 
   const handleViewFullAnalysis = () => {
     if (patient.aiAnalysis) {
       // Set the return path to this patient's detail page
       setAnalysisResult(patient.aiAnalysis, `/dashboard/patient/${patient.id}`);
-      router.push('/analysis'); // Navigate to the unified analysis page
+      router.push('/analysis'); // Navigate to the new unified analysis page
     }
   };
 
@@ -109,10 +111,10 @@ export default function PatientDetailPage() {
               </CardDescription>
               <p className="text-sm text-muted-foreground">Last Visit: {patient.lastVisit}</p>
               <div className="flex items-center pt-1">
-                <AlertTriangle className={`h-5 w-5 mr-1.5 ${getRiskScoreColor(patient.riskScore)}`} />
+                <AlertTriangle className={`h-5 w-5 mr-1.5 ${getRiskScoreColor(patientRiskScore)}`} />
                 <span className="text-sm font-medium text-foreground">Risk Score: </span>
-                <span className={`ml-1 font-bold text-lg ${getRiskScoreColor(patient.riskScore)}`}>
-                  {(patient.riskScore * 100).toFixed(0)}% 
+                <span className={`ml-1 font-bold text-lg ${getRiskScoreColor(patientRiskScore)}`}>
+                  {patientRiskScore.toFixed(0)}% 
                 </span>
               </div>
             </div>
