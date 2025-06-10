@@ -1,36 +1,27 @@
-
-// This page is deprecated and will be deleted.
-// Navigation will go to /app/analysis/page.tsx instead.
-
+// This page is deprecated and now redirects to /analysis.
+// It can be deleted once all links are updated to /analysis and it's confirmed no one is using the old /results URL.
 'use client';
 
-import MainLayout from '@/components/layout/MainLayout';
-import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import { FileQuestion, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
+import MainLayout from '@/components/layout/MainLayout';
 
 export default function DeprecatedResultsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Immediately redirect to the new analysis page
-    // Using replace to avoid adding this deprecated page to history
-    router.replace('/analysis'); 
+    // Use replace so the /results page isn't in the browser history after redirect
+    router.replace('/analysis');
   }, [router]);
 
-  // Render a fallback loading/redirecting state
   return (
     <MainLayout>
-      <div className="flex flex-col items-center justify-center text-center py-10">
+      <div className="flex flex-col items-center justify-center text-center py-10 min-h-[calc(100vh-200px)]"> {/* Adjust min-height as needed */}
         <Loader2 className="w-16 h-16 text-primary animate-spin mb-4" />
         <h1 className="font-headline text-2xl font-semibold">Redirecting to Analysis Page...</h1>
-        <p className="text-muted-foreground mt-2">
-          This page is no longer in use. You are being redirected.
-        </p>
-        <p className="text-muted-foreground mt-1">
-          If you are not redirected automatically, please <Link href="/analysis" className="text-primary underline">click here</Link>.
+        <p className="text-muted-foreground">
+          The results page has moved. You are being redirected to /analysis.
         </p>
       </div>
     </MainLayout>
