@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -69,8 +70,8 @@ export default function NewCaseForm() {
           title: 'Analysis Successful',
           description: 'Patient case analysis complete.',
         });
-        setAnalysisResult(response.data); // Store result in global state
-        // Navigation will be handled by parent page NewCasePage which checks for analysisResult
+        // For a new case, explicitly set returnPath to null
+        setAnalysisResult(response.data, null); 
       } else {
         throw new Error(response.error || 'Analysis failed. Please try again.');
       }
