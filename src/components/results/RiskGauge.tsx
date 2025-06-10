@@ -1,3 +1,4 @@
+
 'use client';
 
 import { RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer, Legend } from 'recharts';
@@ -5,11 +6,26 @@ import { CardDescription }
 from '@/components/ui/card';
 
 interface RiskGaugeProps {
-  score: number; // Score from 0 to 1
+  score: number; // Score can be 0-1 (e.g., 0.75) or 0-100 (e.g., 75 for 75%)
 }
 
 const RiskGauge: React.FC<RiskGaugeProps> = ({ score }) => {
-  const percentage = Math.round(score * 100);
+  let percentage: number;
+
+  if (score >= 0 && score <= 1) {
+    // If score is in 0-1 range (e.g., 0.75), multiply by 100
+    percentage = Math.round(score * 100);
+  } else if (score > 1 && score <= 100) {
+    // If score is in 1-100 range (e.g., 75 for 75%), assume it's already a percentage
+    percentage = Math.round(score);
+  } else if (score > 100) {
+    // If score is unexpectedly high (e.g. > 100), cap it at 100%
+    percentage = 100;
+  } else {
+    // Default to 0 for negative, NaN, or other unexpected values
+    percentage = 0;
+  }
+
   let color = 'hsl(var(--chart-1))'; // Default green (or teal primary)
   let riskLevel = 'Low';
 
