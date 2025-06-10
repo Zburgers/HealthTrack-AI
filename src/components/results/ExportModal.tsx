@@ -59,7 +59,7 @@ export default function ExportModal({ isOpen, onOpenChange }: ExportModalProps) 
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md glassmorphism">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-headline text-2xl text-primary">Export Patient Report</DialogTitle>
           <DialogDescription>
