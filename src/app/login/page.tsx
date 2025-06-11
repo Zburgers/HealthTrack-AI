@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 // Simple SVG Icon for Google
 const GoogleIcon = () => (
@@ -62,31 +64,44 @@ export default function LoginPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-secondary p-4">
-      <Card className="w-full max-w-md shadow-xl">
-        <CardHeader className="text-center">
-          <h1 className="font-headline text-3xl font-bold text-primary">HealthTrack AI</h1>
-          <CardDescription className="text-muted-foreground">
-            Sign in to access your clinical dashboard.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <Button
-            onClick={handleGoogleSignIn}
-            disabled={isLoading}
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-base"
-          >
-            {isLoading ? (
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            ) : (
-              <GoogleIcon />
-            )}
-            Sign in with Google
-          </Button>
-          <p className="text-center text-xs text-muted-foreground px-4">
-            By signing in, you agree to our Terms of Service and Privacy Policy.
-          </p>
-        </CardContent>
-      </Card>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Card className="w-full max-w-md shadow-xl">
+          <CardHeader className="text-center">
+            <motion.h1 
+              className="font-headline text-3xl font-bold text-primary"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+            >
+              HealthTrack AI
+            </motion.h1>
+            <CardDescription className="text-muted-foreground">
+              Sign in to access your clinical dashboard.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <Button
+              onClick={handleGoogleSignIn}
+              disabled={isLoading}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-base"
+            >
+              {isLoading ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                <GoogleIcon />
+              )}
+              Sign in with Google
+            </Button>
+            <p className="text-center text-xs text-muted-foreground px-4">
+              By signing in, you agree to our Terms of Service and Privacy Policy.
+            </p>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 }

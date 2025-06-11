@@ -112,9 +112,6 @@ export default function AnalysisPage() {
         setEditableSoapNotes(analysisResult.soapNotes);
       }
     } else {
-      // Handle case where context might not be ready yet, or if user lands here directly.
-      // We could redirect to /new-case or /dashboard if essential context is missing after a timeout.
-      // For now, we just ensure isLoadingContext is false if analysisResult is explicitly null (cleared).
       if(analysisResult === null && currentCaseDisplayData === null) {
         setIsLoadingContext(false);
       }
@@ -125,8 +122,6 @@ export default function AnalysisPage() {
   const handleBackNavigation = () => {
     if (analysisReturnPath) {
       router.push(analysisReturnPath);
-      // Do not clear context here; allows browser back to return to analysis.
-      // Context is cleared when originating from NewCaseForm and navigating back.
     } else {
       setAppStateContext(null, null, null); 
       router.push('/new-case');
@@ -212,11 +207,9 @@ export default function AnalysisPage() {
     const filteredVitals = vitalsData
       .map(vital => {
           let displayValue = String(vital.value || '').trim();
-          // Ensure unit is not duplicated if already present in the value string
           if (vital.unit && displayValue.toLowerCase().endsWith(vital.unit.toLowerCase())) {
               displayValue = displayValue.substring(0, displayValue.length - vital.unit.length).trim();
           }
-           // Specific check for mmHg which sometimes gets duplicated or has varied casing
           if (vital.unit === 'mmHg' && displayValue.toLowerCase().endsWith('mmhg')) {
             displayValue = displayValue.substring(0, displayValue.length - 4).trim();
           }
@@ -288,14 +281,19 @@ export default function AnalysisPage() {
               Back
             </Button>
             <h1 className="font-headline text-3xl font-bold text-primary">Analysis Results</h1>
-            <div className="space-x-2">
+            <motion.div 
+              className="space-x-2"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
               <Button variant="outline" onClick={() => setIsSimilarCasesOpen(true)}>
                 <ListChecks className="mr-2 h-4 w-4" /> Similar Cases
               </Button>
               <Button onClick={() => setIsExportModalOpen(true)}>
                 <Download className="mr-2 h-4 w-4" /> Export Report
               </Button>
-            </div>
+            </motion.div>
           </motion.div>
 
           {getPatientHeaderInfo()}
@@ -392,5 +390,4 @@ export default function AnalysisPage() {
     </MainLayout>
   );
 }
-
     
