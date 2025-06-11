@@ -33,10 +33,11 @@ const SoapSection: React.FC<{ title: string; content?: string }> = ({ title, con
 const ParsedSoapNotesDisplay: React.FC<{ notes?: string }> = ({ notes }) => {
   const sections = useMemo(() => {
     if (!notes) return { s: '', o: '', a: '', p: '' };
-    const s = notes.match(/S:([\s\S]*?)(O:|A:|P:|$)/i)?.[1]?.trim() || '';
-    const o = notes.match(/O:([\s\S]*?)(A:|P:|$)/i)?.[1]?.trim() || '';
-    const a = notes.match(/A:([\s\S]*?)(P:|$)/i)?.[1]?.trim() || '';
-    const p = notes.match(/P:([\s\S]*?)$/i)?.[1]?.trim() || '';
+    // Robust parsing: handle potential null/undefined notes during intermediate renders
+    const s = notes?.match(/S:([\s\S]*?)(O:|A:|P:|$)/i)?.[1]?.trim() || '';
+    const o = notes?.match(/O:([\s\S]*?)(A:|P:|$)/i)?.[1]?.trim() || '';
+    const a = notes?.match(/A:([\s\S]*?)(P:|$)/i)?.[1]?.trim() || '';
+    const p = notes?.match(/P:([\s\S]*?)$/i)?.[1]?.trim() || '';
     return { s, o, a, p };
   }, [notes]);
 
@@ -112,6 +113,9 @@ export default function AnalysisPage() {
         setEditableSoapNotes(analysisResult.soapNotes);
       }
     } else {
+      // If either is undefined but not both explicitly null (which means no data intentionally),
+      // it might still be loading or an error state. For this simplified setup,
+      // we consider it loaded if both are explicitly set to null (e.g., after user navigates away or clears context).
       if(analysisResult === null && currentCaseDisplayData === null) {
         setIsLoadingContext(false);
       }
@@ -123,8 +127,9 @@ export default function AnalysisPage() {
     if (analysisReturnPath) {
       router.push(analysisReturnPath);
     } else {
+      // Clear context if going back to a fresh new case or a generic dashboard
       setAppStateContext(null, null, null); 
-      router.push('/new-case');
+      router.push('/new-case'); // Default back to new case if no specific return path
     }
   };
 
@@ -148,6 +153,7 @@ export default function AnalysisPage() {
     let visitDate: Date | string | undefined;
     let caseId: string | undefined;
 
+    // Check if currentCaseDisplayData has 'id' and 'conditions' properties to determine if it's a Patient object
     if ('id' in currentCaseDisplayData && 'conditions' in currentCaseDisplayData) { 
       const patient = currentCaseDisplayData as Patient;
       name = patient.name;
@@ -156,7 +162,7 @@ export default function AnalysisPage() {
       conditionsOrComplaint = patient.conditions.slice(0,2).join(', ') + (patient.conditions.length > 2 ? '...' : '');
       visitDate = patient.lastVisit ? parseISO(patient.lastVisit) : undefined; 
       caseId = patient.id;
-    } else { 
+    } else { // Assume it's NewCaseFormValues
       const formValues = currentCaseDisplayData as NewCaseFormValues;
       name = formValues.patientName;
       age = formValues.age;
@@ -167,14 +173,17 @@ export default function AnalysisPage() {
     }
 
     return (
-      <motion.div {...cardAnimationProps(0)} className="mb-6 p-4 border border-border rounded-lg bg-card shadow-sm">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-          {name && <div className="flex items-center"><User className="w-4 h-4 mr-1.5 text-primary" /> <strong className="text-foreground mr-1">{name}</strong> ({age}{gender?.charAt(0).toUpperCase()})</div>}
+      <motion.div 
+        {...cardAnimationProps(0)} 
+        className="mb-6 p-4 border border-primary/30 rounded-lg bg-secondary shadow-lg"
+      >
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-secondary-foreground">
+          {name && <div className="flex items-center"><User className="w-4 h-4 mr-1.5 text-primary" /> <strong className="text-primary mr-1">{name}</strong> ({age}{gender?.charAt(0).toUpperCase()})</div>}
           {visitDate && <div className="flex items-center"><CalendarDays className="w-4 h-4 mr-1.5 text-primary" /> Visited: {format(new Date(visitDate), "MMM dd, yyyy")}</div>}
         </div>
-        {conditionsOrComplaint && <div className="mt-1.5 flex items-center text-sm text-muted-foreground"><Tag className="w-4 h-4 mr-1.5 text-primary" /> {conditionsOrComplaint}</div>}
-        {caseId && !caseId.startsWith("New") && <div className="mt-1.5 flex items-center text-xs text-muted-foreground"><Fingerprint className="w-3 h-3 mr-1.5 text-primary" /> Case ID: {caseId}</div>}
-        <p className="text-xs text-muted-foreground mt-1">Analysis Generated: {format(new Date(), "MMM dd, yyyy, p")}</p>
+        {conditionsOrComplaint && <div className="mt-1.5 flex items-center text-sm text-secondary-foreground"><Tag className="w-4 h-4 mr-1.5 text-primary" /> {conditionsOrComplaint}</div>}
+        {caseId && !caseId.startsWith("New") && <div className="mt-1.5 flex items-center text-xs text-secondary-foreground/80"><Fingerprint className="w-3 h-3 mr-1.5 text-primary" /> Case ID: {caseId}</div>}
+        <p className="text-xs text-secondary-foreground/80 mt-1">Analysis Generated: {format(new Date(), "MMM dd, yyyy, p")}</p>
       </motion.div>
     );
   };
@@ -184,6 +193,7 @@ export default function AnalysisPage() {
     
     let vitalsData: Array<{label: string; value?: string; unit: string}> = [];
 
+    // Check if currentCaseDisplayData is a Patient object
     if ('id' in currentCaseDisplayData && 'vitals' in currentCaseDisplayData) { 
         const patientVitals = (currentCaseDisplayData as Patient).vitals;
         vitalsData = [
@@ -193,7 +203,7 @@ export default function AnalysisPage() {
             { label: 'Temp', value: patientVitals.temp, unit: '°C' },
             { label: 'SpO₂', value: patientVitals.spo2, unit: '%' },
         ];
-    } else { 
+    } else { // Assume it's NewCaseFormValues
         const formVitals = currentCaseDisplayData as NewCaseFormValues;
          vitalsData = [
             { label: 'BP', value: formVitals.bp, unit: 'mmHg' },
@@ -206,16 +216,20 @@ export default function AnalysisPage() {
     
     const filteredVitals = vitalsData
       .map(vital => {
+          // Ensure value is treated as a string for trimming and unit checks
           let displayValue = String(vital.value || '').trim();
+          // More robust unit stripping: handle cases where unit might be part of the value or already stripped
           if (vital.unit && displayValue.toLowerCase().endsWith(vital.unit.toLowerCase())) {
+              // Strip the unit if it's appended to the value
               displayValue = displayValue.substring(0, displayValue.length - vital.unit.length).trim();
           }
+          // Special handling for mmHg if it's a common pattern
           if (vital.unit === 'mmHg' && displayValue.toLowerCase().endsWith('mmhg')) {
             displayValue = displayValue.substring(0, displayValue.length - 4).trim();
           }
           return { ...vital, value: displayValue };
       })
-      .filter(vital => vital.value && vital.value !== '');
+      .filter(vital => vital.value && vital.value !== ''); // Filter out vitals with no value after processing
 
     if (filteredVitals.length === 0) return null;
 
