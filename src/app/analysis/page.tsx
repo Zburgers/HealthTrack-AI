@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import RiskGauge from '@/components/results/RiskGauge';
 import SoapNotesEditor from '@/components/results/SoapNotesEditor';
 import SimilarCasesPanel from '@/components/results/SimilarCasesPanel';
@@ -14,7 +15,7 @@ import ExportModal from '@/components/results/ExportModal';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Download, ListChecks, FileQuestion, Loader2, InfoIcon, User, CalendarDays, Tag, Fingerprint, HeartPulse, ClipboardList } from 'lucide-react';
+import { ArrowLeft, Download, ListChecks, FileQuestion, Loader2, InfoIcon, User, CalendarDays, Tag, Fingerprint, HeartPulse, ClipboardList, AlertTriangle as AlertTriangleIcon } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { Patient, NewCaseFormValues } from '@/types';
 import { cn } from '@/lib/utils';
@@ -33,7 +34,6 @@ const SoapSection: React.FC<{ title: string; content?: string }> = ({ title, con
 const ParsedSoapNotesDisplay: React.FC<{ notes?: string }> = ({ notes }) => {
   const sections = useMemo(() => {
     if (!notes) return { s: '', o: '', a: '', p: '' };
-    // Robust parsing: handle potential null/undefined notes during intermediate renders
     const s = notes?.match(/S:([\s\S]*?)(O:|A:|P:|$)/i)?.[1]?.trim() || '';
     const o = notes?.match(/O:([\s\S]*?)(A:|P:|$)/i)?.[1]?.trim() || '';
     const a = notes?.match(/A:([\s\S]*?)(P:|$)/i)?.[1]?.trim() || '';
@@ -113,9 +113,6 @@ export default function AnalysisPage() {
         setEditableSoapNotes(analysisResult.soapNotes);
       }
     } else {
-      // If either is undefined but not both explicitly null (which means no data intentionally),
-      // it might still be loading or an error state. For this simplified setup,
-      // we consider it loaded if both are explicitly set to null (e.g., after user navigates away or clears context).
       if(analysisResult === null && currentCaseDisplayData === null) {
         setIsLoadingContext(false);
       }
@@ -127,9 +124,8 @@ export default function AnalysisPage() {
     if (analysisReturnPath) {
       router.push(analysisReturnPath);
     } else {
-      // Clear context if going back to a fresh new case or a generic dashboard
       setAppStateContext(null, null, null); 
-      router.push('/new-case'); // Default back to new case if no specific return path
+      router.push('/new-case'); 
     }
   };
 
@@ -153,7 +149,6 @@ export default function AnalysisPage() {
     let visitDate: Date | string | undefined;
     let caseId: string | undefined;
 
-    // Check if currentCaseDisplayData has 'id' and 'conditions' properties to determine if it's a Patient object
     if ('id' in currentCaseDisplayData && 'conditions' in currentCaseDisplayData) { 
       const patient = currentCaseDisplayData as Patient;
       name = patient.name;
@@ -162,7 +157,7 @@ export default function AnalysisPage() {
       conditionsOrComplaint = patient.conditions.slice(0,2).join(', ') + (patient.conditions.length > 2 ? '...' : '');
       visitDate = patient.lastVisit ? parseISO(patient.lastVisit) : undefined; 
       caseId = patient.id;
-    } else { // Assume it's NewCaseFormValues
+    } else { 
       const formValues = currentCaseDisplayData as NewCaseFormValues;
       name = formValues.patientName;
       age = formValues.age;
@@ -193,7 +188,6 @@ export default function AnalysisPage() {
     
     let vitalsData: Array<{label: string; value?: string; unit: string}> = [];
 
-    // Check if currentCaseDisplayData is a Patient object
     if ('id' in currentCaseDisplayData && 'vitals' in currentCaseDisplayData) { 
         const patientVitals = (currentCaseDisplayData as Patient).vitals;
         vitalsData = [
@@ -203,7 +197,7 @@ export default function AnalysisPage() {
             { label: 'Temp', value: patientVitals.temp, unit: '°C' },
             { label: 'SpO₂', value: patientVitals.spo2, unit: '%' },
         ];
-    } else { // Assume it's NewCaseFormValues
+    } else { 
         const formVitals = currentCaseDisplayData as NewCaseFormValues;
          vitalsData = [
             { label: 'BP', value: formVitals.bp, unit: 'mmHg' },
@@ -216,20 +210,16 @@ export default function AnalysisPage() {
     
     const filteredVitals = vitalsData
       .map(vital => {
-          // Ensure value is treated as a string for trimming and unit checks
           let displayValue = String(vital.value || '').trim();
-          // More robust unit stripping: handle cases where unit might be part of the value or already stripped
           if (vital.unit && displayValue.toLowerCase().endsWith(vital.unit.toLowerCase())) {
-              // Strip the unit if it's appended to the value
               displayValue = displayValue.substring(0, displayValue.length - vital.unit.length).trim();
           }
-          // Special handling for mmHg if it's a common pattern
           if (vital.unit === 'mmHg' && displayValue.toLowerCase().endsWith('mmhg')) {
             displayValue = displayValue.substring(0, displayValue.length - 4).trim();
           }
           return { ...vital, value: displayValue };
       })
-      .filter(vital => vital.value && vital.value !== ''); // Filter out vitals with no value after processing
+      .filter(vital => vital.value && vital.value !== ''); 
 
     if (filteredVitals.length === 0) return null;
 
@@ -242,7 +232,7 @@ export default function AnalysisPage() {
               <CardContent>
                   <ul className="space-y-1.5 text-sm">
                       {filteredVitals.map(vital => (
-                           <li key={vital.label}><strong>{vital.label}:</strong> {vital.value} {vital.unit}</li>
+                           <li key={vital.label} className="text-foreground"><strong>{vital.label}:</strong> {vital.value} {vital.unit}</li>
                       ))}
                   </ul>
               </CardContent>
@@ -396,6 +386,19 @@ export default function AnalysisPage() {
               </Card>
             </motion.div>
           </div>
+          
+          <motion.div {...cardAnimationProps(0.5)}>
+            <Alert variant="default" className="mt-8 border-primary/30 bg-secondary/20">
+              <AlertTriangleIcon className="h-5 w-5 text-primary" />
+              <AlertTitle className="font-semibold text-primary">AI-Generated Analysis Disclaimer</AlertTitle>
+              <AlertDescription className="text-foreground/80 text-sm">
+                The information provided on this page, including risk scores, ICD-10 codes, and SOAP notes, is generated by an artificial intelligence model. 
+                It is intended for informational and reference purposes only and should not be considered a substitute for professional medical advice, diagnosis, or treatment. 
+                Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition. 
+                Clinical judgment must always be exercised when interpreting these results. HealthTrack AI and its creators are not liable for any decisions made based on this AI-generated information.
+              </AlertDescription>
+            </Alert>
+          </motion.div>
 
           <SimilarCasesPanel isOpen={isSimilarCasesOpen} onOpenChange={setIsSimilarCasesOpen} />
           <ExportModal isOpen={isExportModalOpen} onOpenChange={setIsExportModalOpen} />
@@ -404,4 +407,3 @@ export default function AnalysisPage() {
     </MainLayout>
   );
 }
-    

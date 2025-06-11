@@ -182,7 +182,7 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                 <div className="lg:col-span-1">
                   <label htmlFor="search" className="block text-sm font-medium text-foreground mb-1">
-                    <Search className="inline mr-1 h-4 w-4" /> Search Patients
+                    <Search className="inline mr-1 h-4 w-4 text-primary" /> Search Patients
                   </label>
                   <Input
                     id="search"
@@ -195,7 +195,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="lg:col-span-2 flex items-center text-sm font-medium text-foreground mb-1 md:mb-0 md:mt-6">
-                  <Filter className="inline mr-2 h-4 w-4" /> Filters & Sort
+                  <Filter className="inline mr-2 h-4 w-4 text-primary" /> Filters & Sort
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-4 items-end">
@@ -264,7 +264,7 @@ export default function DashboardPage() {
                     {...cardAnimationProps(index * 0.05)} // Stagger animation
                     whileHover={{ scale: 1.03, transition: { duration: 0.2 } }}
                   >
-                    <Card className={`shadow-lg hover:shadow-xl transition-shadow duration-300 border-l-4 ${getRiskScoreBorderColor(patient.riskScore)} flex flex-col h-full`}>
+                    <Card className={`shadow-lg hover:shadow-xl transition-shadow duration-300 border-l-4 ${getRiskScoreBorderColor(patient.riskScore)} flex flex-col h-full bg-card`}>
                       <CardHeader className="flex flex-row items-start space-x-4 pb-2">
                         <Image
                           src={patient.avatarUrl}
@@ -333,17 +333,17 @@ export default function DashboardPage() {
             </div>
           ) : (
              <motion.div {...cardAnimationProps(0.2)}>
-              <Card className="col-span-full">
+              <Card className="col-span-full bg-card">
                 <CardContent className="p-10 text-center">
                   <User className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">No Patients Found</h3>
+                  <h3 className="text-xl font-semibold mb-2 text-foreground">No Patients Found</h3>
                   <p className="text-muted-foreground mb-4">
                     {searchTerm || filters.risk !== 'all' || filters.condition !== 'all' || filters.age !== 'all' || filters.gender !== 'all'
                       ? "Try adjusting your search or filter criteria."
                       : "Start by adding a new case to see patient information here."}
                   </p>
                   {!(searchTerm || filters.risk !== 'all' || filters.condition !== 'all' || filters.age !== 'all' || filters.gender !== 'all') && (
-                    <Button asChild>
+                    <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
                       <Link href="/new-case">
                         <PlusCircle className="mr-2 h-4 w-4" /> Add New Case
                       </Link>

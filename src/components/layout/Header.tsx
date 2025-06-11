@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, UserCircle, Settings, LayoutDashboard, PlusCircle, FileText, BarChart3 } from 'lucide-react';
+import { LogOut, UserCircle, Settings, LayoutDashboard, PlusCircle, FileText } from 'lucide-react';
 
 export default function Header() {
   const { user } = useAuth();
@@ -32,7 +32,7 @@ export default function Header() {
     if (names.length > 1) {
       return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
     }
-    return names[0][0].toUpperCase();
+    return names[0]?.toUpperCase() || 'U';
   };
 
   return (
@@ -69,7 +69,7 @@ export default function Header() {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{user.displayName || 'User'}</p>
+                  <p className="text-sm font-medium leading-none text-foreground">{user.displayName || 'User'}</p>
                   <p className="text-xs leading-none text-muted-foreground">
                     {user.email}
                   </p>
@@ -84,7 +84,7 @@ export default function Header() {
                 <PlusCircle className="mr-2 h-4 w-4" />
                 <span>New Case</span>
               </DropdownMenuItem>
-              <DropdownMenuItem disabled>
+              <DropdownMenuItem onClick={() => router.push('/settings')}>
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
               </DropdownMenuItem>
