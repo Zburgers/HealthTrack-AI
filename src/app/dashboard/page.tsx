@@ -178,10 +178,10 @@ export default function DashboardPage() {
           </motion.div>
 
           <motion.div {...cardAnimationProps(0.1)}>
-            <Card className="shadow-md p-4 md:p-6 bg-card">
+            <Card className="shadow-lg p-4 md:p-6 bg-secondary">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                 <div className="lg:col-span-1">
-                  <label htmlFor="search" className="block text-sm font-medium text-foreground mb-1">
+                  <label htmlFor="search" className="block text-sm font-medium text-secondary-foreground mb-1">
                     <Search className="inline mr-1 h-4 w-4 text-primary" /> Search Patients
                   </label>
                   <Input
@@ -194,14 +194,14 @@ export default function DashboardPage() {
                   />
                 </div>
 
-                <div className="lg:col-span-2 flex items-center text-sm font-medium text-foreground mb-1 md:mb-0 md:mt-6">
+                <div className="lg:col-span-2 flex items-center text-sm font-medium text-secondary-foreground mb-1 md:mb-0 md:mt-6">
                   <Filter className="inline mr-2 h-4 w-4 text-primary" /> Filters & Sort
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-4 items-end">
 
                 <div>
-                  <label htmlFor="filter-risk" className="block text-xs font-medium text-muted-foreground mb-1">Risk Score</label>
+                  <label htmlFor="filter-risk" className="block text-xs font-medium text-secondary-foreground mb-1">Risk Score</label>
                   <Select value={filters.risk} onValueChange={(value) => handleFilterChange('risk', value)}>
                     <SelectTrigger id="filter-risk"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -211,7 +211,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="filter-condition" className="block text-xs font-medium text-muted-foreground mb-1">Condition</label>
+                  <label htmlFor="filter-condition" className="block text-xs font-medium text-secondary-foreground mb-1">Condition</label>
                   <Select value={filters.condition} onValueChange={(value) => handleFilterChange('condition', value)}>
                     <SelectTrigger id="filter-condition"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -221,7 +221,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="filter-age" className="block text-xs font-medium text-muted-foreground mb-1">Age</label>
+                  <label htmlFor="filter-age" className="block text-xs font-medium text-secondary-foreground mb-1">Age</label>
                   <Select value={filters.age} onValueChange={(value) => handleFilterChange('age', value)}>
                     <SelectTrigger id="filter-age"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -231,7 +231,7 @@ export default function DashboardPage() {
                 </div>
                 
                 <div>
-                  <label htmlFor="filter-gender" className="block text-xs font-medium text-muted-foreground mb-1">Gender</label>
+                  <label htmlFor="filter-gender" className="block text-xs font-medium text-secondary-foreground mb-1">Gender</label>
                   <Select value={filters.gender} onValueChange={(value) => handleFilterChange('gender', value)}>
                     <SelectTrigger id="filter-gender"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -241,7 +241,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="sort-by" className="block text-xs font-medium text-muted-foreground mb-1">Sort By</label>
+                  <label htmlFor="sort-by" className="block text-xs font-medium text-secondary-foreground mb-1">Sort By</label>
                   <Select value={sortBy} onValueChange={setSortBy}>
                     <SelectTrigger id="sort-by"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -358,3 +358,4 @@ export default function DashboardPage() {
     </MainLayout>
   );
 }
+
