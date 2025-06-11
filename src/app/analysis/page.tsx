@@ -346,17 +346,23 @@ export default function AnalysisPage() {
                     {analysisResult.icd10Tags.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
                         {analysisResult.icd10Tags.map((tag, index) => (
-                          <Badge 
-                            key={index} 
-                            variant="outline" 
-                            className={cn(
-                              "text-sm px-3 py-1.5 border-2 rounded-full cursor-pointer transition-all duration-150 ease-in-out hover:shadow-md hover:scale-105",
-                              getIcdColorClass(index)
-                            )}
-                            onClick={() => { /* Logic for modal from patient detail page if needed */}}
-                          >
-                            {tag}
-                          </Badge>
+                          <Tooltip key={index} delayDuration={150}>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "text-sm px-3 py-1.5 border-2 rounded-full cursor-pointer transition-all duration-150 ease-in-out hover:shadow-md hover:scale-105",
+                                  getIcdColorClass(index)
+                                )}
+                              >
+                                {tag.code}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs text-sm p-3 bg-popover text-popover-foreground shadow-lg rounded-md border">
+                              <p className="font-semibold text-primary mb-1">{tag.code}</p>
+                              <p>{tag.description}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         ))}
                       </div>
                     ) : (

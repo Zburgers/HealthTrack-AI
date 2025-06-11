@@ -1,17 +1,25 @@
 
-import type { AnalyzePatientSymptomsOutput } from "@/ai/flows/analyze-patient-symptoms";
-import type { LucideProps } from "lucide-react"; // Changed from LucideIcon for better flexibility
-import React from "react"; // Import React for React.ElementType
+import type { LucideProps } from "lucide-react";
+import React from "react";
 import type { NewCaseFormValues } from "@/components/new-case/NewCaseForm";
 
-// Define a map for alert icons to ensure type safety and allow string keys from data
-// This map will be defined where it's used, e.g., in the dashboard component,
-// or you can pre-define it here if all icons are known upfront.
-// For now, we'll just use a string for iconName and map it in the component.
+// This is the new structure for ICD-10 tags, including a description.
+export interface ICD10Code {
+  code: string;
+  description: string;
+}
+
+// Updated AI Analysis Output structure
+export interface AIAnalysisOutput {
+  icd10Tags: ICD10Code[];
+  riskScore: number;
+  soapNotes: string;
+}
+
 export interface PatientAlert {
-  iconName: string; // e.g., 'ShieldAlert', 'CalendarClock', 'Bed'
+  iconName: string;
   label: string;
-  colorClass: string; // e.g., 'text-red-500', 'text-blue-500'
+  colorClass: string;
   tooltip: string;
 }
 
@@ -20,11 +28,11 @@ export interface Patient {
   name: string;
   avatarUrl: string;
   dataAiHint: string;
-  riskScore: number; // 0-1 (e.g. 0.75 for 75%) or 0-100 (e.g. 75 for 75%)
+  riskScore: number;
   conditions: string[];
-  lastVisit: string; // Should be in YYYY-MM-DD format for easier sorting
+  lastVisit: string;
 
-  age: number; // Ensure this is a number
+  age: number;
   gender: 'Male' | 'Female' | 'Other' | string;
   primaryComplaint: string;
   vitals: {
@@ -36,17 +44,17 @@ export interface Patient {
     [key: string]: string | undefined;
   };
   doctorsObservations: string;
-  aiAnalysis: AnalyzePatientSymptomsOutput;
-  alert?: PatientAlert; // Optional alert field
+  aiAnalysis: AIAnalysisOutput; // Use the updated analysis output type
+  alert?: PatientAlert;
 }
 
 export interface AppState {
-  analysisResult: AnalyzePatientSymptomsOutput | null | undefined; // undefined during initial load
-  analysisReturnPath: string | null | undefined; // undefined during initial load
-  currentCaseDisplayData: Patient | NewCaseFormValues | null | undefined; // undefined during initial load
+  analysisResult: AIAnalysisOutput | null | undefined;
+  analysisReturnPath: string | null | undefined;
+  currentCaseDisplayData: Patient | NewCaseFormValues | null | undefined;
   setAnalysisResult: (
-    resultData: AnalyzePatientSymptomsOutput | null,
-    returnPath?: string | null, // Explicitly pass null if it's a new case or to clear it
+    resultData: AIAnalysisOutput | null,
+    returnPath?: string | null,
     caseDisplayData?: Patient | NewCaseFormValues | null
   ) => void;
 }
@@ -54,5 +62,8 @@ export interface AppState {
 export interface VitalDisplayInfo {
   key: keyof Patient['vitals'];
   label: string;
-  icon: React.ElementType<LucideProps>; // Use React.ElementType for Lucide icons
+  icon: React.ElementType<LucideProps>;
 }
+
+// Export NewCaseFormValues to be used in other parts of the application
+export type { NewCaseFormValues };

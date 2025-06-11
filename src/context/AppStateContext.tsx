@@ -2,14 +2,13 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import type { AppState, Patient } from '@/types';
-import type { AnalyzePatientSymptomsOutput } from '@/ai/flows/analyze-patient-symptoms';
+import type { AppState, Patient, AIAnalysisOutput } from '@/types';
 import type { NewCaseFormValues } from '@/components/new-case/NewCaseForm';
 
 const AppStateContext = createContext<AppState | undefined>(undefined);
 
 export const AppStateProvider = ({ children }: { children: ReactNode }) => {
-  const [analysisResult, setAnalysisResultState] = useState<AnalyzePatientSymptomsOutput | null | undefined>(undefined);
+  const [analysisResult, setAnalysisResultState] = useState<AIAnalysisOutput | null | undefined>(undefined);
   const [analysisReturnPath, setAnalysisReturnPathState] = useState<string | null | undefined>(undefined);
   const [currentCaseDisplayData, setCurrentCaseDisplayDataState] = useState<Patient | NewCaseFormValues | null | undefined>(undefined);
 
@@ -44,7 +43,7 @@ export const AppStateProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const setAnalysisResult = (
-    resultData: AnalyzePatientSymptomsOutput | null,
+    resultData: AIAnalysisOutput | null,
     returnPathForThisResult?: string | null,
     caseDisplayData?: Patient | NewCaseFormValues | null
   ) => {

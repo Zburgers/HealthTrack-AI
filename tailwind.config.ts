@@ -18,18 +18,18 @@ export default {
     extend: {
       fontFamily: {
         body: ['Inter', 'sans-serif'],
-        headline: ['Manrope', 'sans-serif'],
+        headline: ['Poppins', 'sans-serif'],
         code: ['monospace', 'monospace'],
       },
       colors: {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
-        background: 'hsl(var(--background))',
-        foreground: 'hsl(var(--foreground))',
+        background: '#F9F9F9',
+        foreground: '#333333',
         primary: {
-          DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))',
+          DEFAULT: '#008080',
+          foreground: '#FFFFFF',
         },
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',
@@ -44,7 +44,7 @@ export default {
           foreground: 'hsl(var(--muted-foreground))',
         },
         accent: {
-          DEFAULT: 'hsl(var(--accent))',
+          DEFAULT: '#FF6B6B',
           foreground: 'hsl(var(--accent-foreground))',
         },
         popover: {
@@ -62,6 +62,33 @@ export default {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))',
         },
+        teal: {
+          DEFAULT: '#008080',
+          '600': '#008080',
+          '700': '#006666',
+          '100': '#E0F2F2',
+           '50': '#F0FAFA'
+        },
+        coral: {
+          DEFAULT: '#FF6B6B',
+        },
+        gold: {
+          DEFAULT: '#FFD93D',
+        },
+        'off-white': {
+          DEFAULT: '#F9F9F9'
+        },
+        charcoal: {
+          DEFAULT: '#333333'
+        },
+         gray: {
+          '50': '#F9F9F9',
+          '100': '#F0F0F0',
+          '600': '#666666',
+          '700': '#444444',
+          '800': '#333333',
+          '900': '#1A1A1A'
+        }
       },
       borderRadius: {
         lg: 'var(--radius)',

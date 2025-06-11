@@ -53,10 +53,10 @@ export default function SoapNotesEditor({ currentNotes, onNotesChange, onResetNo
           // Disabled if currentNotes is the same as what it would be reset to (implicitly managed by parent)
           // Or simply enable if onResetNotes is provided. The parent should handle initial state comparison if needed.
         >
-          <RotateCcw className="mr-2 h-4 w-4" /> 🔄 Reset Draft
+          <RotateCcw className="mr-2 h-4 w-4" /> Reset Draft
         </Button>
         <Button onClick={handleSave}>
-          <Save className="mr-2 h-4 w-4" /> ✔ Save Final Note
+          <Save className="mr-2 h-4 w-4" /> Save Final Note
         </Button>
       </div>
     </div>
