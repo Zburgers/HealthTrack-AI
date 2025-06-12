@@ -3,7 +3,13 @@ import React from 'react';
 import { Bot, ArrowRight, TrendingUp, Zap, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const FeatureCard = ({ icon, title, description, color }) => (
+// Added explicit types for the FeatureCard props to fix the TypeScript error.
+const FeatureCard: React.FC<{
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  color: string;
+}> = ({ icon, title, description, color }) => (
   <motion.div 
     className="p-6 rounded-2xl bg-white/50 backdrop-blur-sm shadow-lg border border-white/60"
     whileHover={{ y: -5, boxShadow: "0px 15px 30px -10px rgba(0,0,0,0.1)" }}
@@ -161,6 +167,7 @@ export default function LandingPageV2() {
             <motion.div variants={itemVariants}>
               <ShieldCheck className="mx-auto h-16 w-16 text-blue-500 bg-blue-100 p-3 rounded-full"/>
             </motion.div>
+            {/* Fixed the syntax error here: removed space from closing tag </h2> */}
             <motion.h2 className="text-4xl font-bold text-blue-900 mt-6" variants={itemVariants}>
               Secure. Private. Compliant.
             </motion.h2>

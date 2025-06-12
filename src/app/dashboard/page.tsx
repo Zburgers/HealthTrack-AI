@@ -12,9 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { motion } from 'framer-motion';
-import { mockPatients } from '@/lib/mock-data';
-import type { Patient, PatientAlert } from '@/types';
-import { PlusCircle, User, AlertTriangle, ShieldAlert, CalendarClock, Bed, Filter, Search, ArrowDownUp } from 'lucide-react';
+import type { Patient } from '@/types';
+import { PlusCircle, User, AlertTriangle, ShieldAlert, CalendarClock, Bed, Filter, Search, Loader2 } from 'lucide-react';
 import { parseISO, compareDesc, compareAsc } from 'date-fns';
 
 // Helper function to get correct risk score (0-100)
@@ -83,6 +82,10 @@ const cardAnimationProps = (delay: number = 0) => ({
 });
 
 export default function DashboardPage() {
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     risk: 'all',
@@ -92,18 +95,39 @@ export default function DashboardPage() {
   });
   const [sortBy, setSortBy] = useState('lastVisitDesc');
 
+  useEffect(() => {
+    const fetchPatients = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch('/api/patients');
+        if (!response.ok) {
+          throw new Error('Failed to fetch patient data.');
+        }
+        const data = await response.json();
+        setPatients(data);
+      } catch (e) {
+        setError((e as Error).message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPatients();
+  }, []);
+
   const uniqueConditions = useMemo(() => {
     const allConditions = new Set<string>();
-    mockPatients.forEach(p => p.conditions.forEach(c => allConditions.add(c)));
+    patients.forEach(p => p.conditions.forEach(c => allConditions.add(c)));
     return [{ value: 'all', label: 'All Conditions' }, ...Array.from(allConditions).sort().map(c => ({ value: c, label: c }))];
-  }, []);
+  }, [patients]);
 
   const handleFilterChange = (filterType: keyof typeof filters, value: string) => {
     setFilters(prev => ({ ...prev, [filterType]: value }));
   };
 
   const filteredAndSortedPatients = useMemo(() => {
-    let processedPatients = [...mockPatients];
+    let processedPatients = [...patients];
 
     if (searchTerm) {
       processedPatients = processedPatients.filter(p =>
@@ -137,10 +161,10 @@ export default function DashboardPage() {
 
     switch (sortBy) {
       case 'lastVisitDesc':
-        processedPatients.sort((a, b) => compareDesc(parseISO(a.lastVisit), parseISO(b.lastVisit)));
+        processedPatients.sort((a, b) => compareDesc(new Date(a.lastVisit), new Date(b.lastVisit)));
         break;
       case 'lastVisitAsc':
-        processedPatients.sort((a, b) => compareAsc(parseISO(a.lastVisit), parseISO(b.lastVisit)));
+        processedPatients.sort((a, b) => compareAsc(new Date(a.lastVisit), new Date(b.lastVisit)));
         break;
       case 'nameAsc':
         processedPatients.sort((a, b) => a.name.localeCompare(b.name));
@@ -157,7 +181,121 @@ export default function DashboardPage() {
     }
 
     return processedPatients;
-  }, [mockPatients, searchTerm, filters, sortBy]);
+  }, [patients, searchTerm, filters, sortBy]);
+
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex justify-center items-center py-20">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <Card className="col-span-full bg-destructive/10 border-destructive">
+          <CardContent className="p-10 text-center">
+            <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-xl font-semibold mb-2 text-destructive">Error Loading Patients</h3>
+            <p className="text-destructive/80 mb-4">{error}</p>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (filteredAndSortedPatients.length > 0) {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredAndSortedPatients.map((patient: Patient, index: number) => {
+            const AlertIcon = patient.alert ? iconComponents[patient.alert.iconName] : null;
+            const normalizedScore = getNormalizedRiskScore(patient.riskScore);
+            return (
+              <motion.div
+                key={patient.id}
+                {...cardAnimationProps(index * 0.05)}
+                whileHover={{ scale: 1.03, transition: { duration: 0.2 } }}
+              >
+                <Card className={`shadow-lg hover:shadow-xl transition-shadow duration-300 border-l-4 ${getRiskScoreBorderColor(patient.riskScore)} flex flex-col h-full bg-card`}>
+                  <CardHeader className="flex flex-row items-start space-x-4 pb-2">
+                    <Image
+                      src={patient.avatarUrl}
+                      alt={patient.name}
+                      width={60}
+                      height={60}
+                      className="rounded-full border"
+                      data-ai-hint={patient.dataAiHint}
+                    />
+                    <div className="flex-1">
+                      <CardTitle className="text-lg font-semibold text-foreground">{patient.name}</CardTitle>
+                      <CardDescription className="text-xs text-muted-foreground">Last Visit: {new Date(patient.lastVisit).toLocaleDateString()}</CardDescription>
+                      {patient.alert && AlertIcon && (
+                        <Tooltip delayDuration={100}>
+                          <TooltipTrigger asChild>
+                            <div className={`mt-1 flex items-center text-xs ${patient.alert.colorClass}`}>
+                              <AlertIcon className={`h-4 w-4 mr-1`} />
+                              <span>{patient.alert.label}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent><p>{patient.alert.tooltip}</p></TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center">
+                        <AlertTriangle className={`h-5 w-5 mr-1 ${getRiskScoreColor(patient.riskScore).replace('bg-', 'text-')}`} />
+                        <span className="text-sm font-medium text-foreground">Risk Score: </span>
+                      </div>
+                      <Badge variant="outline" className={`px-2 py-1 text-xs ${getRiskScoreColor(patient.riskScore)} text-white`}>
+                        {normalizedScore}%
+                      </Badge>
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-medium text-foreground mb-1">Key Conditions:</h4>
+                      <div className="flex flex-wrap gap-1">
+                        {patient.conditions.slice(0, 3).map((condition) => (
+                          <Badge key={condition} variant="secondary" className="text-xs bg-secondary text-secondary-foreground">{condition}</Badge>
+                        ))}
+                        {patient.conditions.length > 3 && (
+                          <Badge variant="secondary" className="text-xs bg-secondary text-secondary-foreground">+{patient.conditions.length - 3} more</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                  <div className="p-6 pt-0 mt-auto">
+                    <Button variant="outline" size="sm" className="w-full text-primary border-primary hover:bg-primary/10" asChild>
+                      <Link href={`/dashboard/patient/${patient.id}`}>View Details</Link>
+                    </Button>
+                  </div>
+                </Card>
+              </motion.div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return (
+      <motion.div {...cardAnimationProps(0.2)}>
+        <Card className="col-span-full bg-card">
+          <CardContent className="p-10 text-center">
+            <User className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-xl font-semibold mb-2 text-foreground">No Patients Found</h3>
+            <p className="text-muted-foreground mb-4">
+              {searchTerm || filters.risk !== 'all' || filters.condition !== 'all' || filters.age !== 'all' || filters.gender !== 'all'
+                ? "Try adjusting your search or filter criteria."
+                : "Your patient database appears to be empty. Start by adding a new case."}
+            </p>
+            <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Link href="/new-case"><PlusCircle className="mr-2 h-4 w-4" /> Add New Case</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  };
 
   return (
     <MainLayout>
@@ -193,169 +331,39 @@ export default function DashboardPage() {
                     className="w-full"
                   />
                 </div>
-
                 <div className="lg:col-span-2 flex items-center text-sm font-medium text-secondary-foreground mb-1 md:mb-0 md:mt-6">
                   <Filter className="inline mr-2 h-4 w-4 text-primary" /> Filters & Sort
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-4 items-end">
-
                 <div>
                   <label htmlFor="filter-risk" className="block text-xs font-medium text-secondary-foreground mb-1">Risk Score</label>
-                  <Select value={filters.risk} onValueChange={(value) => handleFilterChange('risk', value)}>
-                    <SelectTrigger id="filter-risk"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {riskRanges.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Select value={filters.risk} onValueChange={(value) => handleFilterChange('risk', value)}><SelectTrigger id="filter-risk"><SelectValue /></SelectTrigger><SelectContent>{riskRanges.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent></Select>
                 </div>
-
                 <div>
                   <label htmlFor="filter-condition" className="block text-xs font-medium text-secondary-foreground mb-1">Condition</label>
-                  <Select value={filters.condition} onValueChange={(value) => handleFilterChange('condition', value)}>
-                    <SelectTrigger id="filter-condition"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {uniqueConditions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Select value={filters.condition} onValueChange={(value) => handleFilterChange('condition', value)}><SelectTrigger id="filter-condition"><SelectValue /></SelectTrigger><SelectContent>{uniqueConditions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent></Select>
                 </div>
-
                 <div>
                   <label htmlFor="filter-age" className="block text-xs font-medium text-secondary-foreground mb-1">Age</label>
-                  <Select value={filters.age} onValueChange={(value) => handleFilterChange('age', value)}>
-                    <SelectTrigger id="filter-age"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {ageRanges.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Select value={filters.age} onValueChange={(value) => handleFilterChange('age', value)}><SelectTrigger id="filter-age"><SelectValue /></SelectTrigger><SelectContent>{ageRanges.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent></Select>
                 </div>
-                
                 <div>
                   <label htmlFor="filter-gender" className="block text-xs font-medium text-secondary-foreground mb-1">Gender</label>
-                  <Select value={filters.gender} onValueChange={(value) => handleFilterChange('gender', value)}>
-                    <SelectTrigger id="filter-gender"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {genderOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Select value={filters.gender} onValueChange={(value) => handleFilterChange('gender', value)}><SelectTrigger id="filter-gender"><SelectValue /></SelectTrigger><SelectContent>{genderOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent></Select>
                 </div>
-
                 <div>
                   <label htmlFor="sort-by" className="block text-xs font-medium text-secondary-foreground mb-1">Sort By</label>
-                  <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger id="sort-by"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {sortOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Select value={sortBy} onValueChange={setSortBy}><SelectTrigger id="sort-by"><SelectValue /></SelectTrigger><SelectContent>{sortOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent></Select>
                 </div>
               </div>
             </Card>
           </motion.div>
 
-          {filteredAndSortedPatients.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredAndSortedPatients.map((patient: Patient, index: number) => {
-                const AlertIcon = patient.alert ? iconComponents[patient.alert.iconName] : null;
-                const normalizedScore = getNormalizedRiskScore(patient.riskScore);
-                return (
-                  <motion.div
-                    key={patient.id}
-                    {...cardAnimationProps(index * 0.05)} // Stagger animation
-                    whileHover={{ scale: 1.03, transition: { duration: 0.2 } }}
-                  >
-                    <Card className={`shadow-lg hover:shadow-xl transition-shadow duration-300 border-l-4 ${getRiskScoreBorderColor(patient.riskScore)} flex flex-col h-full bg-card`}>
-                      <CardHeader className="flex flex-row items-start space-x-4 pb-2">
-                        <Image
-                          src={patient.avatarUrl}
-                          alt={patient.name}
-                          width={60}
-                          height={60}
-                          className="rounded-full border"
-                          data-ai-hint={patient.dataAiHint}
-                        />
-                        <div className="flex-1">
-                          <CardTitle className="text-lg font-semibold text-foreground">{patient.name}</CardTitle>
-                          <CardDescription className="text-xs text-muted-foreground">Last Visit: {parseISO(patient.lastVisit).toLocaleDateString()}</CardDescription>
-                          {patient.alert && AlertIcon && (
-                            <Tooltip delayDuration={100}>
-                              <TooltipTrigger asChild>
-                                <div className={`mt-1 flex items-center text-xs ${patient.alert.colorClass}`}>
-                                  <AlertIcon className={`h-4 w-4 mr-1`} />
-                                  <span>{patient.alert.label}</span>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>{patient.alert.tooltip}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="flex-grow">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center">
-                            <AlertTriangle className={`h-5 w-5 mr-1 ${getRiskScoreColor(patient.riskScore).replace('bg-', 'text-')}`} />
-                            <span className="text-sm font-medium text-foreground">Risk Score: </span>
-                          </div>
-                          <Badge variant="outline" className={`px-2 py-1 text-xs ${getRiskScoreColor(patient.riskScore)} text-white`}>
-                            {normalizedScore}%
-                          </Badge>
-                        </div>
+          {renderContent()}
 
-                        <div className="space-y-1">
-                          <h4 className="text-sm font-medium text-foreground mb-1">Key Conditions:</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {patient.conditions.slice(0, 3).map((condition) => (
-                              <Badge key={condition} variant="secondary" className="text-xs bg-secondary text-secondary-foreground">
-                                {condition}
-                              </Badge>
-                            ))}
-                            {patient.conditions.length > 3 && (
-                              <Badge variant="secondary" className="text-xs bg-secondary text-secondary-foreground">
-                                +{patient.conditions.length - 3} more
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                      <div className="p-6 pt-0 mt-auto">
-                        <Button variant="outline" size="sm" className="w-full text-primary border-primary hover:bg-primary/10" asChild>
-                          <Link href={`/dashboard/patient/${patient.id}`}>
-                            View Details
-                          </Link>
-                        </Button>
-                      </div>
-                    </Card>
-                  </motion.div>
-                );
-              })}
-            </div>
-          ) : (
-             <motion.div {...cardAnimationProps(0.2)}>
-              <Card className="col-span-full bg-card">
-                <CardContent className="p-10 text-center">
-                  <User className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-xl font-semibold mb-2 text-foreground">No Patients Found</h3>
-                  <p className="text-muted-foreground mb-4">
-                    {searchTerm || filters.risk !== 'all' || filters.condition !== 'all' || filters.age !== 'all' || filters.gender !== 'all'
-                      ? "Try adjusting your search or filter criteria."
-                      : "Start by adding a new case to see patient information here."}
-                  </p>
-                  {!(searchTerm || filters.risk !== 'all' || filters.condition !== 'all' || filters.age !== 'all' || filters.gender !== 'all') && (
-                    <Button asChild className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                      <Link href="/new-case">
-                        <PlusCircle className="mr-2 h-4 w-4" /> Add New Case
-                      </Link>
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
         </div>
       </TooltipProvider>
     </MainLayout>
   );
 }
-

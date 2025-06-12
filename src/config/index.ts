@@ -62,19 +62,26 @@ if (process.env.NODE_ENV !== 'production') {
 // This variable (MONGODB_URI) would typically be used in backend API routes or server actions if you directly connect to MongoDB.
 // For this application, direct MongoDB interaction is not part of the scaffolded UI features,
 // but this is where you'd manage its configuration if needed.
-// const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_PW = "2kzWwEiYR4lHLWFh"
+if (!MONGODB_PW) {
+  throw new Error(
+    `MongoDB configuration error: The environment variable "MONGODBPW" is missing or empty in your .env file.`
+  );
+}
+
+export const MONGODB_URI = `mongodb+srv://naki:${MONGODB_PW}@cluster0.hrnm8fq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 
 // Vertex AI / Genkit Configuration (Guidance)
 // Genkit typically uses Google Cloud Application Default Credentials (ADC).
-// Ensure your environment is authenticated (e.g., via `gcloud auth application-default login`).
+// Ensure your environment is authenticated (e.g., via \`gcloud auth application-default login\`).
 // Specific Vertex AI project ID or location might be needed by Genkit plugins if not inferred.
-// Genkit's `googleAI` plugin may look for `GOOGLE_API_KEY` or use ADC.
-// The `@genkit-ai/googleai` plugin initialized in `src/ai/genkit.ts` handles this.
+// Genkit's \`googleAI\` plugin may look for \`GOOGLE_API_KEY\` or use ADC.
+// The \`@genkit-ai/googleai\` plugin initialized in \`src/ai/genkit.ts\` handles this.
 // See Genkit documentation for specific environment variable needs for Google AI.
 // Example:
 // GOOGLE_API_KEY="your_google_ai_api_key" (if using API keys for Gemini)
-// Or ensure `GOOGLE_APPLICATION_CREDENTIALS` is set if using service accounts for ADC.
+// Or ensure \`GOOGLE_APPLICATION_CREDENTIALS\` is set if using service accounts for ADC.
 
 export const APP_CONFIG = {
   // Add any other app-wide configurations here

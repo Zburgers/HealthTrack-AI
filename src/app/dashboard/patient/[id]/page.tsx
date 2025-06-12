@@ -3,7 +3,6 @@
 
 import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
-import { mockPatients } from '@/lib/mock-data';
 import type { Patient, VitalDisplayInfo, ICD10Code } from '@/types';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
@@ -13,8 +12,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { useAppState } from '@/context/AppStateContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import React, { useState } from 'react';
-import { format } from 'date-fns';
+import React, { useState, useEffect } from 'react';
+import { format, parseISO } from 'date-fns';
 import { motion } from 'framer-motion';
 
 import {
@@ -32,7 +31,8 @@ import {
   AlertTriangle,
   BarChart3,
   InfoIcon, 
-  BriefcaseMedical 
+  BriefcaseMedical,
+  Loader2
 } from 'lucide-react';
 
 const getRiskScoreColor = (score: number): string => {
@@ -62,10 +62,82 @@ export default function PatientDetailPage() {
   const { setAnalysisResult } = useAppState();
   const patientId = typeof params.id === 'string' ? params.id : undefined;
 
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
   const [isIcd10ModalOpen, setIsIcd10ModalOpen] = useState(false);
   const [selectedIcd10Code, setSelectedIcd10Code] = useState<ICD10Code | null>(null);
 
-  const patient = mockPatients.find((p) => p.id === patientId);
+  useEffect(() => {
+    if (!patientId) {
+      setError("No patient ID provided.");
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchPatientDetails = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(`/api/patients/${patientId}`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to fetch patient details.');
+        }
+        const data = await response.json();
+        setPatient(data);
+      } catch (e) {
+        setError((e as Error).message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPatientDetails();
+  }, [patientId]);
+
+  const handleViewFullAnalysis = () => {
+    if (patient?.aiAnalysis) {
+      setAnalysisResult(patient.aiAnalysis, `/dashboard/patient/${patient.id}`, patient);
+      router.push('/analysis');
+    }
+  };
+
+  const handleIcd10CodeClick = (code: ICD10Code) => {
+    setSelectedIcd10Code(code);
+    setIsIcd10ModalOpen(true);
+  };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex justify-center items-center py-20">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <MainLayout>
+        <motion.div 
+          className="flex flex-col items-center justify-center py-10"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <AlertTriangle className="w-24 h-24 text-destructive mb-4" />
+          <h1 className="font-headline text-3xl font-bold text-destructive mb-2">An Error Occurred</h1>
+          <p className="text-muted-foreground mb-6">{error}</p>
+          <Button onClick={() => router.push('/dashboard')}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
+          </Button>
+        </motion.div>
+      </MainLayout>
+    );
+  }
 
   if (!patient) {
     return (
@@ -88,22 +160,9 @@ export default function PatientDetailPage() {
       </MainLayout>
     );
   }
-
+  
   const patientRiskScore = patient.aiAnalysis?.riskScore ?? patient.riskScore;
   const normalizedPatientRiskScore = (patientRiskScore >= 0 && patientRiskScore <=1 ) ? patientRiskScore * 100 : patientRiskScore;
-
-
-  const handleViewFullAnalysis = () => {
-    if (patient.aiAnalysis) {
-      setAnalysisResult(patient.aiAnalysis, `/dashboard/patient/${patient.id}`, patient);
-      router.push('/analysis');
-    }
-  };
-
-  const handleIcd10CodeClick = (code: ICD10Code) => {
-    setSelectedIcd10Code(code);
-    setIsIcd10ModalOpen(true);
-  };
 
   return (
     <MainLayout>

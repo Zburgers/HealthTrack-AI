@@ -2,6 +2,41 @@
 import type { LucideProps } from "lucide-react";
 import React from "react";
 import type { NewCaseFormValues } from "@/components/new-case/NewCaseForm";
+import { ObjectId } from "mongodb";
+
+// Represents the data structure in the MongoDB 'patients' collection
+export interface PatientDocument {
+  _id: ObjectId;
+  name: string;
+  age: number;
+  sex: 'Male' | 'Female' | 'Other' | string;
+  createdAt: Date;
+  last_updated: Date;
+  vitals: {
+    temp?: number | null;
+    bp?: string;
+    hr?: number | null;
+    spo2?: number | null;
+    rr?: number | null;
+  };
+  symptoms: string[];
+  observations: string;
+  icd_tags: { code: string; label: string; confidence: number; source_phrase: string }[];
+  icd_tag_summary: string[];
+  risk_predictions: { condition: string; confidence: number; explanation: string[] }[];
+  risk_score: number;
+  soap_note: {
+    subjective: string;
+    objective: string;
+    assessment: string;
+    plan: string;
+  };
+  matched_cases: { case_id: string; similarity_score: number; diagnosis: string; summary: string }[];
+  ai_metadata: any;
+  status: 'draft' | 'analyzing' | 'complete' | 'exported' | 'analysis_failed';
+  owner_uid: string;
+}
+
 
 // This is the new structure for ICD-10 tags, including a description.
 export interface ICD10Code {
@@ -23,6 +58,7 @@ export interface PatientAlert {
   tooltip: string;
 }
 
+// This is the type used by the frontend components
 export interface Patient {
   id: string;
   name: string;
@@ -31,7 +67,6 @@ export interface Patient {
   riskScore: number;
   conditions: string[];
   lastVisit: string;
-
   age: number;
   gender: 'Male' | 'Female' | 'Other' | string;
   primaryComplaint: string;
@@ -44,7 +79,7 @@ export interface Patient {
     [key: string]: string | undefined;
   };
   doctorsObservations: string;
-  aiAnalysis: AIAnalysisOutput; // Use the updated analysis output type
+  aiAnalysis?: AIAnalysisOutput;
   alert?: PatientAlert;
 }
 

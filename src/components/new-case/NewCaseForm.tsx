@@ -25,10 +25,7 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Send, CalendarIcon, Brain } from 'lucide-react';
 import { useState } from 'react';
-import { submitNewCase } from '@/lib/actions/caseActions';
-import type { AnalyzePatientSymptomsInput } from '@/ai/flows/analyze-patient-symptoms';
 import { useRouter } from 'next/navigation';
-import { useAppState } from '@/context/AppStateContext';
 import { motion } from 'framer-motion';
 
 const formSchema = z.object({
@@ -62,7 +59,6 @@ export default function NewCaseForm() {
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { setAnalysisResult } = useAppState();
 
   const form = useForm<NewCaseFormValues>({
     resolver: zodResolver(formSchema),
@@ -86,51 +82,30 @@ export default function NewCaseForm() {
 
   async function onSubmit(values: NewCaseFormValues) {
     setIsSubmitting(true);
-
-    let patientInfoString = `Patient: ${values.patientName}, ${values.age} y/o ${values.gender}. Visit Date: ${format(values.visitDate, 'PPP')}.`;
-    patientInfoString += `\nPrimary Complaint: ${values.primaryComplaint}.`;
-    if (values.previousConditions) {
-      patientInfoString += `\nPrevious Known Conditions: ${values.previousConditions}.`;
-    }
-    if (values.severityLevel !== 'Not Specified') {
-      patientInfoString += `\nCase Severity: ${values.severityLevel}.`;
-    }
-    if (values.caseType !== 'Not Specified') {
-      patientInfoString += `\nCase Type: ${values.caseType}.`;
-    }
     
-    const vitalParts: string[] = [];
-    if (values.bp) vitalParts.push(`BP ${values.bp} mmHg`);
-    if (values.hr) vitalParts.push(`HR ${values.hr} bpm`);
-    if (values.rr) vitalParts.push(`RR ${values.rr} breaths/min`);
-    if (values.temp) vitalParts.push(`Temp ${values.temp}°C`);
-    if (values.spo2) vitalParts.push(`SpO2 ${values.spo2}%`);
-    const vitalsString = vitalParts.length > 0 ? vitalParts.join(', ') : 'Not specified';
-
-    const analysisInput: AnalyzePatientSymptomsInput = {
-      patientInformation: patientInfoString,
-      vitals: vitalsString,
-      observations: values.observations,
-    };
-    
-    const fullCaseDataForDb = {
-        ...values,
-        visitDate: values.visitDate.toISOString(),
-    };
-
     try {
-      const response = await submitNewCase(analysisInput, fullCaseDataForDb);
+      const response = await fetch('/api/patients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(values),
+      });
 
-      if (response.success && response.data) {
-        toast({
-          title: 'Analysis Successful',
-          description: 'Patient case analysis complete. Redirecting...',
-        });
-        setAnalysisResult(response.data, null, values); 
-        router.push('/analysis');
-      } else {
-        throw new Error(response.error || 'Analysis failed. Please try again.');
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to submit the new case.');
       }
+
+      toast({
+        title: 'Case Created Successfully',
+        description: 'The patient case has been saved. Redirecting...',
+      });
+      
+      // Redirect to the new patient's detail page
+      router.push(`/dashboard/patient/${result.patientId}`);
+
     } catch (error) {
       console.error('Submission Error:', error);
       toast({
@@ -415,7 +390,7 @@ export default function NewCaseForm() {
             ) : (
               <Send className="mr-2 h-5 w-5" />
             )}
-            Analyze Case
+            Save Case
           </Button>
         </motion.div>
       </form>
