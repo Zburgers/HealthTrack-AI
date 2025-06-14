@@ -12,13 +12,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { FileJson, FileText, Share2, Copy, LinkIcon } from 'lucide-react'; // Added LinkIcon
+import type { AIAnalysisOutput, Patient, NewCaseFormValues } from '@/types'; // Added
 
 interface ExportModalProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+  analysisData: AIAnalysisOutput | null; // Added
+  patientData: Patient | NewCaseFormValues | null | undefined; // Added
+  soapNotes: string; // Added
 }
 
-export default function ExportModal({ isOpen, onOpenChange }: ExportModalProps) {
+export default function ExportModal({ isOpen, onOpenChange, analysisData, patientData, soapNotes }: ExportModalProps) {
   const { toast } = useToast();
 
   const handleExport = (format: 'JSON' | 'PDF' | 'Link') => {

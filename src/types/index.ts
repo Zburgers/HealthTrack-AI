@@ -1,4 +1,3 @@
-
 import type { LucideProps } from "lucide-react";
 import React from "react";
 import type { NewCaseFormValues } from "@/components/new-case/NewCaseForm";
@@ -44,9 +43,19 @@ export interface ICD10Code {
   description: string;
 }
 
+// Structure for Differential Diagnosis items
+export interface DifferentialDiagnosisItem {
+  condition: string;
+  likelihood: string; // Or number, depending on expected data
+}
+
 // Updated AI Analysis Output structure
 export interface AIAnalysisOutput {
+  summary?: string; // Added
   icd10Tags: ICD10Code[];
+  differentialDiagnosis?: DifferentialDiagnosisItem[]; // Added
+  recommendedTests?: string[]; // Added
+  treatmentSuggestions?: string[]; // Added
   riskScore: number;
   soapNotes: string;
 }
@@ -81,6 +90,9 @@ export interface Patient {
   doctorsObservations: string;
   aiAnalysis?: AIAnalysisOutput;
   alert?: PatientAlert;
+  allergies?: string[]; 
+  medications?: string[]; 
+  notes?: string; 
 }
 
 export interface AppState {

@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { Patient, PatientDocument } from '@/types';
@@ -14,11 +13,12 @@ export const dynamic = 'force-dynamic';
  * This version uses a different context signature to avoid Next.js build errors.
  */
 export async function GET(request: Request, context: { params: { id: string } }) {
-  // Accessing params via the context object as a more robust method.
-  const { id } = context.params;
+  // Await params if it's a Promise (Next.js 15+ dynamic API route requirement)
+  const params = context.params instanceof Promise ? await context.params : context.params;
+  const id = params.id;
 
-  if (!ObjectId.isValid(id)) {
-    return NextResponse.json({ message: 'Invalid patient ID format' }, { status: 400 });
+  if (!id || typeof id !== 'string') {
+    return NextResponse.json({ message: 'Patient ID must be a non-empty string.' }, { status: 400 });
   }
 
   try {
@@ -26,7 +26,18 @@ export async function GET(request: Request, context: { params: { id: string } })
     const db = client.db('healthtrack');
     const patientsCollection = db.collection<PatientDocument>('patients');
 
-    const patient = await patientsCollection.findOne({ _id: new ObjectId(id) });
+    let patient: PatientDocument | null = null;
+
+    if (ObjectId.isValid(id)) {
+      const objectIdToQuery = new ObjectId(id);
+      patient = await patientsCollection.findOne({ _id: objectIdToQuery });
+    } else {
+      // If not a valid ObjectId string, try to find by the string ID directly.
+      // This assumes the _id field in the database might store plain strings for some documents.
+      // Note: PatientDocument defines _id as ObjectId, so this query uses 'as any'
+      // to bypass strict type checking for the query filter if id is a plain string.
+      patient = await patientsCollection.findOne({ _id: id as any });
+    }
 
     if (!patient) {
       return NextResponse.json({ message: 'Patient not found' }, { status: 404 });
@@ -51,6 +62,7 @@ export async function GET(request: Request, context: { params: { id: string } })
 
     // Robustly map the MongoDB document to the frontend Patient type
     const formattedPatient: Patient = {
+      // Ensure patient._id is converted to string regardless of its original type (ObjectId or string)
       id: patient._id.toString(),
       name: patient.name || 'Unknown Patient',
       age: patient.age || 0,

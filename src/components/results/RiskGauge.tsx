@@ -1,4 +1,3 @@
-
 'use client';
 
 import { RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer, Legend } from 'recharts';
@@ -26,14 +25,14 @@ const RiskGauge: React.FC<RiskGaugeProps> = ({ score }) => {
     percentage = 0;
   }
 
-  let color = 'hsl(var(--chart-1))'; // Default green (or teal primary)
+  let color = '#22c55e'; // Green for low risk
   let riskLevel = 'Low';
 
   if (percentage >= 70) {
-    color = 'hsl(var(--chart-5))'; // Red
+    color = '#ef4444'; // Red for high risk
     riskLevel = 'High';
   } else if (percentage >= 40) {
-    color = 'hsl(var(--chart-4))'; // Yellow/Orange
+    color = '#eab308'; // Yellow for medium risk
     riskLevel = 'Medium';
   }
 

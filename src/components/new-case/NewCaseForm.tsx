@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -20,10 +19,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'; // Added
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, CalendarIcon, Brain } from 'lucide-react';
+import { Loader2, Send, CalendarIcon, Brain, Info } from 'lucide-react'; // Added Info
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -35,16 +35,17 @@ const formSchema = z.object({
   visitDate: z.date({ required_error: 'Visit date is required.' }),
   primaryComplaint: z.string().min(5, { message: 'Primary complaint must be at least 5 characters.' }).max(1000),
   previousConditions: z.string().max(1000).optional(),
-  bp: z.string().regex(/^\d{1,3}\/\d{1,3}$|^\s*$/, { message: 'Blood pressure must be in format like 120/80 or empty.'}).optional(),
-  hr: z.string().regex(/^\d*$/, {message: "Heart rate must be a number or empty."}).optional(),
-  rr: z.string().regex(/^\d*$/, {message: "Respiratory rate must be a number or empty."}).optional(),
-  temp: z.string().regex(/^-?\d*\.?\d*$/, {message: "Temperature must be a number or empty."}).optional(),
-  spo2: z.string().regex(/^\d*$/, {message: "SpO2 must be a number or empty."}).optional(),
+  allergies: z.string().max(1000).optional(),
+  medications: z.string().max(1000).optional(),
+  bp: z.string().max(20).optional(),
+  hr: z.string().max(10).optional(), // Assuming HR is string like "70 bpm" or just "70"
+  rr: z.string().max(10).optional(),
+  temp: z.string().max(10).optional(),
+  spo2: z.string().max(10).optional(),
   severityLevel: z.enum(['Low', 'Moderate', 'High', 'Not Specified']).default('Not Specified'),
-  caseType: z.enum(['Acute', 'Chronic', 'Follow-up', 'Not Specified']).default('Not Specified'),
-  observations: z.string().min(10, {
-    message: 'Observations must be at least 10 characters.',
-  }).max(5000, { message: 'Observations cannot exceed 5000 characters.'}),
+  caseType: z.enum(['Chronic', 'Acute', 'Follow-up', 'Consultation', 'Not Specified']).default('Not Specified'),
+  observations: z.string().max(5000).optional(), // Renamed from clinicalNotes to observations to match Patient type if that was the intent, or add clinicalNotes
+  clinicalNotes: z.string().max(5000).optional(), // Added clinicalNotes if it's distinct from observations
 });
 
 export type NewCaseFormValues = z.infer<typeof formSchema>;
@@ -54,6 +55,14 @@ const cardAnimationProps = (delay: number = 0) => ({
   animate: { opacity: 1, y: 0 },
   transition: { duration: 0.5, delay }
 });
+
+const VITAL_RANGES = {
+  bp: "Systolic <120 mmHg and Diastolic <80 mmHg",
+  hr: "60-100 bpm",
+  rr: "12-20 breaths/min",
+  temp: "36.1°C - 37.2°C",
+  spo2: "95-100%",
+};
 
 export default function NewCaseForm() {
   const { toast } = useToast();
@@ -69,6 +78,8 @@ export default function NewCaseForm() {
       visitDate: new Date(),
       primaryComplaint: '',
       previousConditions: '',
+      allergies: '',
+      medications: '',
       bp: '',
       hr: '',
       rr: '',
@@ -77,6 +88,7 @@ export default function NewCaseForm() {
       severityLevel: 'Not Specified',
       caseType: 'Not Specified',
       observations: '',
+      clinicalNotes: '',
     },
   });
 
@@ -245,7 +257,19 @@ export default function NewCaseForm() {
                   name="bp"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Blood Pressure (mmHg)</FormLabel>
+                      <div className="flex items-center">
+                        <FormLabel>Blood Pressure (mmHg)</FormLabel>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-4 w-4 ml-1.5 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Optimal: {VITAL_RANGES.bp}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                       <FormControl><Input placeholder="e.g., 120/80" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -256,7 +280,19 @@ export default function NewCaseForm() {
                   name="hr"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Heart Rate (bpm)</FormLabel>
+                      <div className="flex items-center">
+                        <FormLabel>Heart Rate (bpm)</FormLabel>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-4 w-4 ml-1.5 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Optimal: {VITAL_RANGES.hr}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                       <FormControl><Input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="e.g., 75" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -267,7 +303,19 @@ export default function NewCaseForm() {
                   name="rr"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Respiratory Rate (breaths/min)</FormLabel>
+                      <div className="flex items-center">
+                        <FormLabel>Respiratory Rate (breaths/min)</FormLabel>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-4 w-4 ml-1.5 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Optimal: {VITAL_RANGES.rr}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                       <FormControl><Input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="e.g., 16" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -278,7 +326,19 @@ export default function NewCaseForm() {
                   name="temp"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Temperature (°C)</FormLabel>
+                      <div className="flex items-center">
+                        <FormLabel>Temperature (°C)</FormLabel>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-4 w-4 ml-1.5 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Optimal: {VITAL_RANGES.temp}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                       <FormControl><Input type="text" inputMode="decimal" placeholder="e.g., 37.0" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -289,7 +349,19 @@ export default function NewCaseForm() {
                   name="spo2"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>SpO₂ (%)</FormLabel>
+                      <div className="flex items-center">
+                        <FormLabel>SpO₂ (%)</FormLabel>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-4 w-4 ml-1.5 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Optimal: {VITAL_RANGES.spo2}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                       <FormControl><Input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="e.g., 98" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>

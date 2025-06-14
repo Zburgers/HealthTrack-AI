@@ -1,4 +1,3 @@
-
 import { MongoClient, ServerApiVersion } from 'mongodb';
 import { MONGODB_URI } from '@/config';
 
@@ -10,7 +9,7 @@ if (!MONGODB_URI) {
 const client = new MongoClient(MONGODB_URI, {
   serverApi: {
     version: ServerApiVersion.v1,
-    strict: true,
+    strict: false, // Allow $vectorSearch
     deprecationErrors: true,
   }
 });
@@ -43,7 +42,7 @@ export async function connectToDatabase() {
  */
 export async function verifyDatabaseConnection() {
     const verificationClient = new MongoClient(MONGODB_URI, {
-        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true }
+        serverApi: { version: ServerApiVersion.v1, strict: false, deprecationErrors: true } // Also update here for consistency
     });
 
     try {
