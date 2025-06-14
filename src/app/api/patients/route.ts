@@ -15,23 +15,20 @@ export async function GET() {
   try {
     const client = await connectToDatabase();
     const db = client.db('healthtrack');
-    const patientsCollection = db.collection<PatientDocument>('patients');
-
-    const projection = {
+    const patientsCollection = db.collection<PatientDocument>('patients');    const projection = {
       name: 1,
       age: 1,
       sex: 1,
       last_updated: 1,
       risk_score: 1,
       icd_tag_summary: 1,
+      status: 1,
     };
 
     const patients = await patientsCollection
       .find({}, { projection })
       .sort({ last_updated: -1 })
-      .toArray();
-
-    const formattedPatients: Patient[] = patients.map(p => {
+      .toArray();    const formattedPatients: Patient[] = patients.map(p => {
       // Safely handle the lastVisit date
       const lastVisitDate = p.last_updated && !isNaN(new Date(p.last_updated).getTime())
         ? new Date(p.last_updated)
@@ -45,6 +42,7 @@ export async function GET() {
         lastVisit: lastVisitDate.toISOString(),
         riskScore: p.risk_score,
         conditions: p.icd_tag_summary || [],
+        status: p.status || 'draft',
         avatarUrl: 'https://placehold.co/100x100.png',
         dataAiHint: 'portrait',
         primaryComplaint: '', // Not needed for dashboard view
@@ -81,10 +79,9 @@ export async function POST(request: Request) {
         bp: formData.bp,
         hr: Number(formData.hr) || null,
         spo2: Number(formData.spo2) || null,
-        rr: Number(formData.rr) || null,
-      },
+        rr: Number(formData.rr) || null,      },
       symptoms: formData.primaryComplaint.split(',').map(s => s.trim()),
-      observations: formData.observations,
+      observations: formData.observations || '',
       icd_tags: [],
       icd_tag_summary: formData.previousConditions ? formData.previousConditions.split(',').map(s => s.trim()) : [],
       risk_predictions: [],
@@ -131,12 +128,10 @@ Previous Known Conditions: ${formData.previousConditions}.`;
         if (formData.rr) vitalParts.push(`RR ${formData.rr} breaths/min`);
         if (formData.temp) vitalParts.push(`Temp ${formData.temp}°C`);
         if (formData.spo2) vitalParts.push(`SpO2 ${formData.spo2}%`);
-        const vitalsString = vitalParts.length > 0 ? vitalParts.join(', ') : 'Not specified';
-
-        const analysisInput: AnalyzePatientSymptomsInput = {
+        const vitalsString = vitalParts.length > 0 ? vitalParts.join(', ') : 'Not specified';        const analysisInput: AnalyzePatientSymptomsInput = {
           patientInformation: patientInfoString,
           vitals: vitalsString,
-          observations: formData.observations,
+          observations: formData.observations || '',
         };
 
         const analysisResult = await analyzePatientSymptoms(analysisInput);

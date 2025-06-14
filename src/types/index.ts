@@ -23,13 +23,13 @@ export interface PatientDocument {
   icd_tags: { code: string; label: string; confidence: number; source_phrase: string }[];
   icd_tag_summary: string[];
   risk_predictions: { condition: string; confidence: number; explanation: string[] }[];
-  risk_score: number;
-  soap_note: {
+  risk_score: number;  soap_note: {
     subjective: string;
     objective: string;
     assessment: string;
     plan: string;
   };
+  ai_soap_notes?: string; // Separate field for AI-generated SOAP notes
   matched_cases: { case_id: string; similarity_score: number; diagnosis: string; summary: string }[];
   ai_metadata: any;
   status: 'draft' | 'analyzing' | 'complete' | 'exported' | 'analysis_failed';
@@ -78,8 +78,7 @@ export interface Patient {
   lastVisit: string;
   age: number;
   gender: 'Male' | 'Female' | 'Other' | string;
-  primaryComplaint: string;
-  vitals: {
+  primaryComplaint: string;  vitals: {
     bp?: string;
     hr?: string;
     rr?: string;
@@ -88,11 +87,13 @@ export interface Patient {
     [key: string]: string | undefined;
   };
   doctorsObservations: string;
+  aiSoapNotes?: string; // AI-generated SOAP notes stored separately from original notes
+  status?: 'draft' | 'analyzing' | 'complete' | 'exported' | 'analysis_failed';
   aiAnalysis?: AIAnalysisOutput;
   alert?: PatientAlert;
   allergies?: string[]; 
   medications?: string[]; 
-  notes?: string; 
+  notes?: string; // Original doctor's notes (preserved)
 }
 
 export interface AppState {

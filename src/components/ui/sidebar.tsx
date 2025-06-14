@@ -1,9 +1,12 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { motion } from "framer-motion"; // Import motion
 import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
-import { PanelLeft } from "lucide-react"
+import { PanelLeft, LayoutDashboard as Icon } from "lucide-react"; // Added LayoutDashboard as Icon
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
@@ -156,7 +159,8 @@ const SidebarProvider = React.forwardRef<
 )
 SidebarProvider.displayName = "SidebarProvider"
 
-const Sidebar = React.forwardRef<
+// Renaming Sidebar to SidebarPrimitive to avoid conflict
+const SidebarPrimitive = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
     side?: "left" | "right"
@@ -228,7 +232,7 @@ const Sidebar = React.forwardRef<
             "group-data-[collapsible=offcanvas]:w-0",
             "group-data-[side=right]:rotate-180",
             variant === "floating" || variant === "inset"
-              ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]"
+              ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))] "
               : "group-data-[collapsible=icon]:w-[--sidebar-width-icon]"
           )}
         />
@@ -257,7 +261,7 @@ const Sidebar = React.forwardRef<
     )
   }
 )
-Sidebar.displayName = "Sidebar"
+SidebarPrimitive.displayName = "SidebarPrimitive"
 
 const SidebarTrigger = React.forwardRef<
   React.ElementRef<typeof Button>,
@@ -735,29 +739,125 @@ const SidebarMenuSubButton = React.forwardRef<
 })
 SidebarMenuSubButton.displayName = "SidebarMenuSubButton"
 
+// Define NavItem interface
+interface NavItem {
+  href: string;
+  label: string;
+  icon?: React.ComponentType<{ className?: string }>;
+}
+
+interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
+  navItems: NavItem[];
+}
+
+// Define animation variants for nav items
+const navItemVariants = {
+  initial: {
+    opacity: 0,
+    x: -20,
+  },
+  animate: (i: number) => ({
+    opacity: 1,
+    x: 0,
+    transition: {
+      delay: i * 0.05, // Staggered delay for each item
+      duration: 0.3,
+      ease: "easeOut",
+    },
+  }),
+  hover: {
+    x: 3, // Slight shift to the right on hover
+    backgroundColor: "hsl(var(--muted))", // Using HSL value from globals.css for hover
+    transition: { duration: 0.2, ease: "easeOut" },
+  },
+  active: {
+    // scale: 1.02, // Slight scale up for active item - can be too much with bg change
+    // transition: { duration: 0.2, ease: "easeOut" },
+  },
+  tap: {
+    scale: 0.98,
+  }
+};
+
+export function Sidebar({ className, navItems }: SidebarProps) {
+  const pathname = usePathname();
+
+  return (
+    <div className={cn("h-full flex flex-col", className)}>
+      <div className="flex-grow p-3 space-y-1.5">
+        {navItems.map((item, index) => {
+          const IconComponent = item.icon;
+          const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+
+          return (
+            <motion.div // Wrap Link with motion.div for animations
+              key={item.href}
+              custom={index} // Pass index for staggered animation
+              variants={navItemVariants}
+              initial="initial"
+              animate="animate"
+              whileHover="hover"
+              whileTap="tap"
+              // Apply 'active' variant conditionally - Tailwind handles bg, so this is for other transforms if needed
+              // animate={isActive ? ["animate", "active"] : "animate"} // Combine base animate with active
+            >
+              <Link
+                href={item.href}
+                className={cn(
+                  "flex items-center justify-start rounded-md px-3 py-2.5 text-sm font-medium transition-colors duration-150 ease-in-out group w-full", // Ensure Link takes full width of motion.div
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+                    : "text-muted-foreground hover:text-foreground" // Tailwind handles non-active hover bg
+                )}
+              >
+                {IconComponent && (
+                  <IconComponent
+                    className={cn(
+                      "mr-3 h-5 w-5",
+                      isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
+                    )}
+                  />
+                )}
+                <span>{item.label}</span>
+              </Link>
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Export the primitive components if they are intended to be used externally
+// For now, keeping them internal to this file as per original structure.
+// If SidebarPrimitive and other parts like SidebarHeader, SidebarContent etc.
+// are meant to be composed externally, they should be exported.
+// Example: export { SidebarPrimitive as Sidebar, SidebarHeader, ... }
+
 export {
-  Sidebar,
-  SidebarContent,
+  SidebarProvider,
+  // SidebarPrimitive as Sidebar, // Example if you want to export the primitive
+  SidebarTrigger,
+  SidebarRail,
+  SidebarInset,
+  SidebarInput,
+  SidebarHeader,
   SidebarFooter,
+  SidebarSeparator,
+  SidebarContent,
   SidebarGroup,
+  SidebarGroupLabel,
   SidebarGroupAction,
   SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarInput,
-  SidebarInset,
   SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
   SidebarMenuAction,
   SidebarMenuBadge,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarMenuSkeleton,
   SidebarMenuSub,
-  SidebarMenuSubButton,
   SidebarMenuSubItem,
-  SidebarProvider,
-  SidebarRail,
-  SidebarSeparator,
-  SidebarTrigger,
+  SidebarMenuSubButton,
   useSidebar,
-}
+  sidebarMenuButtonVariants
+};

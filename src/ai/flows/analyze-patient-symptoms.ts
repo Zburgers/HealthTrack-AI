@@ -113,8 +113,7 @@ const analyzePatientSymptomsPrompt = ai.definePrompt({
   name: 'analyzePatientSymptomsPrompt',
   input: {schema: AnalyzePatientSymptomsInputSchema},
   output: {schema: AnalyzePatientSymptomsOutputSchema},
-  tools: [fetchICDCodes, calculateRiskScore],
-  prompt: `As a medical AI, analyze the patient information, vitals, and doctor's observations to identify relevant ICD-10 tags, calculate a risk score, and draft initial SOAP notes.
+  tools: [fetchICDCodes, calculateRiskScore],  prompt: `As a medical AI, analyze the patient information, vitals, and doctor's observations to identify relevant ICD-10 tags, calculate a risk score, and draft initial SOAP notes.
 
 Patient Information: {{{patientInformation}}}
 Vitals: {{{vitals}}}
@@ -123,6 +122,12 @@ Observations: {{{observations}}}
 First, identify a list of relevant ICD-10 codes based on the patient's symptoms and conditions described in the patient information and doctor's observations. Then, use the fetchICDCodes tool to retrieve the descriptions for these codes. Finally, use the calculateRiskScore tool to determine the patient's risk score based on provided patient information and vitals.
 
 Based on this, draft SOAP notes which summarize the Subjective findings, Objective findings, Assessment, and Plan. Be concise and clinically relevant.
+
+IMPORTANT: Format the SOAP notes with clear prefixes for parsing:
+S: [Subjective findings - patient's reported symptoms and concerns]
+O: [Objective findings - vital signs, physical examination, test results]
+A: [Assessment - clinical diagnosis and analysis]
+P: [Plan - treatment plan and next steps]
 
 Ensure that the ICD-10 codes and their descriptions, as well as the risk score, are incorporated into the SOAP notes appropriately.
 

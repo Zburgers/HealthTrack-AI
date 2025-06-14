@@ -24,8 +24,7 @@ export type EnhanceSoapNotesOutput = z.infer<typeof EnhanceSoapNotesOutputSchema
 const enhanceSoapNotesPrompt = ai.definePrompt({
   name: 'enhanceSoapNotesPrompt',
   input: { schema: EnhanceSoapNotesInputSchema },
-  output: { schema: EnhanceSoapNotesOutputSchema },
-  prompt: `As a medical AI, your task is to enhance and restructure the provided "Current Clinical Notes" into a standard SOAP (Subjective, Objective, Assessment, Plan) format.
+  output: { schema: EnhanceSoapNotesOutputSchema },  prompt: `As a medical AI, your task is to enhance and restructure the provided "Current Clinical Notes" into a standard SOAP (Subjective, Objective, Assessment, Plan) format.
 Use the following patient context to ensure accuracy and completeness:
 Patient Information: {{{patientInformation}}}
 Vitals: {{{vitals}}}
@@ -34,20 +33,23 @@ Original Doctor's Observations/Context: {{{observations}}}
 Current Clinical Notes to Enhance:
 {{{currentNotes}}}
 
-Review the "Current Clinical Notes". Identify subjective complaints, objective findings, your assessment of the patient's condition, and the proposed plan.
-Organize this information clearly under the S, O, A, and P headings.
-Ensure the language is concise, clinically relevant, and professional.
-If the "Current Clinical Notes" are already well-structured, refine them for clarity and completeness.
-If sections are missing, try to infer them from the "Original Doctor's Observations/Context" or other provided patient information if possible. If information is not available, clearly state that in the respective SOAP section (e.g., "Assessment: Further information needed based on provided context.").
-Do not invent information not present in the provided texts.
-The primary goal is to structure and enhance the narrative of the "Current Clinical Notes" using the supporting context.
+Instructions:
+1. If the "Current Clinical Notes" contain actual clinical content, enhance and restructure them into proper SOAP format.
+2. If the "Current Clinical Notes" are empty or contain only a generation prompt, create comprehensive SOAP notes based on the patient information, vitals, and doctor's observations.
+3. Review all provided information to identify subjective complaints, objective findings, clinical assessment, and treatment plan.
+4. Organize this information clearly under the S, O, A, and P headings.
+5. Ensure the language is concise, clinically relevant, and professional.
+6. Do not invent information not present in the provided texts.
+7. Use the "Original Doctor's Observations/Context" as the primary source of clinical findings.
 
-Output only the enhanced SOAP notes in a single string, formatted clearly with S:, O:, A:, P: headings.
-Example:
-S: [Subjective text]
-O: [Objective text]
-A: [Assessment text]
-P: [Plan text]
+CRITICAL: Output only the enhanced SOAP notes in a single string, formatted clearly with S:, O:, A:, P: headings exactly as shown below:
+
+S: [Subjective text - patient's reported symptoms, concerns, and history]
+O: [Objective text - vital signs, physical examination findings, test results]
+A: [Assessment text - clinical diagnosis, analysis, and impression]
+P: [Plan text - treatment plan, follow-up, and next steps]
+
+Each section must start with the exact prefix (S:, O:, A:, P:) followed by a space and the content. This format is required for proper parsing.
 `,
 });
 

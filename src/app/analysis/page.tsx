@@ -7,6 +7,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react'; // Added useC
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast'; // Added useToast import
 import RiskGauge from '@/components/results/RiskGauge';
 import SoapNotesEditor from '@/components/results/SoapNotesEditor';
 import { AnalyzePatientSymptomsInput } from '@/ai/flows/analyze-patient-symptoms';
@@ -15,7 +16,7 @@ import ExportModal from '@/components/results/ExportModal';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Download, ListChecks, FileQuestion, Loader2, InfoIcon, User, CalendarDays, Tag, Fingerprint, HeartPulse, ClipboardList, AlertTriangle as AlertTriangleIcon, SearchCheck } from 'lucide-react'; // Added SearchCheck
+import { ArrowLeft, Download, ListChecks, FileQuestion, Loader2, InfoIcon, User, CalendarDays, Tag, Fingerprint, HeartPulse, ClipboardList, AlertTriangle as AlertTriangleIcon, SearchCheck, MessageSquare, Brain, Activity } from 'lucide-react'; // Added MessageSquare, Brain, Activity
 import { format, parseISO } from 'date-fns';
 import type { Patient, NewCaseFormValues, AIAnalysisOutput, ICD10Code, DifferentialDiagnosisItem } from '@/types'; // Added AIAnalysisOutput, ICD10Code, DifferentialDiagnosisItem
 import { cn } from '@/lib/utils';
@@ -25,13 +26,34 @@ import { summarizePatientCondition, SummarizePatientConditionInput } from '@/ai/
 import { PatientConditionSummaryOutput } from '@/types/ai-outputs'; // Added import
 
 
-const SoapSection: React.FC<{ title: string; content?: string }> = ({ title, content }) => {
+const SoapSection: React.FC<{ title: string; content?: string; icon?: React.ReactNode; color?: string }> = ({ 
+  title, 
+  content, 
+  icon, 
+  color = "blue" 
+}) => {
   if (!content || content.trim() === '') return null;
+  
+  const colorClasses = {
+    blue: "bg-blue-50 border-blue-200 text-blue-800",
+    green: "bg-green-50 border-green-200 text-green-800", 
+    purple: "bg-purple-50 border-purple-200 text-purple-800",
+    orange: "bg-orange-50 border-orange-200 text-orange-800"
+  };
+  
   return (
-    <div className="mb-3">
-      <h4 className="font-semibold text-sm text-gray-700 mb-1">{title}</h4>
-      <p className="text-sm text-gray-600 whitespace-pre-wrap pl-2 border-l-2 border-primary-500">{content}</p>
-    </div>
+    <motion.div 
+      className={`mb-4 p-4 rounded-lg border ${colorClasses[color as keyof typeof colorClasses]} shadow-sm`}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        {icon}
+        <h4 className="font-semibold text-base">{title}</h4>
+      </div>
+      <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
+    </motion.div>
   );
 };
 
@@ -48,28 +70,83 @@ const ParsedSoapNotesDisplay: React.FC<{ notes?: string }> = ({ notes }) => {
   if (!notes || notes.trim() === '') {
     return <p className="text-gray-500 italic p-4">No SOAP notes available to parse.</p>;
   }
-
   // Check if all sections are empty after attempting to parse
   if (!sections.s && !sections.o && !sections.a && !sections.p) {
     return (
-      <div className="text-gray-500 italic p-4 border rounded-md bg-gray-50">
-        <p className="font-semibold">Could not parse SOAP notes into sections.</p>
-        <p className="text-sm mt-1">Please ensure the notes in the editor are formatted with S:, O:, A:, and P: prefixes (e.g., "S: Patient states...").</p>
-        <details className="mt-2 text-xs">
-          <summary className="cursor-pointer text-gray-600 hover:text-gray-800">View original notes</summary>
-          <pre className="whitespace-pre-wrap bg-white p-2 border rounded mt-1 text-gray-700">{notes}</pre>
-        </details>
+      <div className="p-6 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-lg">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0">
+            <AlertTriangleIcon className="h-6 w-6 text-amber-600 mt-0.5" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-amber-800 text-base mb-2">Could not parse SOAP notes into sections.</p>
+            <p className="text-sm text-amber-700 mb-3">
+              Please ensure the notes in the editor are formatted with <strong>S:</strong>, <strong>O:</strong>, <strong>A:</strong>, and <strong>P:</strong> prefixes (e.g., "S: Patient states...").
+            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3">
+              <div className="flex items-center gap-2">
+                <SearchCheck className="h-4 w-4 text-blue-600" />
+                <p className="text-sm font-medium text-blue-800">💡 Quick Fix</p>
+              </div>
+              <p className="text-sm text-blue-700 mt-1">
+                Use the "AI Enhancement" button in the Editor tab to automatically format your notes into proper SOAP structure.
+              </p>
+            </div>
+            <details className="text-sm">
+              <summary className="cursor-pointer text-amber-700 hover:text-amber-900 font-medium">View original notes</summary>
+              <div className="mt-2 p-3 bg-white border border-amber-200 rounded-md">
+                <pre className="whitespace-pre-wrap text-gray-700 text-xs leading-relaxed">{notes}</pre>
+              </div>
+            </details>
+          </div>
+        </div>
       </div>
     );
-  }
-
-  return (
-    <div className="space-y-3 p-1">
-      <SoapSection title="S (Subjective)" content={sections.s} />
-      <SoapSection title="O (Objective)" content={sections.o} />
-      <SoapSection title="A (Assessment)" content={sections.a} />
-      <SoapSection title="P (Plan)" content={sections.p} />
-    </div>
+  }  return (
+    <motion.div 
+      className="space-y-4 p-4 bg-gradient-to-br from-gray-50 to-white rounded-lg border"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+    >
+      {/* Success header */}
+      <motion.div 
+        className="flex items-center gap-2 mb-4 p-3 bg-green-50 border border-green-200 rounded-lg"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+      >
+        <SearchCheck className="h-5 w-5 text-green-600" />
+        <span className="text-sm font-medium text-green-800">
+          ✅ SOAP notes successfully parsed into structured sections
+        </span>
+      </motion.div>
+      
+      <SoapSection 
+        title="S (Subjective)" 
+        content={sections.s} 
+        icon={<MessageSquare className="h-5 w-5 text-blue-600" />}
+        color="blue"
+      />
+      <SoapSection 
+        title="O (Objective)" 
+        content={sections.o} 
+        icon={<Activity className="h-5 w-5 text-green-600" />}
+        color="green"
+      />
+      <SoapSection 
+        title="A (Assessment)" 
+        content={sections.a} 
+        icon={<Brain className="h-5 w-5 text-purple-600" />}
+        color="purple"
+      />
+      <SoapSection 
+        title="P (Plan)" 
+        content={sections.p} 
+        icon={<ClipboardList className="h-5 w-5 text-orange-600" />}
+        color="orange"
+      />
+    </motion.div>
   );
 };
 
@@ -103,8 +180,13 @@ const getRiskScoreBorderColor = (score: number): string => {
 export default function AnalysisPage() {
   const { analysisResult, analysisReturnPath, currentCaseDisplayData, setAnalysisResult: setAppStateContext } = useAppState();
   const router = useRouter();
-  const [isLoadingContext, setIsLoadingContext] = useState(true);
-  const [editableSoapNotes, setEditableSoapNotes] = useState('');
+  const { toast } = useToast(); // Add toast hook
+  const [isLoadingContext, setIsLoadingContext] = useState(true);  const [editableSoapNotes, setEditableSoapNotes] = useState('');
+  
+  // State for managing saved vs unsaved AI-enhanced notes
+  const [parsedViewNotes, setParsedViewNotes] = useState(''); // What shows in parsed view
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [lastSavedAISoapNotes, setLastSavedAISoapNotes] = useState(''); // Latest saved AI SOAP notes
 
   const [isSimilarCasesOpen, setIsSimilarCasesOpen] = useState(false);
   const [similarCases, setSimilarCases] = useState<SimilarCaseOutput[] | null>(null);
@@ -112,32 +194,66 @@ export default function AnalysisPage() {
   const [similarCasesError, setSimilarCasesError] = useState<string | null>(null);
 
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-
   // State for the new Clinical Insights Summary
   const [clinicalSummary, setClinicalSummary] = useState<PatientConditionSummaryOutput | null>(null);
   const [isLoadingClinicalSummary, setIsLoadingClinicalSummary] = useState(false);
   const [clinicalSummaryError, setClinicalSummaryError] = useState<string | null>(null);
   
-  // useEffect to initialize editableSoapNotes based on analysisResult and currentCaseDisplayData
+  // State for SOAP notes enhancement notification
+  const [showEnhancementNotification, setShowEnhancementNotification] = useState(false);
+  const [isNotificationVisible, setIsNotificationVisible] = useState(false);    // useEffect to initialize editableSoapNotes and parsedViewNotes based on analysisResult and currentCaseDisplayData
   useEffect(() => {
     if (typeof analysisResult !== 'undefined' && typeof currentCaseDisplayData !== 'undefined') {
       setIsLoadingContext(false);
-      let initialNotes = '';
-      if (analysisResult?.soapNotes) {
-        initialNotes = analysisResult.soapNotes;
-      } else if (currentCaseDisplayData) {
+      let editorNotes = '';
+      let parsedNotes = '';
+      let savedAINotes = '';
+      
+      // Initialize editor notes with original observations/notes
+      if (currentCaseDisplayData) {
         if ('id' in currentCaseDisplayData && 'notes' in currentCaseDisplayData) { // Patient
-          initialNotes = (currentCaseDisplayData as Patient).notes || '';
+          editorNotes = (currentCaseDisplayData as Patient).notes || '';
         } else if ('clinicalNotes' in currentCaseDisplayData) { // NewCaseFormValues
-          initialNotes = (currentCaseDisplayData as NewCaseFormValues).clinicalNotes || '';
+          editorNotes = (currentCaseDisplayData as NewCaseFormValues).clinicalNotes || '';
         }
       }
-      setEditableSoapNotes(initialNotes);
+      
+      // Initialize parsed view notes with priority order:
+      // 1. Previously saved AI SOAP notes (for existing patients)
+      // 2. Fresh AI analysis SOAP notes 
+      // 3. Original clinical notes as fallback
+      
+      if (currentCaseDisplayData && 'id' in currentCaseDisplayData && 'aiSoapNotes' in currentCaseDisplayData) {
+        // Load previously saved AI SOAP notes for existing patients
+        const patient = currentCaseDisplayData as Patient;
+        if (patient.aiSoapNotes) {
+          parsedNotes = patient.aiSoapNotes;
+          savedAINotes = patient.aiSoapNotes;
+        }
+      }
+      
+      // If no saved AI SOAP notes, try loading from fresh analysis
+      if (!parsedNotes && analysisResult?.soapNotes) {
+        parsedNotes = analysisResult.soapNotes;
+      }
+      
+      // Fallback to original clinical notes
+      if (!parsedNotes) {
+        parsedNotes = editorNotes;
+      }
+      
+      setEditableSoapNotes(editorNotes);
+      setParsedViewNotes(parsedNotes);
+      setLastSavedAISoapNotes(savedAINotes);
+      setHasUnsavedChanges(false);
     } else if (analysisResult === null && currentCaseDisplayData === null) {
       // This case handles when both are explicitly null (e.g., after error or navigating away)
       // and we are not already in a loading state from another effect.
       setIsLoadingContext(false); // Ensure loading is false if data is confirmed absent
       setEditableSoapNotes('');
+      setParsedViewNotes('');
+      setLastSavedAISoapNotes('');
+      setHasUnsavedChanges(false);
     }
     // If only one is undefined, isLoadingContext might remain true or be handled by other logic,
     // this effect primarily focuses on setting notes once data is available or confirmed absent.
@@ -275,58 +391,147 @@ export default function AnalysisPage() {
     };
 
     if (currentCaseDisplayData) { // Trigger when currentCaseDisplayData is available
-        fetchClinicalSummary();
-    }
+        fetchClinicalSummary();    }
   }, [patientDataForSummary, currentCaseDisplayData]); // Added currentCaseDisplayData as dependency
 
-  useEffect(() => {
-    if (typeof analysisResult !== 'undefined' && typeof currentCaseDisplayData !== 'undefined') {
-      setIsLoadingContext(false);
-      let initialNotes = '';
-      if (analysisResult?.soapNotes) {
-        initialNotes = analysisResult.soapNotes;
-      } else if (currentCaseDisplayData) {
-        if ('id' in currentCaseDisplayData && 'notes' in currentCaseDisplayData) { // Patient
-          initialNotes = (currentCaseDisplayData as Patient).notes || '';
-        } else if ('clinicalNotes' in currentCaseDisplayData) { // NewCaseFormValues
-          initialNotes = (currentCaseDisplayData as NewCaseFormValues).clinicalNotes || '';
-        }
-      }
-      setEditableSoapNotes(initialNotes);
-    } else if (analysisResult === null && currentCaseDisplayData === null) {
-      // This case handles when both are explicitly null (e.g., after error or navigating away)
-      // and we are not already in a loading state from another effect.
-      setIsLoadingContext(false); // Ensure loading is false if data is confirmed absent
-      setEditableSoapNotes('');
-    }
-  }, [analysisResult, currentCaseDisplayData]);
-
-
   const handleBackNavigation = () => {
+    if (hasUnsavedChanges) {
+      const confirmLeave = window.confirm(
+        'You have unsaved AI-enhanced SOAP notes. Are you sure you want to leave? Your changes will be lost.'
+      );
+      if (!confirmLeave) {
+        return;
+      }
+    }
+    
     if (analysisReturnPath) {
       router.push(analysisReturnPath);
     } else {
       setAppStateContext(null, null, null); 
       router.push('/new-case'); 
     }
-  };
-
-  const handleSoapNotesChange = (newNotes: string) => {
+  };const handleSoapNotesChange = (newNotes: string) => {
     setEditableSoapNotes(newNotes);
-  };
-
-  const handleResetSoapNotes = () => {
+    
+    // Check if the notes are properly formatted SOAP notes (enhanced by AI)
+    if (newNotes.includes('S:') && newNotes.includes('O:') && newNotes.includes('A:') && newNotes.includes('P:')) {
+      // This means AI has enhanced the notes - update parsed view temporarily
+      setParsedViewNotes(newNotes);
+      setHasUnsavedChanges(newNotes !== lastSavedAISoapNotes);
+      
+      setShowEnhancementNotification(true);
+      setIsNotificationVisible(true);
+      
+      // Auto-hide notification after 5 seconds
+      setTimeout(() => {
+        setIsNotificationVisible(false);
+        setTimeout(() => setShowEnhancementNotification(false), 300); // Allow for fade out animation
+      }, 5000);
+    } else {
+      // Regular editing - don't update parsed view, just check for unsaved changes
+      setHasUnsavedChanges(newNotes !== lastSavedAISoapNotes && newNotes.includes('S:') && newNotes.includes('O:') && newNotes.includes('A:') && newNotes.includes('P:'));
+    }
+  };  const handleResetSoapNotes = () => {
     let notesToResetTo = '';
-    if (analysisResult?.soapNotes) {
-      notesToResetTo = analysisResult.soapNotes;
-    } else if (currentCaseDisplayData) {
+    
+    // Reset to original clinical notes (not AI-enhanced ones)
+    if (currentCaseDisplayData) {
       if ('id' in currentCaseDisplayData && 'notes' in currentCaseDisplayData) { // Patient
         notesToResetTo = (currentCaseDisplayData as Patient).notes || '';
       } else if ('clinicalNotes' in currentCaseDisplayData) { // NewCaseFormValues
         notesToResetTo = (currentCaseDisplayData as NewCaseFormValues).clinicalNotes || '';
       }
     }
+    
     setEditableSoapNotes(notesToResetTo);
+    
+    // Reset parsed view to last saved AI notes or original notes
+    if (lastSavedAISoapNotes) {
+      setParsedViewNotes(lastSavedAISoapNotes);
+    } else if (analysisResult?.soapNotes) {
+      setParsedViewNotes(analysisResult.soapNotes);
+    } else {
+      setParsedViewNotes(notesToResetTo);
+    }
+    
+    setHasUnsavedChanges(false);
+  };
+  const handleSaveSoapNotes = async (notes: string) => {
+    // Validate that the notes are properly formatted SOAP notes
+    if (!notes || notes.trim() === '') {
+      toast({
+        title: 'Cannot Save Empty Notes',
+        description: 'Please ensure the SOAP notes contain content before saving.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check if notes are properly formatted with SOAP sections
+    if (!notes.includes('S:') || !notes.includes('O:') || 
+        !notes.includes('A:') || !notes.includes('P:')) {
+      toast({
+        title: 'Invalid SOAP Format',
+        description: 'Notes must be properly formatted with S:, O:, A:, and P: sections. Use AI Enhancement to format them correctly.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check if we have a patient ID to save to
+    if (!currentCaseDisplayData || !('id' in currentCaseDisplayData)) {
+      toast({
+        title: 'Cannot Save Notes',
+        description: 'No patient record found to save notes to. This feature is only available for existing patients.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const patientId = (currentCaseDisplayData as Patient).id;
+
+    try {
+      const response = await fetch(`/api/patients/${patientId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          aiSoapNotes: notes,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save SOAP notes');
+      }      const result = await response.json();
+      
+      // Update the local state with the saved notes
+      setParsedViewNotes(notes); // Update parsed view to show saved notes
+      setLastSavedAISoapNotes(notes); // Track the latest saved AI notes
+      setHasUnsavedChanges(false); // Clear unsaved changes flag
+      
+      // Update the current case display data to include the saved AI SOAP notes
+      if ('id' in currentCaseDisplayData) {
+        const updatedPatient = {
+          ...currentCaseDisplayData,
+          aiSoapNotes: notes
+        } as Patient;        // You might want to update the global state here if needed
+        setAppStateContext(analysisResult || null, analysisReturnPath, updatedPatient);
+      }
+
+      toast({
+        title: 'SOAP Notes Saved Successfully',
+        description: 'AI-generated SOAP notes have been saved to the patient record.',
+      });
+    } catch (error) {
+      console.error('Error saving SOAP notes:', error);
+      toast({
+        title: 'Failed to Save Notes',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred while saving.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const getPatientHeaderInfo = () => {
@@ -657,35 +862,127 @@ export default function AnalysisPage() {
                     )}
                   </CardContent>
                 </Card>
-              </motion.div>
-
-              <motion.div {...cardAnimationProps(0.2)}>
+              </motion.div>              <motion.div {...cardAnimationProps(0.2)}>
                 <Card className="shadow-xl">
                   <CardHeader>
                     <CardTitle className="text-xl font-semibold text-primary flex items-center">
                       <FileQuestion className="mr-2 h-6 w-6" /> SOAP Notes
-                    </CardTitle>
-                    <CardDescription>
+                    </CardTitle>                    <CardDescription>
                       Review and edit the AI-generated SOAP notes. You can also view the parsed sections.
+                      <br />
+                      <span className="text-xs text-amber-600 mt-1 block">
+                        ⚠️ Note: The original doctor's observations are preserved above as ground truth. These SOAP notes are AI-generated interpretations.
+                      </span>
                     </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Tabs defaultValue="editor" className="w-full">
-                      <TabsList className="grid w-full grid-cols-2 mb-4">
-                        <TabsTrigger value="editor">Editor</TabsTrigger>
-                        <TabsTrigger value="parsed">Parsed View</TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="editor">
+                    
+                    {/* Unsaved Changes Warning */}
+                    {hasUnsavedChanges && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg"
+                      >
+                        <div className="flex items-center gap-2">
+                          <AlertTriangleIcon className="h-4 w-4 text-amber-600" />
+                          <span className="text-sm font-medium text-amber-800">
+                            Unsaved Changes
+                          </span>
+                        </div>
+                        <p className="text-xs text-amber-700 mt-1">
+                          You have AI-enhanced SOAP notes that haven't been saved yet. Use the "Save Final Note" button in the Editor tab to save them permanently.
+                        </p>
+                      </motion.div>
+                    )}
+                  </CardHeader>                  <CardContent>
+                    {/* Enhancement notification */}
+                    {showEnhancementNotification && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: isNotificationVisible ? 1 : 0, y: isNotificationVisible ? 0 : -20 }}
+                        transition={{ duration: 0.3 }}
+                        className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3"
+                      >
+                        <div className="flex-shrink-0">
+                          <motion.div
+                            animate={{ scale: [1, 1.1, 1] }}
+                            transition={{ duration: 0.5, repeat: 3 }}
+                          >
+                            <SearchCheck className="h-5 w-5 text-green-600" />
+                          </motion.div>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-green-800">
+                            🎉 SOAP notes have been enhanced!
+                          </p>
+                          <p className="text-xs text-green-600 mt-1">
+                            Switch to the "Parsed View" tab to see them in structured format.
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setIsNotificationVisible(false);
+                            setTimeout(() => setShowEnhancementNotification(false), 300);
+                          }}
+                          className="text-green-600 hover:text-green-800"
+                        >
+                          ×
+                        </Button>
+                      </motion.div>
+                    )}
+                      <Tabs defaultValue="editor" className="w-full" onValueChange={(value) => {
+                      if (value === 'parsed' && showEnhancementNotification) {
+                        setIsNotificationVisible(false);
+                        setTimeout(() => setShowEnhancementNotification(false), 300);
+                      }
+                    }}>                      <TabsList className="grid w-full grid-cols-2 mb-4">
+                        <TabsTrigger value="editor" className="relative">
+                          Editor
+                          {hasUnsavedChanges && (
+                            <motion.div
+                              animate={{ 
+                                scale: [1, 1.1, 1],
+                                opacity: [0.7, 1, 0.7]
+                              }}
+                              transition={{ 
+                                duration: 2, 
+                                repeat: Infinity,
+                                ease: "easeInOut"
+                              }}
+                              className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full"
+                              title="Unsaved changes"
+                            />
+                          )}
+                        </TabsTrigger>
+                        <TabsTrigger value="parsed" className="relative">
+                          Parsed View
+                          {showEnhancementNotification && (
+                            <motion.div
+                              animate={{ 
+                                scale: [1, 1.2, 1],
+                                opacity: [0.5, 1, 0.5]
+                              }}
+                              transition={{ 
+                                duration: 1.5, 
+                                repeat: Infinity,
+                                ease: "easeInOut"
+                              }}
+                              className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full"
+                            />
+                          )}
+                        </TabsTrigger>
+                      </TabsList><TabsContent value="editor">
                         <SoapNotesEditor
                           currentNotes={editableSoapNotes}
                           onNotesChange={handleSoapNotesChange}
                           onResetNotes={handleResetSoapNotes}
+                          patientDataForAI={patientDataForAI} // Added prop
+                          onSaveNotes={handleSaveSoapNotes} // Added prop
+                          isExistingPatient={currentCaseDisplayData ? 'id' in currentCaseDisplayData : false}
                         />
-                      </TabsContent>
-                      <TabsContent value="parsed">
-                        {/* ADDING CONSOLE LOG HERE */}
-                        <script dangerouslySetInnerHTML={{ __html: `console.log('[AnalysisPage] Parsed View - editableSoapNotes:', ${JSON.stringify(editableSoapNotes)})` }} />
-                        <ParsedSoapNotesDisplay notes={editableSoapNotes} />
+                      </TabsContent>                      <TabsContent value="parsed">
+                        <ParsedSoapNotesDisplay notes={parsedViewNotes} />
                       </TabsContent>
                     </Tabs>
                   </CardContent>
@@ -744,12 +1041,30 @@ export default function AnalysisPage() {
                               </div>
                             ));
                           })()}
+                        </div>                        <div>
+                          <strong className="block text-primary mb-0.5">Doctor's Original Observations (Ground Truth):</strong> 
+                          <div className="mt-2 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-md">
+                            <p className="text-foreground whitespace-pre-wrap leading-relaxed text-sm">{patientDataForAI.observations}</p>
+                            <p className="text-xs text-blue-600 mt-2 italic">
+                              ℹ️ These are the original clinical observations recorded by the doctor and serve as the ground truth for this case.
+                            </p>
+                          </div>
                         </div>
 
-                        <div>
-                          <strong className="block text-primary mb-0.5">Observations:</strong> 
-                          <p className="text-foreground whitespace-pre-wrap leading-relaxed">{patientDataForAI.observations}</p>
-                        </div>
+                        {/* AI SOAP Notes Section (if saved) */}
+                        {currentCaseDisplayData && 'aiSoapNotes' in currentCaseDisplayData && (currentCaseDisplayData as Patient).aiSoapNotes && (
+                          <div>
+                            <strong className="block text-primary mb-0.5">Saved AI SOAP Notes:</strong> 
+                            <div className="mt-2 p-3 bg-green-50 border-l-4 border-green-400 rounded-r-md">
+                              <p className="text-foreground whitespace-pre-wrap leading-relaxed text-sm">
+                                {(currentCaseDisplayData as Patient).aiSoapNotes}
+                              </p>
+                              <p className="text-xs text-green-600 mt-2 italic">
+                                ✅ These are AI-generated SOAP notes that have been saved to the patient record.
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </>
                     ) : (
                       <p className="text-muted-foreground">Patient details not fully loaded.</p>
@@ -776,7 +1091,6 @@ export default function AnalysisPage() {
         analysisData={analysisResult} 
         patientData={currentCaseDisplayData}
         soapNotes={editableSoapNotes}
-      />
-    </MainLayout>
+      />    </MainLayout>
   );
 }

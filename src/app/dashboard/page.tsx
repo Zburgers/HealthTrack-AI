@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { motion } from 'framer-motion';
 import type { Patient } from '@/types';
-import { PlusCircle, User, AlertTriangle, ShieldAlert, CalendarClock, Bed, Filter, Search, Loader2 } from 'lucide-react';
+import { PlusCircle, User, AlertTriangle, ShieldAlert, CalendarClock, Bed, Filter, Search, Loader2, Sparkles } from 'lucide-react';
 import { parseISO, compareDesc, compareAsc } from 'date-fns';
 
 // Helper function to get correct risk score (0-100)
@@ -225,9 +225,20 @@ export default function DashboardPage() {
                       height={60}
                       className="rounded-full border"
                       data-ai-hint={patient.dataAiHint}
-                    />
-                    <div className="flex-1">
-                      <CardTitle className="text-lg font-semibold text-foreground">{patient.name}</CardTitle>
+                    />                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <CardTitle className="text-lg font-semibold text-foreground">{patient.name}</CardTitle>
+                        {patient.status === 'analyzing' && (
+                          <Tooltip delayDuration={100}>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center">
+                                <Sparkles className="h-4 w-4 text-blue-600 animate-pulse" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent><p>AI Analysis in Progress</p></TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
                       <CardDescription className="text-xs text-muted-foreground">Last Visit: {new Date(patient.lastVisit).toLocaleDateString()}</CardDescription>
                       {patient.alert && AlertIcon && (
                         <Tooltip delayDuration={100}>
@@ -241,16 +252,25 @@ export default function DashboardPage() {
                         </Tooltip>
                       )}
                     </div>
-                  </CardHeader>
-                  <CardContent className="flex-grow">
+                  </CardHeader>                  <CardContent className="flex-grow">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center">
-                        <AlertTriangle className={`h-5 w-5 mr-1 ${getRiskScoreColor(patient.riskScore).replace('bg-', 'text-')}`} />
+                        {patient.status === 'analyzing' ? (
+                          <Loader2 className="h-5 w-5 mr-1 text-blue-600 animate-spin" />
+                        ) : (
+                          <AlertTriangle className={`h-5 w-5 mr-1 ${getRiskScoreColor(patient.riskScore).replace('bg-', 'text-')}`} />
+                        )}
                         <span className="text-sm font-medium text-foreground">Risk Score: </span>
                       </div>
-                      <Badge variant="outline" className={`px-2 py-1 text-xs ${getRiskScoreColor(patient.riskScore)} text-white`}>
-                        {normalizedScore}%
-                      </Badge>
+                      {patient.status === 'analyzing' ? (
+                        <Badge variant="outline" className="px-2 py-1 text-xs bg-blue-100 text-blue-800 border-blue-300 animate-pulse">
+                          Analyzing...
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className={`px-2 py-1 text-xs ${getRiskScoreColor(patient.riskScore)} text-white`}>
+                          {normalizedScore}%
+                        </Badge>
+                      )}
                     </div>
                     <div className="space-y-1">
                       <h4 className="text-sm font-medium text-foreground mb-1">Key Conditions:</h4>
