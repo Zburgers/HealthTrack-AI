@@ -190,44 +190,116 @@ export const cardHover = {
   transition: transitions.smooth,
 };
 
-// Shimmer animation for loading states
-export const shimmerAnimation: Variants = {
-  initial: { x: '-100%' },
-  animate: {
-    x: '100%',
-    transition: {
-      repeat: Infinity,
-      repeatType: 'loop',
-      duration: 1.5,
-      ease: 'linear',
-    },
-  },
+// Accessibility: Support for prefers-reduced-motion
+export const useReducedMotion = () => {
+  const [prefersReducedMotion, setPrefersReducedMotion] = React.useState(false);
+  
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+      setPrefersReducedMotion(mediaQuery.matches);
+      
+      const handleChange = () => setPrefersReducedMotion(mediaQuery.matches);
+      mediaQuery.addEventListener('change', handleChange);
+      
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+  }, []);
+  
+  return prefersReducedMotion;
 };
 
-// Pulse animation for notifications
-export const pulseAnimation: Variants = {
+// Safe animation variants that respect prefers-reduced-motion
+export const createSafeVariants = (variants: Variants): Variants => {
+  const reducedMotionVariants: Variants = {};
+  
+  for (const [key, value] of Object.entries(variants)) {
+    if (typeof value === 'object' && value !== null) {
+      reducedMotionVariants[key] = {
+        ...value,
+        transition: { duration: 0, delay: 0 },
+      };
+    } else {
+      reducedMotionVariants[key] = value;
+    }
+  }
+  
+  return reducedMotionVariants;
+};
+
+// Enhanced micro-interactions
+export const buttonPressVariants: Variants = {
   initial: { scale: 1 },
+  hover: { 
+    scale: 1.02,
+    transition: transitions.snappy,
+  },
+  tap: { 
+    scale: 0.98,
+    transition: transitions.snappy,
+  },
+};
+
+export const iconSpinVariants: Variants = {
+  initial: { rotate: 0 },
   animate: {
-    scale: [1, 1.05, 1],
+    rotate: 360,
     transition: {
+      duration: 1,
+      ease: 'linear',
       repeat: Infinity,
-      repeatType: 'loop',
-      duration: 2,
-      ease: 'easeInOut',
     },
   },
 };
 
-// Floating animation for attention-grabbing elements
-export const floatingAnimation: Variants = {
+export const iconBounceVariants: Variants = {
   initial: { y: 0 },
   animate: {
-    y: [-2, 2, -2],
+    y: [-2, -4, -2, 0],
     transition: {
-      repeat: Infinity,
-      repeatType: 'loop',
-      duration: 3,
+      duration: 0.6,
       ease: 'easeInOut',
+      repeat: Infinity,
+      repeatDelay: 2,
+    },
+  },
+};
+
+// Toast notification animations
+export const toastSlideIn: Variants = {
+  initial: { opacity: 0, x: 300, scale: 0.9 },
+  animate: { 
+    opacity: 1, 
+    x: 0, 
+    scale: 1,
+    transition: transitions.spring,
+  },
+  exit: { 
+    opacity: 0, 
+    x: 300, 
+    scale: 0.9,
+    transition: transitions.smooth,
+  },
+};
+
+// Progress bar animation
+export const progressBarVariants: Variants = {
+  initial: { scaleX: 0, transformOrigin: 'left' },
+  animate: (progress: number) => ({
+    scaleX: progress / 100,
+    transition: { duration: 0.5, ease: 'easeOut' },
+  }),
+};
+
+// Skeleton loading animation with better performance
+export const skeletonPulse: Variants = {
+  initial: { opacity: 1 },
+  animate: {
+    opacity: [1, 0.5, 1],
+    transition: {
+      duration: 1.5,
+      ease: 'easeInOut',
+      repeat: Infinity,
     },
   },
 };

@@ -2,6 +2,7 @@ import type { LucideProps } from "lucide-react";
 import React from "react";
 import type { NewCaseFormValues } from "@/components/new-case/NewCaseForm";
 import { ObjectId } from "mongodb";
+import type { SimilarCaseOutput } from "./similar-cases";
 
 // Represents the data structure in the MongoDB 'patients' collection
 export interface PatientDocument {
@@ -20,20 +21,33 @@ export interface PatientDocument {
   };
   symptoms: string[];
   observations: string;
+  // Medical History Fields
+  primary_complaint?: string;
+  previous_conditions?: string[];
+  allergies?: string[];
+  current_medications?: string[];
   icd_tags: { code: string; label: string; confidence: number; source_phrase: string }[];
   icd_tag_summary: string[];
   risk_predictions: { condition: string; confidence: number; explanation: string[] }[];
-  risk_score: number;  soap_note: {
+  risk_score: number;
+  soap_note: {
     subjective: string;
     objective: string;
     assessment: string;
     plan: string;
   };
-  ai_soap_notes?: string; // Separate field for AI-generated SOAP notes
   matched_cases: { case_id: string; similarity_score: number; diagnosis: string; summary: string }[];
+  // Enhanced Medical History Analysis
+  medical_history_analysis?: {
+    allergy_warnings?: string[];
+    medication_interactions?: string[];
+    previous_conditions_impact?: string[];
+  };
   ai_metadata: any;
   status: 'draft' | 'analyzing' | 'complete' | 'exported' | 'analysis_failed';
   owner_uid: string;
+  ai_soap_notes?: string; // Add AI SOAP notes field
+  ai_analysis_timestamp?: Date; // Track when AI analysis was performed
 }
 
 
@@ -58,6 +72,7 @@ export interface AIAnalysisOutput {
   treatmentSuggestions?: string[]; // Added
   riskScore: number;
   soapNotes: string;
+  similarCases?: SimilarCaseOutput[]; // Added similar cases
 }
 
 export interface PatientAlert {
@@ -78,7 +93,8 @@ export interface Patient {
   lastVisit: string;
   age: number;
   gender: 'Male' | 'Female' | 'Other' | string;
-  primaryComplaint: string;  vitals: {
+  primaryComplaint: string;
+  vitals: {
     bp?: string;
     hr?: string;
     rr?: string;
@@ -87,13 +103,21 @@ export interface Patient {
     [key: string]: string | undefined;
   };
   doctorsObservations: string;
-  aiSoapNotes?: string; // AI-generated SOAP notes stored separately from original notes
   status?: 'draft' | 'analyzing' | 'complete' | 'exported' | 'analysis_failed';
   aiAnalysis?: AIAnalysisOutput;
   alert?: PatientAlert;
+  // Medical History Fields (consistent with form and database)
+  previousConditions?: string[];
   allergies?: string[]; 
   medications?: string[]; 
-  notes?: string; // Original doctor's notes (preserved)
+  notes?: string; 
+  aiSoapNotes?: string; // Add AI SOAP notes field to Patient type
+  // Enhanced Medical History Analysis for UI display
+  medicalHistoryAnalysis?: {
+    allergyWarnings?: string[];
+    medicationInteractions?: string[];
+    previousConditionsImpact?: string[];
+  };
 }
 
 export interface AppState {

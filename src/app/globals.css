@@ -77,3 +77,47 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  /* Shimmer animation for progress indicators */
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
+  }
+  
+  /* Striped background for progress bars */
+  .bg-striped {
+    background-image: linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.1) 25%,
+      transparent 25%,
+      transparent 50%,
+      rgba(255, 255, 255, 0.1) 50%,
+      rgba(255, 255, 255, 0.1) 75%,
+      transparent 75%,
+      transparent
+    );
+    background-size: 1rem 1rem;
+  }
+  
+  .bg-striped-animate {
+    animation: move-bg 2s linear infinite;
+  }
+  
+  @keyframes move-bg {
+    0% {
+      background-position: 0 0;
+    }
+    100% {
+      background-position: 1rem 1rem;
+    }
+  }
+}

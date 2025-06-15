@@ -69,3 +69,141 @@ export async function summarizePatientCondition(
 ): Promise<PatientConditionSummaryOutput> {
   return summarizePatientConditionFlow(input);
 }
+
+// Enhanced input schema with structured medical history
+const SummarizePatientConditionInputSchemaEnhanced = z.object({
+  patientInformation: z
+    .string()
+    .describe('Comprehensive details about the patient, including medical history, age, gender, primary complaint, known conditions, medications, allergies.'),
+  vitals: z.string().describe('Patient vitals such as BP, HR, Temp, RR, SpO2.'),
+  observations: z
+    .string()
+    .describe('Clinician\'s free-text notes or initial observations regarding the patient\'s condition.'),
+  medicalHistory: z.object({
+    allergies: z.array(z.string()).optional().describe('Known allergies and adverse reactions.'),
+    currentMedications: z.array(z.string()).optional().describe('Current medications and dosages.'),
+    previousConditions: z.array(z.string()).optional().describe('Previous medical conditions and diagnoses.'),
+    primaryComplaint: z.string().optional().describe('Patient\'s primary reason for visit.'),
+  }).optional().describe('Structured medical history data for comprehensive patient summary.'),
+});
+
+export type SummarizePatientConditionInputEnhanced = z.infer<typeof SummarizePatientConditionInputSchemaEnhanced>;
+
+// Enhanced output schema with medical history insights
+const PatientConditionSummaryOutputSchemaEnhanced = z.object({
+  overallAssessment: z.string().describe('Comprehensive overview of patient status including medical history context.'),
+  keyFindings: z.array(z.string()).describe('Key clinical findings including medical history relevance.'),
+  careSuggestions: z.array(z.string()).describe('Care recommendations considering complete medical picture.'),
+  furtherDataNeeded: z.string().describe('Additional information needs assessment.'),
+  medicalHistoryInsights: z.object({
+    allergyImpact: z.array(z.string()).optional().describe('How allergies impact current care.'),
+    medicationConsiderations: z.array(z.string()).optional().describe('Current medication relevance to condition.'),
+    previousConditionRelevance: z.array(z.string()).optional().describe('How past conditions relate to current presentation.'),
+    riskFactorAnalysis: z.array(z.string()).optional().describe('Risk factors identified from medical history.'),
+  }).optional().describe('Detailed medical history impact analysis.'),
+});
+
+export type PatientConditionSummaryOutputEnhanced = z.infer<typeof PatientConditionSummaryOutputSchemaEnhanced>;
+
+// Enhanced prompt definition with medical history focus
+const patientConditionSummaryPromptEnhanced = ai.definePrompt({
+  name: 'patientConditionSummaryPromptEnhanced',
+  input: { schema: SummarizePatientConditionInputSchemaEnhanced },
+  output: { schema: PatientConditionSummaryOutputSchemaEnhanced },
+  prompt: `You are an expert medical AI assistant specializing in comprehensive patient analysis. Synthesize all patient data including detailed medical history into a thorough clinical summary to support informed clinical decision-making.
+
+PATIENT DATA:
+Patient Information: {{{patientInformation}}}
+Vitals: {{{vitals}}}
+Observations: {{{observations}}}
+
+{{#if medicalHistory}}
+STRUCTURED MEDICAL HISTORY:
+{{#if medicalHistory.primaryComplaint}}Primary Complaint: {{{medicalHistory.primaryComplaint}}}{{/if}}
+{{#if medicalHistory.allergies}}Known Allergies: {{{medicalHistory.allergies}}}{{/if}}
+{{#if medicalHistory.currentMedications}}Current Medications: {{{medicalHistory.currentMedications}}}{{/if}}
+{{#if medicalHistory.previousConditions}}Previous Medical Conditions: {{{medicalHistory.previousConditions}}}{{/if}}
+{{/if}}
+
+COMPREHENSIVE ANALYSIS REQUIREMENTS:
+
+1. **Enhanced Overall Assessment** (1-2 sentences):
+   - Synthesize current presentation with medical history context
+   - Highlight how past conditions influence current status
+   - Consider medication effects on current presentation
+
+2. **Key Findings with Medical History Context** (bulleted list):
+   - Current clinical findings with historical relevance
+   - Medication effects or side effects that may be contributing
+   - Previous condition exacerbations or complications
+   - Allergy-related considerations for current symptoms
+   - Risk factors from medical history
+
+3. **Care Suggestions with Medical History Integration** (bulleted list):
+   - Treatment considerations that account for known allergies
+   - Medication adjustments or interactions to consider
+   - Monitoring needs based on previous conditions
+   - Preventive measures related to historical risk factors
+   - Contraindications based on medical history
+
+4. **Further Data Needed Assessment**:
+   - Missing medical history information
+   - Need for medication level monitoring
+   - Previous condition status updates
+   - Allergy severity clarification needs
+
+5. **Medical History Impact Analysis**:
+   - **Allergy Impact**: How allergies affect treatment options
+   - **Medication Considerations**: Current med relevance to condition
+   - **Previous Condition Relevance**: Past conditions affecting current care
+   - **Risk Factor Analysis**: Historical risk factors identified
+
+CLINICAL SAFETY PRIORITIES:
+- Always consider drug allergies in treatment suggestions
+- Factor in medication interactions with current prescriptions
+- Assess risk based on complete medical history
+- Highlight any contraindications clearly
+
+ANALYSIS STANDARDS:
+- Be objective and evidence-based
+- Acknowledge data limitations explicitly
+- Prioritize patient safety through comprehensive history review
+- Use professional clinical language
+- Avoid speculation beyond available data
+
+OUTPUT FORMAT:
+Provide structured analysis following the PatientConditionSummaryOutputSchemaEnhanced, ensuring all medical history insights are thoroughly integrated into each section`,
+});
+
+// Enhanced flow definition
+const summarizePatientConditionFlowEnhanced = ai.defineFlow(
+  {
+    name: 'summarizePatientConditionFlowEnhanced',
+    inputSchema: SummarizePatientConditionInputSchemaEnhanced,
+    outputSchema: PatientConditionSummaryOutputSchemaEnhanced,
+  },
+  async (input): Promise<PatientConditionSummaryOutputEnhanced> => {
+    const { output } = await patientConditionSummaryPromptEnhanced(input);
+    
+    // Ensure comprehensive output with defaults
+    return {
+      overallAssessment: output?.overallAssessment || 'Assessment could not be generated based on provided data.',
+      keyFindings: output?.keyFindings && output.keyFindings.length > 0 ? output.keyFindings : ['No specific key findings identified or data insufficient.'],
+      careSuggestions: output?.careSuggestions && output.careSuggestions.length > 0 ? output.careSuggestions : ['No specific care suggestions identified or data insufficient.'],
+      furtherDataNeeded: output?.furtherDataNeeded || 'Evaluation of information sufficiency could not be determined.',
+      medicalHistoryInsights: output?.medicalHistoryInsights || {
+        allergyImpact: ['No allergy impact analysis available.'],
+        medicationConsiderations: ['No medication considerations identified.'],
+        previousConditionRelevance: ['No previous condition relevance established.'],
+        riskFactorAnalysis: ['No risk factors identified from medical history.'],
+      },
+    };
+  }
+);
+
+// Enhanced exported function
+export async function summarizePatientConditionEnhanced(
+  input: SummarizePatientConditionInputEnhanced
+): Promise<PatientConditionSummaryOutputEnhanced> {
+  return summarizePatientConditionFlowEnhanced(input);
+}

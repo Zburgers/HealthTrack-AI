@@ -80,10 +80,21 @@ export default function ResultsDisplay_DEPRECATED() {
             <Download className="mr-2 h-4 w-4" /> Export Report
           </Button>
         </div>
-      </div>
-       {/* Content would be here, but it's primarily to show deprecation message */}
-      <SimilarCasesPanel isOpen={isSimilarCasesOpen} onOpenChange={setIsSimilarCasesOpen} />
-      <ExportModal isOpen={isExportModalOpen} onOpenChange={setIsExportModalOpen} />
+      </div>       {/* Content would be here, but it's primarily to show deprecation message */}
+      <SimilarCasesPanel 
+        isOpen={isSimilarCasesOpen} 
+        onOpenChange={setIsSimilarCasesOpen}
+        cases={null}
+        isLoading={false}
+        error={null}
+      />
+      <ExportModal 
+        isOpen={isExportModalOpen} 
+        onOpenChange={setIsExportModalOpen}
+        analysisData={null}
+        patientData={null}
+        soapNotes=""
+      />
     </div>
   );
 }

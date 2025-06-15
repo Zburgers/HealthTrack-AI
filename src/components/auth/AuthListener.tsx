@@ -11,7 +11,15 @@ const AuthListener = () => {
   const router = useRouter();
   const pathname = usePathname();
 
-  const publicPaths = ['/login', '/'];
+  const publicPaths = [
+    '/login', 
+    '/', 
+    '/about', // Added /about to public paths
+    '/privacy-policy', 
+    '/terms-of-service', 
+    '/contact-us', 
+    '/citations'
+  ];
   const isPublicPath = publicPaths.includes(pathname);
 
   useEffect(() => {
@@ -20,8 +28,8 @@ const AuthListener = () => {
     if (!user && !isPublicPath) {
       // User not authenticated and trying to access protected route
       router.push('/login');
-    } else if (user && (pathname === '/login' || pathname === '/')) {
-      // User is authenticated and on login/home page, redirect to dashboard
+    } else if (user && pathname === '/login') {
+      // User is authenticated and on login page, redirect to dashboard
       router.push('/dashboard');
     }
   }, [user, loading, router, pathname, isPublicPath]);

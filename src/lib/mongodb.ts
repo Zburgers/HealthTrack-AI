@@ -6,7 +6,7 @@ if (!MONGODB_URI) {
 }
 
 // This is the main client used by the application.
-const client = new MongoClient(MONGODB_URI, {
+const client = new MongoClient(MONGODB_URI!, {
   serverApi: {
     version: ServerApiVersion.v1,
     strict: false, // Allow $vectorSearch
@@ -41,7 +41,7 @@ export async function connectToDatabase() {
  * It is used for startup checks to avoid leaving open connections.
  */
 export async function verifyDatabaseConnection() {
-    const verificationClient = new MongoClient(MONGODB_URI, {
+    const verificationClient = new MongoClient(MONGODB_URI!, {
         serverApi: { version: ServerApiVersion.v1, strict: false, deprecationErrors: true } // Also update here for consistency
     });
 

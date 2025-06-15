@@ -1,4 +1,3 @@
-
 // This file centralizes the configuration for the application, primarily from environment variables.
 // Ensure you have a .env.local file in the root of your project with these variables defined.
 
@@ -62,26 +61,25 @@ if (process.env.NODE_ENV !== 'production') {
 // This variable (MONGODB_URI) would typically be used in backend API routes or server actions if you directly connect to MongoDB.
 // For this application, direct MongoDB interaction is not part of the scaffolded UI features,
 // but this is where you'd manage its configuration if needed.
-const MONGODB_PW = "2kzWwEiYR4lHLWFh"
-if (!MONGODB_PW) {
-  throw new Error(
-    `MongoDB configuration error: The environment variable "MONGODBPW" is missing or empty in your .env file.`
-  );
-}
 
-export const MONGODB_URI = `mongodb+srv://naki:${MONGODB_PW}@cluster0.hrnm8fq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+// Ensure these are set in your environment variables
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY; // Or directly use GEMINI_API_KEY if they are the same
 
+const MONGODB_USER = process.env.MONGODB_USER; // Assuming you might have a user too
+const MONGODB_PW = process.env.MONGODBPW;
+const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || 'healthtrack'; // Default if not set
+const ATLAS_VECTOR_SEARCH_INDEX_NAME = process.env.ATLAS_VECTOR_SEARCH_INDEX_NAME || 'case_index';
 
-// Vertex AI / Genkit Configuration (Guidance)
-// Genkit typically uses Google Cloud Application Default Credentials (ADC).
-// Ensure your environment is authenticated (e.g., via \`gcloud auth application-default login\`).
-// Specific Vertex AI project ID or location might be needed by Genkit plugins if not inferred.
-// Genkit's \`googleAI\` plugin may look for \`GOOGLE_API_KEY\` or use ADC.
-// The \`@genkit-ai/googleai\` plugin initialized in \`src/ai/genkit.ts\` handles this.
-// See Genkit documentation for specific environment variable needs for Google AI.
-// Example:
-// GOOGLE_API_KEY="your_google_ai_api_key" (if using API keys for Gemini)
-// Or ensure \`GOOGLE_APPLICATION_CREDENTIALS\` is set if using service accounts for ADC.
+// Define and export MONGODB_URI from the environment variable
+export const MONGODB_URI = process.env.MONGODB_URI;
+
+// Update the MongoDB connection string to use environment variables
+// Example (you might need to adjust based on your actual connection string format):
+// const MONGODB_URI_CONSTRUCTED = `mongodb+srv://${MONGODB_USER}:${MONGODB_PW}@yourcluster.mongodb.net/${MONGODB_DB_NAME}?retryWrites=true&w=majority`;
+
+// Vertex AI Configuration from environment variables
+const VERTEX_AI_ENDPOINT_HOST = process.env.VERTEX_AI_ENDPOINT_HOST;
 
 export const APP_CONFIG = {
   // Add any other app-wide configurations here

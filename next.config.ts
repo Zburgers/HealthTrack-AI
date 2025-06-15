@@ -1,18 +1,29 @@
 import type {NextConfig} from 'next';
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+});
 
 const nextConfig: NextConfig = {
   /* config options here */
   typescript: {
-    ignoreBuildErrors: true,
+    // Set to false for production builds to enforce type checking
+    ignoreBuildErrors: process.env.NODE_ENV === 'development',
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    // Set to false for production builds to enforce linting rules
+    ignoreDuringBuilds: process.env.NODE_ENV === 'development',
   },
   images: {
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'placehold.co',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'avatars.githubusercontent.com',
         port: '',
         pathname: '/**',
       },
@@ -34,4 +45,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);
