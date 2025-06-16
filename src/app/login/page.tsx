@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithPopup, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { auth, googleProvider } from '@/lib/firebase';
+// Import the getter functions, not the instances directly
+import { getFirebaseAuth, getGoogleAuthProvider } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -48,23 +49,28 @@ export default function LoginPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user: FirebaseUser | null) => {
+    // Get Firebase auth instance here, inside useEffect
+    const authInstance = getFirebaseAuth();
+    const unsubscribe = onAuthStateChanged(authInstance, (user: FirebaseUser | null) => {
       if (user) {
-        router.replace('/dashboard'); 
+        router.replace('/dashboard');
       } else {
         setIsCheckingAuth(false);
       }
     });
     return () => unsubscribe();
-  }, [router]);
+  }, [router]); // router is a dependency
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
+    // Get Firebase instances here, inside the event handler
+    const authInstance = getFirebaseAuth();
+    const googleProviderInstance = getGoogleAuthProvider();
     try {
-      await signInWithPopup(auth, googleProvider);
-      toast({ 
-        title: 'Welcome to HealthTrack AI', 
-        description: 'Login successful! Preparing your intelligent dashboard...', 
+      await signInWithPopup(authInstance, googleProviderInstance);
+      toast({
+        title: 'Welcome to HealthTrack AI',
+        description: 'Login successful! Preparing your intelligent dashboard...',
         duration: 5000,
       });
       router.push('/dashboard');
@@ -97,13 +103,13 @@ export default function LoginPage() {
           >
             <Activity className="h-16 w-16 text-sky-400 mx-auto" />
           </motion.div>
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
-            className="text-sky-200 font-semibold text-lg tracking-wider"
+          <motion.p 
+            className="text-xl font-semibold text-sky-300"
+            initial={{ opacity: 0}}
+            animate={{ opacity: 1}}
+            transition={{ delay: 0.3, duration: 0.5}}
           >
-            Initializing HealthTrack AI...
+            Authenticating your session...
           </motion.p>
         </motion.div>
       </div>
@@ -135,67 +141,34 @@ export default function LoginPage() {
           transition={{ duration: 0.8, ease: "circOut", delay: 0.2 }}
           className="space-y-10 text-center lg:text-left"
         >
-          <div className="space-y-6">
-            <motion.div
-              initial={{ opacity: 0, y: -30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.7, type: "spring", stiffness: 100 }}
-              className="flex items-center justify-center lg:justify-start gap-4"
-            >
-              <motion.div
-                className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-2xl shadow-sky-500/30"
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <Activity className="h-8 w-8" />
-              </motion.div>
-              <div>
-                <h1 className="font-headline text-5xl font-extrabold tracking-tight bg-gradient-to-r from-sky-400 via-cyan-300 to-indigo-400 bg-clip-text text-transparent">
-                  HealthTrack AI
-                </h1>
-                <p className="text-lg text-sky-200/80 font-medium">The Future of Clinical Intelligence</p>
-              </div>
-            </motion.div>
-            
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6, duration: 0.6, ease: "easeOut" }}
-              className="text-xl text-slate-300 max-w-lg mx-auto lg:mx-0 leading-relaxed"
-            >
-              Elevate patient care with AI-driven diagnostics, streamlined workflows, and actionable insights. Securely, efficiently, intelligently.
-            </motion.p>
+          <div className="inline-flex items-center space-x-3 bg-sky-500/20 text-sky-300 px-4 py-2 rounded-full text-sm font-medium shadow-md border border-sky-500/30">
+            <Sparkles className="h-5 w-5 text-yellow-400" />
+            <span>Next-Gen Clinical Intelligence</span>
           </div>
 
-          {/* Features Grid */}
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={{ 
-              hidden: { opacity: 0 }, 
-              visible: { opacity: 1, transition: { staggerChildren: 0.15, delayChildren: 0.8 } }
-            }}
-            className="grid sm:grid-cols-2 gap-5"
-          >
-            {features.map((feature) => (
-              <motion.div
+          <h1 className="font-headline text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight">
+            Welcome to <span className="text-sky-400">HealthTrack</span> AI
+          </h1>
+          <p className="text-lg md:text-xl text-slate-300/90 max-w-xl mx-auto lg:mx-0">
+            Empowering healthcare professionals with AI-driven insights for superior patient care, 
+            streamlined ICD-10 coding, and comprehensive clinical analysis.
+          </p>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
+            {features.slice(0, 2).map((feature, index) => (
+              <motion.div 
                 key={feature.title}
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="bg-slate-800/50 backdrop-blur-md border border-sky-500/30 rounded-xl p-5 shadow-lg hover:shadow-sky-500/20 hover:border-sky-400 transition-all duration-300 transform hover:-translate-y-1"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.5 + index * 0.15 }}
+                className="bg-slate-800/50 p-6 rounded-xl shadow-lg border border-slate-700/80 hover:shadow-sky-500/20 transition-shadow"
               >
-                <div className="flex items-start gap-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 text-white flex-shrink-0 shadow-md">
-                    <feature.icon className="h-5 w-5" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <h3 className="font-semibold text-md text-sky-300">{feature.title}</h3>
-                    <p className="text-sm text-slate-400 leading-normal">{feature.description}</p>
-                  </div>
-                </div>
+                <feature.icon className="h-8 w-8 text-sky-400 mb-3" />
+                <h3 className="text-lg font-semibold text-sky-300 mb-1">{feature.title}</h3>
+                <p className="text-sm text-slate-400/80">{feature.description}</p>
               </motion.div>
             ))}
-          </motion.div>
+          </div>
         </motion.div>
 
         {/* Right Side - Login Card */}
@@ -205,94 +178,43 @@ export default function LoginPage() {
           transition={{ duration: 0.8, ease: "circOut", delay: 0.4 }}
           className="flex items-center justify-center lg:justify-end"
         >
-          <Card className="w-full max-w-md shadow-2xl shadow-indigo-500/30 border-0 bg-slate-800/60 backdrop-blur-lg rounded-2xl overflow-hidden">
-            <CardHeader className="text-center space-y-6 p-8 bg-gradient-to-br from-sky-600/20 to-indigo-700/20">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.7 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.7, duration: 0.6, type: "spring", stiffness: 150 }}
-                className="space-y-3"
+          <Card className="w-full max-w-md bg-slate-800/60 backdrop-blur-md border-slate-700/70 shadow-2xl rounded-2xl overflow-hidden">
+            <CardHeader className="text-center pt-8 pb-6">
+              <motion.div 
+                className="inline-block mb-4"
+                initial={{ scale: 0 }} animate={{ scale: 1}} transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.6}}
               >
-                <div className="flex justify-center">
-                  <motion.div 
-                    className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-xl shadow-sky-500/40"
-                    whileHover={{ scale: 1.05, boxShadow: "0 0 25px rgba(56, 189, 248, 0.6)" }}
-                    transition={{ type: "spring", stiffness: 200 }}
-                  >
-                    <ShieldCheck className="h-10 w-10" />
-                  </motion.div>
-                </div>
-                <CardTitle className="font-headline text-3xl font-bold text-sky-100">
-                  Secure Access
-                </CardTitle>
-                <CardDescription className="text-slate-300 text-base">
-                  Sign in to unlock the power of AI in your clinical practice.
-                </CardDescription>
+                <Users className="h-16 w-16 text-sky-400 p-3 bg-sky-500/20 rounded-full" />
               </motion.div>
+              <CardTitle className="text-3xl font-bold font-headline text-sky-300">Access Your Dashboard</CardTitle>
+              <CardDescription className="text-slate-400/80 pt-2">
+                Sign in to unlock AI-powered clinical decision support.
+              </CardDescription>
             </CardHeader>
-            
-            <CardContent className="p-8 space-y-8">
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.9, duration: 0.6, ease: "easeOut" }}
+            <CardContent className="px-8 pb-8 space-y-6">
+              <Button 
+                onClick={handleGoogleSignIn} 
+                disabled={isLoading}
+                className="w-full bg-sky-600 hover:bg-sky-500 text-white text-lg font-semibold py-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 ease-in-out group transform hover:scale-105 focus:ring-4 focus:ring-sky-400/50"
               >
-                <Button
-                  onClick={handleGoogleSignIn}
-                  disabled={isLoading}
-                  className="w-full group bg-gradient-to-r from-sky-500 via-cyan-500 to-indigo-600 hover:from-sky-400 hover:via-cyan-400 hover:to-indigo-500 text-white py-6 text-lg font-semibold shadow-lg hover:shadow-sky-500/40 transition-all duration-300 transform hover:-translate-y-1 rounded-xl focus:ring-4 focus:ring-sky-400/50 focus:outline-none"
-                >
-                  <AnimatePresence mode="wait">
-                    {isLoading ? (
-                      <motion.div
-                        key="loading"
-                        initial={{ opacity: 0, width: 0 }}
-                        animate={{ opacity: 1, width: "auto" }}
-                        exit={{ opacity: 0, width: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="flex items-center justify-center"
-                      >
-                        <Loader2 className="mr-3 h-6 w-6 animate-spin" />
-                        Authenticating...
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="signin"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="flex items-center justify-center"
-                      >
-                        <GoogleIcon />
-                        Sign In with Google
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </Button>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1.1, duration: 0.5 }}
-                className="text-center"
-              >
-                <p className="text-xs text-slate-400/80">
-                  Powered by cutting-edge AI & secure infrastructure.
-                </p>
-              </motion.div>
+                {isLoading ? (
+                  <Loader2 className="mr-3 h-6 w-6 animate-spin" />
+                ) : (
+                  <GoogleIcon />
+                )}
+                {isLoading ? 'Authenticating...' : 'Sign In with Google'}
+              </Button>
+              <p className="text-xs text-slate-500/70 text-center px-4">
+                By signing in, you agree to our 
+                <a href="/terms-of-service" className="underline hover:text-sky-400 transition-colors"> Terms of Service </a> 
+                and 
+                <a href="/privacy-policy" className="underline hover:text-sky-400 transition-colors"> Privacy Policy</a>.
+              </p>
             </CardContent>
-            <CardFooter className="p-6 bg-slate-800/30 border-t border-sky-500/20">
-                <div className="text-center w-full space-y-2">
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    By signing in, you agree to our <a href="/terms" className="underline hover:text-sky-300">Terms of Service</a> and <a href="/privacy" className="underline hover:text-sky-300">Privacy Policy</a>. 
-                  </p>
-                  <div className="flex items-center justify-center gap-2 text-xs text-green-400">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    <span>HIPAA Compliant • SOC 2 Certified Platform</span>
-                  </div>
-                </div>
+            <CardFooter className="bg-slate-700/30 px-8 py-5 border-t border-slate-700/50">
+              <p className="text-xs text-slate-400/80 text-center w-full">
+                Need help? <a href="/contact-us" className="font-medium text-sky-400 hover:text-sky-300 transition-colors">Contact Support</a>
+              </p>
             </CardFooter>
           </Card>
         </motion.div>

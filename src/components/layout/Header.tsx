@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { auth } from '@/lib/firebase';
+import { getFirebaseAuth } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -19,6 +19,7 @@ import { LogOut, Settings } from 'lucide-react';
 export default function Header() {
   const { user } = useAuth();
   const router = useRouter();
+  const auth = getFirebaseAuth(); // Initialize auth here
 
   const handleSignOut = async () => {
     await auth.signOut();

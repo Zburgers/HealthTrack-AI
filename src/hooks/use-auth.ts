@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { getFirebaseAuth } from '@/lib/firebase';
 
 interface AuthState {
   user: FirebaseUser | null;
@@ -18,8 +18,9 @@ export function useAuth(): AuthState {
   });
 
   useEffect(() => {
+    const authInstance = getFirebaseAuth(); // Initialize Firebase Auth only on the client-side after mount
     const unsubscribe = onAuthStateChanged(
-      auth,
+      authInstance,
       (user) => {
         setAuthState({ user, loading: false, error: null });
       },
@@ -29,7 +30,7 @@ export function useAuth(): AuthState {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, []); // Empty dependency array ensures this runs once on mount
 
   return authState;
 }

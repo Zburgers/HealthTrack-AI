@@ -118,5 +118,7 @@ async function runStartupChecks() {
   }
 }
 
-// Execute the startup checks.
-runStartupChecks();
+// Execute the startup checks only if not in a build/CI environment.
+if (process.env.NODE_ENV !== 'production' && !process.env.CI) {
+  runStartupChecks();
+}

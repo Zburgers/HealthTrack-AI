@@ -1,4 +1,3 @@
-
 'use client';
 
 import MainLayout from '@/components/layout/MainLayout';
@@ -8,7 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion } from 'framer-motion';
-import { UserCircle, Bell, ShieldCheck, Edit3 } from 'lucide-react';
+import { UserCircle, Bell, ShieldCheck, Edit3, Moon, Sun } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { useTheme } from 'next-themes';
+import { useEffect, useState } from 'react';
 
 const cardAnimationProps = (delay: number = 0) => ({
   initial: { opacity: 0, y: 20 },
@@ -18,6 +21,12 @@ const cardAnimationProps = (delay: number = 0) => ({
 
 export default function SettingsPage() {
   const { user, loading } = useAuth();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const getInitials = (name?: string | null) => {
     if (!name) return 'U';
@@ -86,8 +95,27 @@ export default function SettingsPage() {
                 <CardDescription>Customize your application experience.</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">Theme settings (Light/Dark mode), notification preferences, and other display options will be available here soon.</p>
-                 <Button variant="ghost" className="mt-3 text-primary hover:bg-primary/10" disabled>Adjust Preferences</Button>
+                {mounted ? (
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="theme-mode"
+                      checked={theme === 'dark'}
+                      onCheckedChange={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                    />
+                    <Label htmlFor="theme-mode" className="flex items-center">
+                      {theme === 'dark' ? (
+                        <Moon className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Sun className="mr-2 h-4 w-4" />
+                      )}
+                      {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+                    </Label>
+                  </div>
+                ) : (
+                  <Skeleton className="h-8 w-32" /> /* Skeleton for theme switcher */
+                )}
+                <p className="text-muted-foreground mt-4">Other notification preferences and display options will be available here soon.</p>
+                 <Button variant="ghost" className="mt-3 text-primary hover:bg-primary/10" disabled>Adjust More Preferences (Soon)</Button>
               </CardContent>
             </Card>
           </motion.div>

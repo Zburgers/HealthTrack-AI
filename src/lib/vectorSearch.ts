@@ -6,7 +6,10 @@ const MONGODB_DATABASE = process.env.MONGODB_DATABASE || 'healthtrack';
 const MONGODB_COLLECTION_CASE_EMBEDDINGS = process.env.MONGODB_COLLECTION_CASE_EMBEDDINGS || 'case_embeddings';
 const ATLAS_VECTOR_SEARCH_INDEX_NAME_FROM_ENV = process.env.ATLAS_VECTOR_SEARCH_INDEX_NAME;
 const ATLAS_VECTOR_SEARCH_INDEX_NAME = ATLAS_VECTOR_SEARCH_INDEX_NAME_FROM_ENV || 'vector_index_notes';
-console.log(`[VectorSearch] Using Atlas Vector Search Index Name: "${ATLAS_VECTOR_SEARCH_INDEX_NAME}" (From ENV: "${ATLAS_VECTOR_SEARCH_INDEX_NAME_FROM_ENV}")`);
+
+if (process.env.NODE_ENV === 'development') {
+  console.log(`[VectorSearch] Using Atlas Vector Search Index Name: "${ATLAS_VECTOR_SEARCH_INDEX_NAME}" (From ENV: "${ATLAS_VECTOR_SEARCH_INDEX_NAME_FROM_ENV}")`);
+}
 
 /**
  * Finds similar cases in MongoDB Atlas using vector search.
