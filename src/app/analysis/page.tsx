@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils';
 import { SimilarCasesApiInput, SimilarCaseOutput } from '@/types/similar-cases';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PatientConditionSummaryOutput } from '@/types/ai-outputs'; // Added import
+import { Skeleton, SkeletonCard, SkeletonText, SkeletonButton, SkeletonTable } from '@/components/ui/skeleton';
 
 // Define types for API inputs without importing Vertex AI client-side
 interface AnalyzePatientSymptomsInput {
@@ -251,12 +252,77 @@ const getRiskScoreBorderColor = (score: number): string => {
   return 'border-green-500';
 };
 
+// Medical placeholder phrases for loading state
+const medicalLoadingPhrases = [
+  "Synthesizing patient data...",
+  "Consulting clinical guidelines...",
+  "Analyzing symptoms and vitals...",
+  "Reviewing medical history...",
+  "Generating AI-powered insights...",
+  "Cross-referencing similar cases...",
+  "Evaluating risk factors...",
+  "Drafting clinical summary...",
+  "Formulating differential diagnosis...",
+  "Preparing treatment suggestions...",
+  "Ensuring patient safety...",
+  "Finalizing SOAP notes...",
+];
+
+function MedicalLoadingAnimation() {
+  const [phraseIndex, setPhraseIndex] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPhraseIndex((prev) => (prev + 1) % medicalLoadingPhrases.length);
+    }, 1800);
+    return () => clearInterval(interval);
+  }, []);
+  return (
+    <div className="flex flex-col items-center justify-center text-center py-10 min-h-[calc(100vh-200px)]">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        className="mb-6"
+      >
+        <span className="inline-block p-4 rounded-full bg-gradient-to-br from-blue-200 to-indigo-200 shadow-lg">
+          <svg className="w-16 h-16 text-blue-600 animate-spin-slow" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+          </svg>
+        </span>
+      </motion.div>
+      <motion.h1
+        className="font-headline text-2xl font-semibold text-blue-900 mb-2"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        AI Clinical Analysis in Progress
+      </motion.h1>
+      <motion.p
+        className="text-lg text-blue-700 mb-4 min-h-[32px]"
+        key={phraseIndex}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        transition={{ duration: 0.5 }}
+      >
+        {medicalLoadingPhrases[phraseIndex]}
+      </motion.p>
+      <p className="text-sm text-gray-500 max-w-md mx-auto">
+        Our AI is working to provide you with a comprehensive, research-backed clinical summary. This may take a few moments. Thank you for your patience!
+      </p>
+    </div>
+  );
+}
 
 export default function AnalysisPage() {
   const { analysisResult, analysisReturnPath, currentCaseDisplayData, setAnalysisResult: setAppStateContext } = useAppState();
   const router = useRouter();
   const { toast } = useToast(); // Add toast hook
-  const [isLoadingContext, setIsLoadingContext] = useState(true);  const [editableSoapNotes, setEditableSoapNotes] = useState('');
+  const [isLoadingContext, setIsLoadingContext] = useState(true);
+  const [restoringState, setRestoringState] = useState(false);
+  const [editableSoapNotes, setEditableSoapNotes] = useState('');
   
   // State for managing saved vs unsaved AI-enhanced notes
   const [parsedViewNotes, setParsedViewNotes] = useState(''); // What shows in parsed view
@@ -483,44 +549,94 @@ export default function AnalysisPage() {
     }
   }, [analysisResult?.summary, editableSoapNotes]);
 
-  // Fetch Clinical Summary useEffect
+  // --- Combined Analysis and Summary Fetch ---
   useEffect(() => {
-    const fetchClinicalSummary = async () => {
-      if (!patientDataForSummary) {
-        // console.log("Patient data for summary not ready yet.");
-        return;
-      }
+    if (!currentCaseDisplayData) return;
+    // Build patientInformation string
+    let patientInformation = '';
+    let vitals = '';
+    let observations = '';
+    let medicalHistory = undefined;
 
-      // console.log("Attempting to fetch clinical summary with data:", patientDataForSummary);
-      setIsLoadingClinicalSummary(true);
-      setClinicalSummaryError(null);
-      setClinicalSummary(null);      try {
-        const response = await fetch('/api/v2/patient-summary', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(patientDataForSummary),
-        });
-
+    if ('id' in currentCaseDisplayData && 'conditions' in currentCaseDisplayData) {
+      // Patient object
+      const patient = currentCaseDisplayData;
+      patientInformation = `Name: ${patient.name}, Age: ${patient.age}, Gender: ${patient.gender}, Conditions: ${Array.isArray(patient.conditions) ? patient.conditions.join(', ') : ''}, Allergies: ${Array.isArray(patient.allergies) ? patient.allergies.join(', ') : ''}, Medications: ${Array.isArray(patient.medications) ? patient.medications.join(', ') : ''}, Primary Complaint: ${patient.primaryComplaint || 'N/A'}`;
+      vitals = `BP: ${patient.vitals.bp || 'N/A'}, HR: ${patient.vitals.hr || 'N/A'}, Temp: ${patient.vitals.temp || 'N/A'}, RR: ${patient.vitals.rr || 'N/A'}, SpO2: ${patient.vitals.spo2 || 'N/A'}`;
+      observations = patient.doctorsObservations || '';
+      medicalHistory = {
+        allergies: Array.isArray(patient.allergies) ? patient.allergies : [],
+        currentMedications: Array.isArray(patient.medications) ? patient.medications : [],
+        previousConditions: Array.isArray(patient.conditions) ? patient.conditions : [],
+        primaryComplaint: patient.primaryComplaint || '',
+      };
+    } else {
+      // NewCaseFormValues
+      const form = currentCaseDisplayData;
+      patientInformation = `Name: ${form.patientName}, Age: ${form.age}, Gender: ${form.gender}, Previous Conditions: ${form.previousConditions || 'None'}, Allergies: ${form.allergies || 'None'}, Medications: ${form.medications || 'None'}, Primary Complaint: ${form.primaryComplaint}`;
+      vitals = `BP: ${form.bp || 'N/A'}, HR: ${form.hr || 'N/A'}, Temp: ${form.temp || 'N/A'}, RR: ${form.rr || 'N/A'}, SpO2: ${form.spo2 || 'N/A'}`;
+      observations = form.clinicalNotes || form.observations || '';
+      medicalHistory = {
+        allergies: form.allergies ? form.allergies.split(',').map(a => a.trim()).filter(a => a) : [],
+        currentMedications: form.medications ? form.medications.split(',').map(m => m.trim()).filter(m => m) : [],
+        previousConditions: form.previousConditions ? form.previousConditions.split(',').map(c => c.trim()).filter(c => c) : [],
+        primaryComplaint: form.primaryComplaint || '',
+      };
+    }
+    const combinedInput = { patientInformation, vitals, observations, medicalHistory };
+    setIsLoadingContext(true);
+    setClinicalSummaryError(null);
+    setClinicalSummary(null);
+    setAppStateContext(null, analysisReturnPath, currentCaseDisplayData);
+    fetch('/api/v2/analyze-and-summarize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(combinedInput),
+    })
+      .then(async (response) => {
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.details || 'Failed to generate clinical summary');
+          throw new Error(errorData.details || errorData.error || 'Failed to analyze and summarize');
         }
+        return response.json();
+      })
+      .then((result) => {
+        // Defensive: check for expected structure
+        if (!result || typeof result !== 'object' || !result.analysis) {
+          throw new Error('Invalid response from analysis endpoint.');
+        }
+        setAppStateContext(result.analysis || null, analysisReturnPath, currentCaseDisplayData);
+        setClinicalSummary(result.summary || null);
+        setIsLoadingContext(false);
+      })
+      .catch((error) => {
+        setClinicalSummaryError(error.message || 'An unexpected error occurred while analyzing and summarizing.');
+        setIsLoadingContext(false);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCaseDisplayData]);
 
-        const summary = await response.json();
-        // console.log("Received clinical summary:", summary);
-        setClinicalSummary(summary);
-      } catch (error: any) {
-        console.error("Error fetching clinical summary:", error);
-        setClinicalSummaryError(error.message || "An unexpected error occurred while generating the clinical summary.");
+  // Robust fallback: try to restore state from sessionStorage if missing
+  useEffect(() => {
+    if (!currentCaseDisplayData) {
+      setRestoringState(true);
+      // Try to restore from sessionStorage
+      try {
+        const storedCaseDataItem = sessionStorage.getItem('healthTrackAICaseDisplayData');
+        if (storedCaseDataItem) {
+          setAppStateContext(null, analysisReturnPath, JSON.parse(storedCaseDataItem));
+          setRestoringState(false);
+          return;
+        }
+      } catch (e) {
+        // ignore
       }
-      setIsLoadingClinicalSummary(false);
-    };
-
-    if (currentCaseDisplayData) { // Trigger when currentCaseDisplayData is available
-        fetchClinicalSummary();    }
-  }, [patientDataForSummary, currentCaseDisplayData]); // Added currentCaseDisplayData as dependency
+      // If still missing, redirect after a short delay
+      setTimeout(() => {
+        router.replace('/dashboard');
+      }, 2000);
+    }
+  }, [currentCaseDisplayData, analysisReturnPath, setAppStateContext, router]);
 
   const handleBackNavigation = () => {
     if (hasUnsavedChanges) {
@@ -797,44 +913,45 @@ export default function AnalysisPage() {
   };
 
 
-  if (isLoadingContext) {
+  if (restoringState || isLoadingContext || !currentCaseDisplayData) {
     return (
       <MainLayout>
-        <div className="flex flex-col items-center justify-center text-center py-10 min-h-[calc(100vh-200px)]">
-          <Loader2 className="w-16 h-16 text-primary animate-spin mb-4" />
-          <h1 className="font-headline text-2xl font-semibold">Loading Analysis Results...</h1>
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <MedicalLoadingAnimation />
+          <p className="mt-6 text-lg text-blue-700 font-semibold animate-pulse">Preparing your analysis...</p>
+          {!currentCaseDisplayData && (
+            <p className="mt-2 text-gray-500 text-sm">Loading patient data... If you are not redirected, please return to the dashboard.</p>
+          )}
         </div>
       </MainLayout>
     );
   }
 
-  if (!analysisResult) {
-    return (
-      <MainLayout>
-        <div className="flex flex-col items-center justify-center text-center py-10 min-h-[calc(100vh-200px)]">
-          <FileQuestion className="w-16 h-16 text-muted-foreground mb-4" />
-          <h1 className="font-headline text-2xl font-semibold mb-2">No Analysis Result Found</h1>
-          <p className="text-muted-foreground mb-6">
-            Please submit a new case or view an existing patient's analysis.
-          </p>
-          <Button onClick={() => router.push('/new-case')}>Create New Case</Button>
-        </div>
-      </MainLayout>
-    );
-  }  // Destructure properties from analysisResult for cleaner access in JSX
+  // Destructure properties from analysisResult for cleaner access in JSX
   // This is safe because we've checked for !analysisResult above.
+  const safeAnalysisResult = analysisResult ?? null;
   const {
-    summary, // Now correctly typed as optional
-    icd10Tags: icdCodes, // Renamed for consistency with existing variable, ensure AIAnalysisOutput uses icd10Tags
-    differentialDiagnosis, // Now correctly typed as optional
-    recommendedTests, // Now correctly typed as optional
-    treatmentSuggestions, // Now correctly typed as optional
-    riskScore,
-    // soapNotes is handled by editableSoapNotes state, initialized from analysisResult.soapNotes in useEffect
-  } = analysisResult as AIAnalysisOutput; // Added type assertion
+    summary,
+    riskScore = 0,
+    icd10Tags,
+    differentialDiagnosis,
+    soapNotes,
+    ...restAnalysis
+  } = safeAnalysisResult ? safeAnalysisResult : {};
+
+  // --- SKELETON LOADING UI ---
+  const showSkeletons = isLoadingContext || isLoadingClinicalSummary;
 
   return (
     <MainLayout>
+      {/* ExportModal is now rendered at the top level, before any layout containers */}
+      <ExportModal 
+        isOpen={isExportModalOpen} 
+        onOpenChange={setIsExportModalOpen}
+        analysisData={safeAnalysisResult} 
+        patientData={currentCaseDisplayData}
+        soapNotes={editableSoapNotes}
+      />
       <TooltipProvider>
         <AnimatePresence mode="wait">
           <motion.div 
@@ -871,9 +988,9 @@ export default function AnalysisPage() {
                 >
                   <SearchCheck className="mr-2 h-4 w-4" /> Similar Cases
                 </Button>
-                <Button 
-                  variant="secondary" 
-                  onClick={() => setIsExportModalOpen(true)} 
+                <Button
+                  variant="secondary"
+                  onClick={() => setIsExportModalOpen(true)}
                   className="shadow-sm hover:shadow-md transition-all"
                 >
                   <Download className="mr-2 h-4 w-4" /> Export
@@ -882,7 +999,8 @@ export default function AnalysisPage() {
             </div>
           </motion.div>
 
-          {getPatientHeaderInfo()}          {/* Modern Grid Layout */}
+          {getPatientHeaderInfo()}
+          {/* Modern Grid Layout */}
           <motion.div 
             className="grid grid-cols-1 xl:grid-cols-4 gap-8"
             variants={gridContainerVariants}
@@ -891,388 +1009,361 @@ export default function AnalysisPage() {
           >
             {/* Main Content Area - Takes up 3 columns */}
             <div className="xl:col-span-3 space-y-8">
-              {/* Existing Clinical Assessment Summary Card - can be kept or merged */}
-              {/* <motion.div {...cardAnimationProps(0.1)}>
-                <Card className={cn("shadow-xl border-2", getRiskScoreBorderColor(riskScore))}>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-xl font-semibold text-primary flex items-center">
-                        <ListChecks className="mr-2 h-6 w-6" /> Clinical Assessment Summary (Original AI)
+              {/* --- SKELETONS FOR MAIN CARDS --- */}
+              {showSkeletons ? (
+                <>
+                  {/* Clinical Insights Skeleton */}
+                  <motion.div {...cardAnimationProps(0.1)}>
+                    <Card className="shadow-xl border-2 border-blue-500">
+                      <CardHeader className="pb-3">
+                        <Skeleton className="h-6 w-2/3 mb-2" />
+                        <Skeleton className="h-4 w-1/2 mb-1" />
+                      </CardHeader>
+                      <CardContent className="pt-2 space-y-4">
+                        <SkeletonText lines={3} />
+                        <SkeletonText lines={2} />
+                        <SkeletonText lines={2} />
+                        <SkeletonText lines={2} />
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                  {/* SOAP Notes Skeleton */}
+                  <motion.div {...cardAnimationProps(0.2)}>
+                    <Card className="shadow-xl">
+                      <CardHeader>
+                        <Skeleton className="h-6 w-1/2 mb-2" />
+                        <Skeleton className="h-4 w-1/3 mb-1" />
+                      </CardHeader>
+                      <CardContent>
+                        <SkeletonText lines={6} />
+                        <div className="mt-4 flex gap-2">
+                          <SkeletonButton />
+                          <SkeletonButton />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                  {/* Charts Skeleton */}
+                  <motion.div {...cardAnimationProps(0.3)}>
+                    <Card className="shadow-xl">
+                      <CardHeader>
+                        <Skeleton className="h-6 w-1/2 mb-2" />
+                        <Skeleton className="h-4 w-1/3 mb-1" />
+                      </CardHeader>
+                      <CardContent>
+                        <SkeletonTable rows={3} columns={4} />
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                </>
+              ) : (
+                <>
+                  {/* New Clinical Insights Summary Card */}
+                  <motion.div {...cardAnimationProps(0.1)}>
+                    <Card className="shadow-xl border-2 border-blue-500">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-xl font-semibold text-blue-700 flex items-center">
+                          <InfoIcon className="mr-2 h-6 w-6" /> Clinical Insights & Considerations
                         </CardTitle>
                         <CardDescription>
-                        AI-powered insights based on the provided patient data.
+                          AI-generated synthesis of patient data for clinical support. This is not a diagnosis.
                         </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-2">
-                        <div className="mb-4 p-3 bg-secondary/50 rounded-md">
-                        <h3 className="font-semibold text-md text-primary mb-1">Overall Summary:</h3>
-                        <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{summary || 'No summary available.'}</p>
-                        </div>
-
-                        {icdCodes && icdCodes.length > 0 && (
-                        <div className="mb-4">
-                            <h3 className="font-semibold text-md text-primary mb-2">Potential ICD-10 Codes:</h3>
-                            <div className="flex flex-wrap gap-2">
-                            {icdCodes.map((code: ICD10Code, index: number) => (
-                                <Tooltip key={code.code}>
-                                <TooltipTrigger asChild>
-                                    <Badge
-                                    variant="outline"
-                                    className={cn("cursor-default border-2 text-xs font-medium px-2.5 py-1 rounded-full transition-all", getIcdColorClass(index))}
-                                    >
-                                    {code.code} - {code.description.length > 40 ? `${code.description.substring(0, 37)}...` : code.description}
-                                    </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-xs bg-background text-foreground border shadow-lg rounded-md p-2">
-                                    <p className="font-semibold">{code.code}</p>
-                                    <p>{code.description}</p>
-                                </TooltipContent>
-                                </Tooltip>
-                            ))}
+                      </CardHeader>
+                      <CardContent className="pt-2 space-y-4">
+                        {isLoadingClinicalSummary && (
+                          <div className="flex flex-col items-center justify-center py-6">
+                            <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-3" />
+                            <p className="text-blue-600">Generating Clinical Insights...</p>
+                          </div>
+                        )}
+                        {clinicalSummaryError && (
+                          <Alert variant="destructive">
+                            <AlertTriangleIcon className="h-4 w-4" />
+                            <AlertTitle>Error Generating Summary</AlertTitle>
+                            <AlertDescription>{clinicalSummaryError}</AlertDescription>
+                          </Alert>
+                        )}
+                        {clinicalSummary && !isLoadingClinicalSummary && !clinicalSummaryError && (
+                          <>
+                            <div className="p-3 bg-blue-50 rounded-md">
+                              <h4 className="font-semibold text-md text-blue-700 mb-1 flex items-center">
+                                <ClipboardCheck className="h-5 w-5 mr-2 text-blue-600 flex-shrink-0" />
+                                Overall Assessment:
+                              </h4>
+                              <p className="text-sm text-blue-900 whitespace-pre-wrap leading-relaxed pl-7">{clinicalSummary.overallAssessment}</p>
                             </div>
-                        </div>
+                            {clinicalSummary.keyFindings && clinicalSummary.keyFindings.length > 0 && clinicalSummary.keyFindings[0] !== 'No specific key findings identified or data insufficient.' && (
+                              <div className="p-3 bg-green-50 rounded-md">
+                                <h4 className="font-semibold text-md text-green-700 mb-1 flex items-center">
+                                  <ListTree className="h-5 w-5 mr-2 text-green-600 flex-shrink-0" />
+                                  Key Findings:
+                                </h4>
+                                <ul className="list-disc list-inside space-y-1 text-sm text-green-900 pl-8">
+                                  {clinicalSummary.keyFindings.map((finding: string, index: number) => <li key={index}>{finding}</li>)}
+                                </ul>
+                              </div>
+                            )}
+                            {clinicalSummary.careSuggestions && clinicalSummary.careSuggestions.length > 0 && clinicalSummary.careSuggestions[0] !== 'No specific care suggestions identified or data insufficient.' && (
+                              <div className="p-3 bg-yellow-50 rounded-md">
+                                <h4 className="font-semibold text-md text-yellow-700 mb-1 flex items-center">
+                                  <Lightbulb className="h-5 w-5 mr-2 text-yellow-600 flex-shrink-0" />
+                                  Potential Considerations:
+                                </h4>
+                                <ul className="list-disc list-inside space-y-1 text-sm text-yellow-900 pl-8">
+                                  {clinicalSummary.careSuggestions.map((suggestion: string, index: number) => <li key={index}>{suggestion}</li>)}
+                                </ul>
+                              </div>
+                            )}
+                            <div className="p-3 bg-gray-100 rounded-md">
+                              <h4 className="font-semibold text-md text-gray-700 mb-1 flex items-center">
+                                <FileSearch2 className="h-5 w-5 mr-2 text-gray-600 flex-shrink-0" />
+                                Information Sufficiency:
+                              </h4>
+                              <p className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed pl-7">{clinicalSummary.furtherDataNeeded}</p>
+                            </div>
+                          </>
                         )}
-
-                        {differentialDiagnosis && differentialDiagnosis.length > 0 && (
-                        <div className="mb-4">
-                            <h3 className="font-semibold text-md text-primary mb-2">Differential Diagnosis:</h3>
-                            <ul className="list-disc list-inside space-y-1 text-sm text-foreground pl-1">
-                            {differentialDiagnosis.map((diag: DifferentialDiagnosisItem, index: number) => (
-                                <li key={index}>{diag.condition} (Likelihood: {diag.likelihood})</li>
-                            ))}
-                            </ul>
-                        </div>
-                        )}
-                        {recommendedTests && recommendedTests.length > 0 && (
-                        <div className="mb-4">
-                            <h3 className="font-semibold text-md text-primary mb-2">Recommended Tests:</h3>
-                            <ul className="list-disc list-inside space-y-1 text-sm text-foreground pl-1">
-                            {recommendedTests.map((test: string, index: number) => <li key={index}>{test}</li>)}
-                            </ul>
-                        </div>
-                        )}
-                        {treatmentSuggestions && treatmentSuggestions.length > 0 && (
-                        <div>
-                            <h3 className="font-semibold text-md text-primary mb-2">Treatment Suggestions:</h3>
-                            <ul className="list-disc list-inside space-y-1 text-sm text-foreground pl-1">
-                            {treatmentSuggestions.map((suggestion: string, index: number) => <li key={index}>{suggestion}</li>)}
-                            </ul>
-                        </div>
-                        )}
-                    </CardContent>
+                      </CardContent>
                     </Card>
-                </motion.div> */} 
-
-              {/* New Clinical Insights Summary Card */}
-              <motion.div {...cardAnimationProps(0.1)}>
-                <Card className="shadow-xl border-2 border-blue-500">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-xl font-semibold text-blue-700 flex items-center">
-                      <InfoIcon className="mr-2 h-6 w-6" /> Clinical Insights & Considerations
-                    </CardTitle>
-                    <CardDescription>
-                      AI-generated synthesis of patient data for clinical support. This is not a diagnosis.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-2 space-y-4">
-                    {isLoadingClinicalSummary && (
-                      <div className="flex flex-col items-center justify-center py-6">
-                        <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-3" />
-                        <p className="text-blue-600">Generating Clinical Insights...</p>
-                      </div>
-                    )}
-                    {clinicalSummaryError && (
-                      <Alert variant="destructive">
-                        <AlertTriangleIcon className="h-4 w-4" />
-                        <AlertTitle>Error Generating Summary</AlertTitle>
-                        <AlertDescription>{clinicalSummaryError}</AlertDescription>
-                      </Alert>
-                    )}
-                    {clinicalSummary && !isLoadingClinicalSummary && !clinicalSummaryError && (
-                      <>
-                        <div className="p-3 bg-blue-50 rounded-md">
-                          <h4 className="font-semibold text-md text-blue-700 mb-1 flex items-center">
-                            <ClipboardCheck className="h-5 w-5 mr-2 text-blue-600 flex-shrink-0" />
-                            Overall Assessment:
-                          </h4>
-                          <p className="text-sm text-blue-900 whitespace-pre-wrap leading-relaxed pl-7">{clinicalSummary.overallAssessment}</p>
-                        </div>
-                        
-                        {clinicalSummary.keyFindings && clinicalSummary.keyFindings.length > 0 && clinicalSummary.keyFindings[0] !== 'No specific key findings identified or data insufficient.' && (
-                            <div className="p-3 bg-green-50 rounded-md">
-                            <h4 className="font-semibold text-md text-green-700 mb-1 flex items-center">
-                              <ListTree className="h-5 w-5 mr-2 text-green-600 flex-shrink-0" />
-                              Key Findings:
-                            </h4>
-                            <ul className="list-disc list-inside space-y-1 text-sm text-green-900 pl-8">
-                                {clinicalSummary.keyFindings.map((finding, index) => <li key={index}>{finding}</li>)}
-                            </ul>
-                            </div>
-                        )}
-
-                        {clinicalSummary.careSuggestions && clinicalSummary.careSuggestions.length > 0 && clinicalSummary.careSuggestions[0] !== 'No specific care suggestions identified or data insufficient.' && (
-                            <div className="p-3 bg-yellow-50 rounded-md">
-                            <h4 className="font-semibold text-md text-yellow-700 mb-1 flex items-center">
-                              <Lightbulb className="h-5 w-5 mr-2 text-yellow-600 flex-shrink-0" />
-                              Potential Considerations:
-                            </h4>
-                            <ul className="list-disc list-inside space-y-1 text-sm text-yellow-900 pl-8">
-                                {clinicalSummary.careSuggestions.map((suggestion, index) => <li key={index}>{suggestion}</li>)}
-                            </ul>
-                            </div>
-                        )}
-                        
-                        <div className="p-3 bg-gray-100 rounded-md">
-                          <h4 className="font-semibold text-md text-gray-700 mb-1 flex items-center">
-                            <FileSearch2 className="h-5 w-5 mr-2 text-gray-600 flex-shrink-0" />
-                            Information Sufficiency:
-                          </h4>
-                          <p className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed pl-7">{clinicalSummary.furtherDataNeeded}</p>
-                        </div>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>              <motion.div {...cardAnimationProps(0.2)}>
-                <Card className="shadow-xl">
-                  <CardHeader>
-                    <CardTitle className="text-xl font-semibold text-primary flex items-center">
-                      <FileQuestion className="mr-2 h-6 w-6" /> SOAP Notes
-                    </CardTitle>                    <CardDescription>
-                      Review and edit the AI-generated SOAP notes. You can also view the parsed sections.
-                      <br />
-                      <span className="text-xs text-amber-600 mt-1 block">
-                        ⚠️ Note: The original doctor's observations are preserved above as ground truth. These SOAP notes are AI-generated interpretations.
-                      </span>
-                    </CardDescription>
-                    
-                    {/* Unsaved Changes Warning */}
-                    {hasUnsavedChanges && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg"
-                      >
-                        <div className="flex items-center gap-2">
-                          <AlertTriangleIcon className="h-4 w-4 text-amber-600" />
-                          <span className="text-sm font-medium text-amber-800">
-                            Unsaved Changes
+                  </motion.div>
+                  <motion.div {...cardAnimationProps(0.2)}>
+                    <Card className="shadow-xl">
+                      <CardHeader>
+                        <CardTitle className="text-xl font-semibold text-primary flex items-center">
+                          <FileQuestion className="mr-2 h-6 w-6" /> SOAP Notes
+                        </CardTitle>
+                        <CardDescription>
+                          Review and edit the AI-generated SOAP notes. You can also view the parsed sections.
+                          <br />
+                          <span className="text-xs text-amber-600 mt-1 block">
+                            ⚠️ Note: The original doctor's observations are preserved above as ground truth. These SOAP notes are AI-generated interpretations.
                           </span>
-                        </div>
-                        <p className="text-xs text-amber-700 mt-1">
-                          You have AI-enhanced SOAP notes that haven't been saved yet. Use the "Save Final Note" button in the Editor tab to save them permanently.
-                        </p>
-                      </motion.div>
-                    )}
-                  </CardHeader>                  <CardContent>
-                    {/* Enhancement notification */}
-                    {showEnhancementNotification && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: isNotificationVisible ? 1 : 0, y: isNotificationVisible ? 0 : -20 }}
-                        transition={{ duration: 0.3 }}
-                        className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3"
-                      >
-                        <div className="flex-shrink-0">
+                        </CardDescription>
+                        {hasUnsavedChanges && (
                           <motion.div
-                            animate={{ scale: [1, 1.1, 1] }}
-                            transition={{ duration: 0.5, repeat: 3 }}
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg"
                           >
-                            <SearchCheck className="h-5 w-5 text-green-600" />
+                            <div className="flex items-center gap-2">
+                              <AlertTriangleIcon className="h-4 w-4 text-amber-600" />
+                              <span className="text-sm font-medium text-amber-800">
+                                Unsaved Changes
+                              </span>
+                            </div>
+                            <p className="text-xs text-amber-700 mt-1">
+                              You have AI-enhanced SOAP notes that haven't been saved yet. Use the "Save Final Note" button in the Editor tab to save them permanently.
+                            </p>
                           </motion.div>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-green-800">
-                            🎉 SOAP notes have been enhanced!
-                          </p>
-                          <p className="text-xs text-green-600 mt-1">
-                            Switch to the "Parsed View" tab to see them in structured format.
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
+                        )}
+                      </CardHeader>
+                      <CardContent>
+                        <Tabs defaultValue="editor" className="w-full" onValueChange={(value) => {
+                          if (value === 'parsed' && showEnhancementNotification) {
                             setIsNotificationVisible(false);
                             setTimeout(() => setShowEnhancementNotification(false), 300);
-                          }}
-                          className="text-green-600 hover:text-green-800"
-                        >
-                          ×
-                        </Button>
-                      </motion.div>
-                    )}
-                      <Tabs defaultValue="editor" className="w-full" onValueChange={(value) => {
-                      if (value === 'parsed' && showEnhancementNotification) {
-                        setIsNotificationVisible(false);
-                        setTimeout(() => setShowEnhancementNotification(false), 300);
-                      }
-                    }}>                      <TabsList className="grid w-full grid-cols-3 mb-4">
-                        <TabsTrigger value="editor" className="relative">
-                          Editor
-                          {hasUnsavedChanges && (
-                            <motion.div
-                              animate={{ 
-                                scale: [1, 1.1, 1],
-                                opacity: [0.7, 1, 0.7]
-                              }}
-                              transition={{ 
-                                duration: 2, 
-                                repeat: Infinity,
-                                ease: "easeInOut"
-                              }}
-                              className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full"
-                              title="Unsaved changes"
+                          }
+                        }}>
+                          <TabsList className="grid w-full grid-cols-3 mb-4">
+                            <TabsTrigger value="editor" className="relative">
+                              Editor
+                              {hasUnsavedChanges && (
+                                <motion.div
+                                  animate={{ 
+                                    scale: [1, 1.1, 1],
+                                    opacity: [0.7, 1, 0.7]
+                                  }}
+                                  transition={{ 
+                                    duration: 2, 
+                                    repeat: Infinity,
+                                    ease: "easeInOut"
+                                  }}
+                                  className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full"
+                                  title="Unsaved changes"
+                                />
+                              )}
+                            </TabsTrigger>
+                            <TabsTrigger value="parsed" className="relative">
+                              Parsed View
+                              {showEnhancementNotification && (
+                                <motion.div
+                                  animate={{ 
+                                    scale: [1, 1.2, 1],
+                                    opacity: [0.5, 1, 0.5]
+                                  }}
+                                  transition={{ 
+                                    duration: 1.5, 
+                                    repeat: Infinity,
+                                    ease: "easeInOut"
+                                  }}
+                                  className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full"
+                                />
+                              )}
+                            </TabsTrigger>
+                            <TabsTrigger value="charts" className="relative">
+                              📊 Charts
+                            </TabsTrigger>
+                          </TabsList>
+                          <TabsContent value="editor">
+                            <SoapNotesEditor
+                              currentNotes={editableSoapNotes}
+                              onNotesChange={handleSoapNotesChange}
+                              onResetNotes={handleResetSoapNotes}
+                              patientDataForAI={patientDataForAI && patientDataForAI.patientInformation ? {
+                                patientInformation: patientDataForAI.patientInformation,
+                                vitals: patientDataForAI.vitals,
+                                observations: patientDataForAI.observations
+                              } : undefined}
+                              onSaveNotes={handleSaveSoapNotes}
+                              isExistingPatient={currentCaseDisplayData ? 'id' in currentCaseDisplayData : false}
                             />
-                          )}
-                        </TabsTrigger>
-                        <TabsTrigger value="parsed" className="relative">
-                          Parsed View
-                          {showEnhancementNotification && (
-                            <motion.div
-                              animate={{ 
-                                scale: [1, 1.2, 1],
-                                opacity: [0.5, 1, 0.5]
-                              }}
-                              transition={{ 
-                                duration: 1.5, 
-                                repeat: Infinity,
-                                ease: "easeInOut"
-                              }}
-                              className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full"
+                          </TabsContent>
+                          <TabsContent value="parsed">
+                            <ParsedSoapNotesDisplay notes={parsedViewNotes} />
+                          </TabsContent>
+                          <TabsContent value="charts">
+                            <AnalysisCharts 
+                              analysisData={safeAnalysisResult || { icd10Tags: [], riskScore: 0, soapNotes: '' }}
+                              patientData={currentCaseDisplayData}
                             />
-                          )}
-                        </TabsTrigger>
-                        <TabsTrigger value="charts" className="relative">
-                          📊 Charts
-                        </TabsTrigger></TabsList>
-                      <TabsContent value="editor">                        <SoapNotesEditor
-                          currentNotes={editableSoapNotes}
-                          onNotesChange={handleSoapNotesChange}
-                          onResetNotes={handleResetSoapNotes}
-                          patientDataForAI={patientDataForAI && patientDataForAI.patientInformation ? {
-                            patientInformation: patientDataForAI.patientInformation,
-                            vitals: patientDataForAI.vitals,
-                            observations: patientDataForAI.observations
-                          } : undefined} // Fixed type issue
-                          onSaveNotes={handleSaveSoapNotes} // Added prop
-                          isExistingPatient={currentCaseDisplayData ? 'id' in currentCaseDisplayData : false}
-                        />
-                      </TabsContent>                      <TabsContent value="parsed">
-                        <ParsedSoapNotesDisplay notes={parsedViewNotes} />
-                      </TabsContent>
-                      
-                      <TabsContent value="charts">
-                        <AnalysisCharts 
-                          analysisData={analysisResult}
-                          patientData={currentCaseDisplayData}
-                        />
-                      </TabsContent>
-                    </Tabs>
-                  </CardContent>
-                </Card>
-              </motion.div>
+                          </TabsContent>
+                        </Tabs>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                </>
+              )}
             </div>            {/* Modern Sidebar - Takes up 1 column */}
             <div className="xl:col-span-1 space-y-6">
-              {/* Risk Score Card - Enhanced Design */}
-              <motion.div {...cardAnimationProps(0.15)}>
-                <Card className={cn("shadow-lg border-2 sticky top-24 bg-gradient-to-br from-white to-gray-50", getRiskScoreBorderColor(riskScore))}>
-                  <CardHeader className="text-center pb-4">
-                    <CardTitle className="text-xl font-bold text-gray-900 flex items-center justify-center">
-                      <HeartPulse className="mr-2 h-5 w-5 text-red-500" />
-                      Risk Assessment
-                    </CardTitle>
-                    <CardDescription className="text-sm text-gray-600">
-                      AI-calculated risk score
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex flex-col items-center justify-center pt-0">
-                    <RiskGauge score={riskScore} /> 
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200 cursor-help transition-all hover:bg-blue-100">
-                          <p className="text-xs text-blue-800 text-center flex items-center justify-center">
-                            <InfoIcon className="h-3 w-3 mr-1" /> {riskScoreExplanation}
-                          </p>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs bg-background text-foreground border shadow-lg rounded-md p-3">
-                        <p className="font-medium">{riskScoreExplanation}</p>
-                        <p className="mt-2 text-xs text-gray-600">This score is an estimate based on AI analysis and should be interpreted by a medical professional.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              {/* Patient Quick Info Card - Enhanced */}
-              <motion.div {...cardAnimationProps(0.25)}>
-                <Card className="shadow-lg bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200">
-                  <CardHeader>
-                    <CardTitle className="text-lg font-semibold text-green-800 flex items-center">
-                      <User className="mr-2 h-5 w-5" /> Patient Overview
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm space-y-4">
-                    {patientDataForAI ? (
-                      <>
-                        <div>
-                          <strong className="block text-primary mb-0.5">Vitals:</strong> 
-                          <span className="text-foreground">{patientDataForAI.vitals}</span>
-                        </div>
-                        
-                        {/* Improved Patient Information Display */}
-                        <div className="space-y-1">
-                          <strong className="block text-primary mb-0.5">Key Info from Form/Chart:</strong>
-                          <ul className="list-none ml-0 space-y-0.5">
-                            {/* Replaced IIFE with direct expression for clarity and to fix potential syntax error */}                            {patientDataForAI && patientDataForAI.patientInformation &&
-                                patientDataForAI.patientInformation
-                                .replace(/Name: [^,]+, /, '')
-                                .split(/, (?=(?:Age|Gender|Conditions|Allergies|Medications|Primary Complaint|Previous Conditions):)/)
-                                .map((part: string, index: number) => {
-                                  const [key, ...valueParts] = part.split(':');
-                                  const value = valueParts.join(':').trim();
-                                  if (!value || value.toLowerCase() === 'none' || value.toLowerCase() === 'n/a') return null;
-                                  return (
-                                    <li key={index} className="text-foreground text-xs flex">
-                                      <span className="font-semibold w-28 flex-shrink-0">{key.trim()}:</span>
-                                      <span>{value}</span>
-                                    </li>
-                                  );
-                                })
-                                .filter(Boolean)
-                            }
-                          </ul>
-                        </div>
-                        <div>
-                          <strong className="block text-primary mb-0.5">Doctor's Original Observations (Ground Truth):</strong> 
-                          <div className="mt-2 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-md">
-                            <p className="text-foreground whitespace-pre-wrap leading-relaxed text-sm">{patientDataForAI.observations}</p>
-                            <p className="text-xs text-blue-600 mt-2 italic">
-                              ℹ️ These are the original clinical observations recorded by the doctor and serve as the ground truth for this case.
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* AI SOAP Notes Section (if saved) */}
-                        {currentCaseDisplayData && 'aiSoapNotes' in currentCaseDisplayData && (currentCaseDisplayData as Patient).aiSoapNotes && (
-                          <div>
-                            <strong className="block text-primary mb-0.5">Saved AI SOAP Notes:</strong> 
-                            <div className="mt-2 p-3 bg-green-50 border-l-4 border-green-400 rounded-r-md">
-                              <p className="text-foreground whitespace-pre-wrap leading-relaxed text-sm">
-                                {(currentCaseDisplayData as Patient).aiSoapNotes}
-                              </p>
-                              <p className="text-xs text-green-600 mt-2 italic">
-                                ✅ These are AI-generated SOAP notes that have been saved to the patient record.
+              {showSkeletons ? (
+                <>
+                  {/* Risk Score Card Skeleton */}
+                  <motion.div {...cardAnimationProps(0.15)}>
+                    <Card className="shadow-lg border-2 sticky top-24 bg-gradient-to-br from-white to-gray-50">
+                      <CardHeader className="text-center pb-4">
+                        <Skeleton className="h-6 w-1/2 mx-auto mb-2" />
+                        <Skeleton className="h-4 w-1/3 mx-auto mb-1" />
+                      </CardHeader>
+                      <CardContent className="flex flex-col items-center justify-center pt-0">
+                        <Skeleton className="h-16 w-16 rounded-full mb-4" />
+                        <SkeletonText lines={2} className="w-full" />
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                  {/* Patient Overview Skeleton */}
+                  <motion.div {...cardAnimationProps(0.25)}>
+                    <Card className="shadow-lg bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200">
+                      <CardHeader>
+                        <Skeleton className="h-5 w-1/3 mb-2" />
+                      </CardHeader>
+                      <CardContent className="text-sm space-y-4">
+                        <SkeletonText lines={2} />
+                        <SkeletonText lines={3} />
+                        <SkeletonText lines={2} />
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                </>
+              ) : (
+                <>
+                  {/* Risk Score Card - Enhanced Design */}
+                  <motion.div {...cardAnimationProps(0.15)}>
+                    <Card className={cn("shadow-lg border-2 sticky top-24 bg-gradient-to-br from-white to-gray-50", getRiskScoreBorderColor(riskScore || 0))}>
+                      <CardHeader className="text-center pb-4">
+                        <CardTitle className="text-xl font-bold text-gray-900 flex items-center justify-center">
+                          <HeartPulse className="mr-2 h-5 w-5 text-red-500" />
+                          Risk Assessment
+                        </CardTitle>
+                        <CardDescription className="text-sm text-gray-600">
+                          AI-calculated risk score
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex flex-col items-center justify-center pt-0">
+                        <RiskGauge score={riskScore || 0} /> 
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200 cursor-help transition-all hover:bg-blue-100">
+                              <p className="text-xs text-blue-800 text-center flex items-center justify-center">
+                                <InfoIcon className="h-3 w-3 mr-1" /> {riskScoreExplanation}
                               </p>
                             </div>
-                          </div>
+                          </TooltipTrigger>
+                          <TooltipContent className="fixed left-1/2 top-1/2 z-50 grid max-w-lg w-[90vw] translate-x-[-50%] translate-y-[-50%] gap-6 border bg-background p-8 shadow-2xl rounded-xl">
+                            <p className="font-medium">{riskScoreExplanation}</p>
+                            <p className="mt-2 text-xs text-gray-600">This score is an estimate based on AI analysis and should be interpreted by a medical professional.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                  {/* Patient Quick Info Card - Enhanced */}
+                  <motion.div {...cardAnimationProps(0.25)}>
+                    <Card className="shadow-lg bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200">
+                      <CardHeader>
+                        <CardTitle className="text-lg font-semibold text-green-800 flex items-center">
+                          <User className="mr-2 h-5 w-5" /> Patient Overview
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-sm space-y-4">
+                        {patientDataForAI ? (
+                          <>
+                            <div>
+                              <strong className="block text-primary mb-0.5">Vitals:</strong> 
+                              <span className="text-foreground">{patientDataForAI.vitals}</span>
+                            </div>
+                            <div className="space-y-1">
+                              <strong className="block text-primary mb-0.5">Key Info from Form/Chart:</strong>
+                              <ul className="list-none ml-0 space-y-0.5">
+                                {patientDataForAI && patientDataForAI.patientInformation &&
+                                  patientDataForAI.patientInformation
+                                    .replace(/Name: [^,]+, /, '')
+                                    .split(/, (?=(?:Age|Gender|Conditions|Allergies|Medications|Primary Complaint|Previous Conditions):)/)
+                                    .map((part: string, index: number) => {
+                                      const [key, ...valueParts] = part.split(':');
+                                      const value = valueParts.join(':').trim();
+                                      if (!value || value.toLowerCase() === 'none' || value.toLowerCase() === 'n/a') return null;
+                                      return (
+                                        <li key={index} className="text-foreground text-xs flex">
+                                          <span className="font-semibold w-28 flex-shrink-0">{key.trim()}:</span>
+                                          <span>{value}</span>
+                                        </li>
+                                      );
+                                    })
+                                    .filter(Boolean)
+                                }
+                              </ul>
+                            </div>
+                            <div>
+                              <strong className="block text-primary mb-0.5">Doctor's Original Observations (Ground Truth):</strong> 
+                              <div className="mt-2 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-md">
+                                <p className="text-foreground whitespace-pre-wrap leading-relaxed text-sm">{patientDataForAI.observations}</p>
+                                <p className="text-xs text-blue-600 mt-2 italic">
+                                  ℹ️ These are the original clinical observations recorded by the doctor and serve as the ground truth for this case.
+                                </p>
+                              </div>
+                            </div>
+                            {currentCaseDisplayData && 'aiSoapNotes' in currentCaseDisplayData && (currentCaseDisplayData as Patient).aiSoapNotes && (
+                              <div>
+                                <strong className="block text-primary mb-0.5">Saved AI SOAP Notes:</strong> 
+                                <div className="mt-2 p-3 bg-green-50 border-l-4 border-green-400 rounded-r-md">
+                                  <p className="text-foreground whitespace-pre-wrap leading-relaxed text-sm">
+                                    {(currentCaseDisplayData as Patient).aiSoapNotes}
+                                  </p>
+                                  <p className="text-xs text-green-600 mt-2 italic">
+                                    ✅ These are AI-generated SOAP notes that have been saved to the patient record.
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-muted-foreground">Patient details not fully loaded.</p>
                         )}
-                      </>
-                    ) : (
-                      <p className="text-muted-foreground">Patient details not fully loaded.</p>
-                    )}
-                  </CardContent>                </Card>
-              </motion.div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                </>
+              )}
             </div>
           </motion.div>
         </motion.div>
@@ -1285,14 +1376,6 @@ export default function AnalysisPage() {
         cases={similarCases}
         isLoading={isLoadingSimilarCases}
         error={similarCasesError} />
-
-      <ExportModal 
-        isOpen={isExportModalOpen} 
-        onOpenChange={setIsExportModalOpen}
-        analysisData={analysisResult} 
-        patientData={currentCaseDisplayData}
-        soapNotes={editableSoapNotes}
-      />
     </MainLayout>
   );
 }

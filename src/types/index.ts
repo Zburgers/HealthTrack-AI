@@ -36,7 +36,14 @@ export interface PatientDocument {
     assessment: string;
     plan: string;
   };
-  matched_cases: { case_id: string; similarity_score: number; diagnosis: string; summary: string }[];
+  matched_cases: Array<{
+    case_id: string;
+    similarity_score: number;
+    diagnosis?: string;
+    summary?: string;
+    linkType?: 'auto' | 'manual';
+    savedAt?: Date;
+  }>;
   // Enhanced Medical History Analysis
   medical_history_analysis?: {
     allergy_warnings?: string[];
@@ -118,6 +125,14 @@ export interface Patient {
     medicationInteractions?: string[];
     previousConditionsImpact?: string[];
   };
+  matched_cases?: Array<{
+    case_id: string;
+    similarity_score: number;
+    diagnosis?: string;
+    summary?: string;
+    linkType?: 'auto' | 'manual';
+    savedAt?: Date;
+  }>;
 }
 
 export interface AppState {

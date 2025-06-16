@@ -5,8 +5,11 @@
  * for better performance, monitoring, and cost efficiency.
  */
 
+// Standalone endpoint for SOAP notes enhancement. Do not remove.
+
 import { NextRequest, NextResponse } from 'next/server';
 import { enhanceSoapNotes, EnhanceSoapNotesInputSchema } from '@/vertex-ai';
+import { makeAICacheKey, getAICache, setAICache } from '@/lib/aiCache';
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,9 +27,26 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
+    // Persistent cache logic
+    const cacheKey = makeAICacheKey('enhance-notes', validationResult.data);
+    const cached = await getAICache(cacheKey);
+    if (cached) {
+      return NextResponse.json({
+        ...cached,
+        metadata: {
+          ...cached.metadata,
+          cache: 'hit',
+          cacheKey,
+        }
+      }, { status: 200 });
+    }
+
     // Use the optimized Vertex AI workflow
     const result = await enhanceSoapNotes(validationResult.data);
     const duration = Date.now() - startTime;
+
+    // Store in persistent cache (24h expiry)
+    await setAICache(cacheKey, 'enhance-notes', validationResult.data, result, 24 * 60 * 60 * 1000);
 
     // Log performance metrics
     console.log('[Vertex AI API] SOAP enhancement completed:', {
@@ -34,6 +54,7 @@ export async function POST(req: NextRequest) {
       inputSize: JSON.stringify(body).length,
       outputSize: JSON.stringify(result).length,
       timestamp: new Date().toISOString(),
+      cacheKey,
     });
 
     return NextResponse.json({
@@ -42,6 +63,8 @@ export async function POST(req: NextRequest) {
         processingTime: duration,
         provider: 'vertex-ai',
         version: 'v2_optimized',
+        cache: 'miss',
+        cacheKey,
       }
     }, { status: 200 });
 

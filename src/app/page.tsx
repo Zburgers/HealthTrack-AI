@@ -698,7 +698,7 @@ export default function LandingPageV2() {
         </section>
 
         {/* Footer */}
-        <footer className="py-12 px-6 bg-slate-900 border-t border-white/10">
+        <footer id="custom-landing-footer" className="py-12 px-6 bg-slate-900 border-t border-white/10">
           <div className="container mx-auto">
             <div className="flex flex-col md:flex-row justify-between items-center gap-6">
               <div className="flex items-center gap-3">
@@ -709,16 +709,16 @@ export default function LandingPageV2() {
                   HealthTrack AI
                 </span>
               </div>
-              
               <div className="flex flex-wrap justify-center gap-6 text-gray-400">
-                <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
-                <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
-                <a href="/security" className="hover:text-white transition-colors">Security</a>
-                <a href="/contact" className="hover:text-white transition-colors">Contact</a>
+                <a href="/" className="hover:text-white transition-colors">Home</a>
+                <a href="/about" className="hover:text-white transition-colors">About Us</a>
+                <a href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</a>
+                <a href="/terms-of-service" className="hover:text-white transition-colors">Terms of Service</a>
+                <a href="/contact-us" className="hover:text-white transition-colors">Contact Us</a>
+                <a href="/citations" className="hover:text-white transition-colors">Citations</a>
               </div>
-              
               <div className="text-gray-400 text-sm">
-                © 2024 HealthTrack AI. All rights reserved.
+                © 2025 HealthTrack AI. All rights reserved.
               </div>
             </div>
           </div>

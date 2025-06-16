@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { FileJson, FileText, Share2, Copy, LinkIcon, Download, Sparkles, CheckCircle2, Clock, Shield } from 'lucide-react';
 import type { AIAnalysisOutput, Patient, NewCaseFormValues } from '@/types';
+import { cn } from '@/lib/utils';
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -27,12 +28,32 @@ export default function ExportModal({ isOpen, onOpenChange, analysisData, patien
   const { toast } = useToast();
 
   const handleExport = (format: 'JSON' | 'PDF' | 'Link') => {
+    if (format === 'JSON') {
+      // Compose the data to dump
+      const dump = {
+        patientData,
+        analysisData,
+        soapNotes,
+      };
+      const blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `patient_report_${patientData && 'id' in patientData ? patientData.id : 'new'}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast({
+        title: 'FHIR-compatible JSON Downloaded',
+        description: 'All patient data has been downloaded as a JSON file.',
+      });
+      onOpenChange(false);
+      return;
+    }
     // Placeholder for actual export logic
     let description = '';
     switch (format) {
-      case 'JSON':
-        description = 'FHIR-compatible JSON report download initiated.';
-        break;
       case 'PDF':
         description = 'PDF report download initiated.';
         break;
@@ -99,7 +120,7 @@ export default function ExportModal({ isOpen, onOpenChange, analysisData, patien
     <AnimatePresence>
       {isOpen && (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className={cn("sm:max-w-2xl max-h-[90vh] overflow-y-auto")}>
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}

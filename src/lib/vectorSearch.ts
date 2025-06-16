@@ -11,19 +11,31 @@ if (process.env.NODE_ENV === 'development') {
   console.log(`[VectorSearch] Using Atlas Vector Search Index Name: "${ATLAS_VECTOR_SEARCH_INDEX_NAME}" (From ENV: "${ATLAS_VECTOR_SEARCH_INDEX_NAME_FROM_ENV}")`);
 }
 
+export interface SimilarCasesFilterSort {
+  minAge?: number;
+  maxAge?: number;
+  gender?: string;
+  icdCodes?: string[];
+  minConfidence?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
 /**
  * Finds similar cases in MongoDB Atlas using vector search.
  *
  * @param queryEmbedding The embedding vector of the current case.
  * @param numCandidates The number of candidates to consider during the search (approximate nearest neighbors).
  * @param limit The maximum number of similar cases to return.
+ * @param filtersAndSort Optional filters and sorting options.
  * @returns A promise that resolves to an array of similar case documents, including a matchConfidence score.
  * @throws Error if the database connection fails or the query fails.
  */
 export async function findSimilarCases(
   queryEmbedding: number[],
   numCandidates: number = 150,
-  limit: number = 10
+  limit: number = 10,
+  filtersAndSort?: SimilarCasesFilterSort
 ): Promise<SimilarCaseOutput[]> {
   if (!queryEmbedding || queryEmbedding.length === 0) {
     throw new Error('Query embedding cannot be empty for vector search.');
@@ -66,6 +78,25 @@ export async function findSimilarCases(
         },
       },
     ];
+
+    // Filtering stage
+    if (filtersAndSort) {
+      const match: any = {};
+      if (filtersAndSort.minAge !== undefined) match.age = { ...(match.age || {}), $gte: filtersAndSort.minAge };
+      if (filtersAndSort.maxAge !== undefined) match.age = { ...(match.age || {}), $lte: filtersAndSort.maxAge };
+      if (filtersAndSort.gender) match.sex = filtersAndSort.gender;
+      if (filtersAndSort.icdCodes && filtersAndSort.icdCodes.length > 0) match.icd = { $in: filtersAndSort.icdCodes };
+      if (filtersAndSort.minConfidence !== undefined) match.matchConfidence = { $gte: filtersAndSort.minConfidence };
+      if (Object.keys(match).length > 0) {
+        pipeline.push({ $match: match });
+      }
+      // Sorting stage
+      if (filtersAndSort.sortBy) {
+        const sort: any = {};
+        sort[filtersAndSort.sortBy] = filtersAndSort.sortOrder === 'asc' ? 1 : -1;
+        pipeline.push({ $sort: sort });
+      }
+    }
 
     const similarCasesDocuments: Document[] = await collection.aggregate(pipeline).toArray();
     // console.log('[VectorSearch] Raw documents from MongoDB:', JSON.stringify(similarCasesDocuments, null, 2));

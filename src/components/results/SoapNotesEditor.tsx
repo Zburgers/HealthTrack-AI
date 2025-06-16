@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles, RotateCcw, Save, Wand2, Info as InfoIcon } from 'lucide-react';
 import { useState } from 'react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface SoapNotesEditorProps {
   currentNotes: string;
@@ -90,44 +91,45 @@ export default function SoapNotesEditor({
   };
 
   const handleEnhanceNotes = async () => {
-    if (!patientDataForAI) {
-      toast({
-        title: 'Error',
-        description: 'Patient data is not available for AI enhancement.',
-        variant: 'destructive',
-      });
-      return;
-    }    // Allow enhancement even if notes are empty - AI can generate notes from patient data
-    const notesToEnhance = currentNotes.trim() || 'Generate SOAP notes based on the available patient information and observations.';
-
+    if (!patientDataForAI || !currentNotes) return;
     setIsEnhancing(true);
     try {
+      console.log('AI Enhancement request:', { ...patientDataForAI, currentNotes });
       const response = await fetch('/api/v2/enhance-notes', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },        body: JSON.stringify({
-          ...patientDataForAI,
-          currentNotes: notesToEnhance,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...patientDataForAI, currentNotes }),
       });
-
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.details || 'Failed to enhance notes');
+        toast({
+          title: 'AI Enhancement Failed',
+          description: errorData.details || 'Failed to enhance notes.',
+          variant: 'destructive',
+        });
+        setIsEnhancing(false);
+        return;
       }
-
       const result = await response.json();
-      onNotesChange(result.enhancedSoapNotes);
-      toast({
-        title: 'Notes Enhanced',
-        description: 'SOAP notes have been enhanced by AI.',
-      });
+      console.log('AI Enhancement response:', result);
+      if (result.enhancedSoapNotes) {
+        onNotesChange(result.enhancedSoapNotes);
+        toast({
+          title: 'AI Enhancement Complete',
+          description: 'SOAP notes have been enhanced and formatted.',
+        });
+      } else {
+        toast({
+          title: 'AI Enhancement Failed',
+          description: 'No enhanced notes returned.',
+          variant: 'destructive',
+        });
+      }
     } catch (error) {
-      console.error('Error enhancing notes:', error);
+      console.error('AI Enhancement error:', error);
       toast({
-        title: 'Enhancement Failed',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
+        title: 'AI Enhancement Error',
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive',
       });
     } finally {
@@ -250,48 +252,23 @@ P (Plan): Treatment plan and next steps"
 
         {/* Right side - Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <Button
-              variant="outline"
-              onClick={handleEnhanceNotes}
-              disabled={isEnhanceDisabled}
-              className="group relative overflow-hidden border-blue-300 hover:border-blue-400 hover:bg-blue-50 transition-all duration-300"
-            >
-              <AnimatePresence mode="wait">
-                {isEnhancing ? (
-                  <motion.div
-                    key="loading"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    className="flex items-center text-blue-600"
-                  >
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Enhancing...
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="enhance"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    className="flex items-center text-blue-600"
-                  >
-                    <Wand2 className="mr-2 h-4 w-4 group-hover:rotate-12 transition-transform duration-200" />
-                    AI Enhancement
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              
-              {/* Enhanced shimmer effect */}
-              {!isEnhanceDisabled && (
-                <div className="absolute inset-0 -top-[2px] bg-gradient-to-r from-transparent via-blue-200/40 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out" />
-              )}
-            </Button>
-          </motion.div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  onClick={handleEnhanceNotes}
+                  disabled={isEnhancing || !patientDataForAI}
+                  className="ml-2"
+                >
+                  {isEnhancing ? 'Enhancing...' : 'AI Enhancement'}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {!patientDataForAI ? 'Patient data is required for AI enhancement.' : !currentNotes ? 'Enter notes to enhance.' : isEnhancing ? 'Enhancement in progress...' : 'Click to enhance and format notes using AI.'}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <motion.div
             whileHover={{ scale: 1.02 }}
@@ -338,41 +315,7 @@ P (Plan): Treatment plan and next steps"
             </Button>
           </motion.div>
         </div>
-      </motion.div>{/* Enhancement hint */}
-      <motion.div 
-        className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg border"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3, delay: 0.2 }}
-      >
-        <Sparkles className="h-4 w-4 text-primary" />
-        <span>AI enhancement will improve structure, add medical terminology, ensure SOAP format, and can generate notes from patient data if empty</span>
       </motion.div>
-
-      {/* Save guidance */}
-      {!isExistingPatient && (
-        <motion.div 
-          className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3, delay: 0.3 }}
-        >
-          <InfoIcon className="h-4 w-4 text-amber-600" />
-          <span>💾 <strong>Note:</strong> SOAP notes can only be saved for existing patient records, not for new case analysis.</span>
-        </motion.div>
-      )}
-
-      {isExistingPatient && isSaveDisabled && currentNotes.trim() && (
-        <motion.div 
-          className="flex items-center gap-2 text-sm text-blue-700 bg-blue-50 p-3 rounded-lg border border-blue-200"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3, delay: 0.3 }}
-        >
-          <InfoIcon className="h-4 w-4 text-blue-600" />
-          <span>💡 <strong>Tip:</strong> Use AI Enhancement to format notes properly before saving (requires S:, O:, A:, P: sections).</span>
-        </motion.div>
-      )}
     </motion.div>
   );
 }

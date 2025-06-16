@@ -19,6 +19,31 @@ export interface CaseEmbeddingDocument {
   sex: string;
   subject_id: number;
   vitals?: CaseVitals; // Vitals are optional as per schema structure (not in top-level required)
+  outcomes?: {
+    result?: string;
+    followUp?: string;
+    dischargeStatus?: string;
+    lengthOfStay?: number;
+    complications?: string[];
+  };
+  treatments?: {
+    medications?: string[];
+    procedures?: string[];
+    interventions?: string[];
+    timeline?: Array<{ date: string; action: string }>;
+  };
+  diagnostics?: {
+    tests?: string[];
+    results?: string[];
+    imaging?: string[];
+    labs?: string[];
+  };
+  metadata?: {
+    complexityScore?: number;
+    outcomeClass?: string;
+    admissionType?: string;
+    caseDate?: Date;
+  };
 }
 
 // Input for the /api/similar-cases endpoint (current case data for querying)

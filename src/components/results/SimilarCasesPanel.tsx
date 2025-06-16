@@ -14,9 +14,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, BarChart3, Loader2, AlertCircle, FileText, TrendingUp, Calendar, UserCheck, Stethoscope } from 'lucide-react';
+import { Users, BarChart3, Loader2, AlertCircle, FileText, TrendingUp, Calendar, UserCheck, Stethoscope, ChevronDown, ChevronUp, Info, ClipboardList, Award, Activity, Clock, CheckCircle2, XCircle, PlusCircle, FileSignature } from 'lucide-react';
 import { SimilarCaseOutput } from '@/types/similar-cases';
 import { cn } from '@/lib/utils';
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
+import React from 'react';
 
 interface SimilarCasesPanelProps {
   isOpen: boolean;
@@ -25,6 +27,10 @@ interface SimilarCasesPanelProps {
   isLoading: boolean;
   error: string | null;
 }
+
+// In-memory cache for similar cases queries (key: JSON.stringify(query/filter), value: { data, timestamp })
+const SIMILAR_CASES_CACHE = new Map<string, { data: SimilarCaseOutput[]; timestamp: number }>();
+const CACHE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 
 const formatNoteSummary = (noteText: string | undefined): string => {
   if (!noteText || noteText.trim() === "") {
@@ -86,202 +92,198 @@ const getConfidenceColor = (confidence: number) => {
   return { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-300' };
 };
 
-const CaseCard = ({ caseData, index }: { caseData: SimilarCaseOutput; index: number }) => {
+// Helper: Format quick stats
+const formatQuickStats = (caseData: SimilarCaseOutput) => {
+  const stats: { label: string; value: string | number | undefined; icon: React.ReactNode }[] = [];
+  if (caseData.outcomes?.lengthOfStay !== undefined) stats.push({ label: 'LOS', value: `${caseData.outcomes.lengthOfStay}d`, icon: <Clock className="h-4 w-4 text-blue-500" /> });
+  if (caseData.outcomes?.dischargeStatus) stats.push({ label: 'Discharge', value: caseData.outcomes.dischargeStatus, icon: <CheckCircle2 className="h-4 w-4 text-green-600" /> });
+  if (caseData.metadata?.outcomeClass) stats.push({ label: 'Outcome', value: caseData.metadata.outcomeClass, icon: <Award className="h-4 w-4 text-purple-500" /> });
+  if (caseData.metadata?.complexityScore !== undefined) stats.push({ label: 'Complexity', value: caseData.metadata.complexityScore, icon: <BarChart3 className="h-4 w-4 text-amber-500" /> });
+  return stats;
+};
+
+// Helper: Format summary (first 2-3 lines, fade if long)
+const formatSummary = (note: string | undefined) => {
+  if (!note) return 'No clinical summary available.';
+  const lines = note.split(/\n|\. /).filter(Boolean);
+  const summary = lines.slice(0, 2).join('. ') + (lines.length > 2 ? '...' : '');
+  return summary;
+};
+
+// Enhanced Case Card
+const EnhancedCaseCard = ({ caseData, index, expanded, onToggle }: { caseData: SimilarCaseOutput; index: number; expanded: boolean; onToggle: () => void }) => {
   const confidence = getConfidenceColor(caseData.matchConfidence);
-  
+  const quickStats = formatQuickStats(caseData);
+  const summary = formatSummary(caseData.note);
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      initial={{ opacity: 0, y: 20, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ 
-        delay: index * 0.1, 
-        duration: 0.4,
-        type: "spring",
-        stiffness: 100
-      }}
-      whileHover={{ y: -2, transition: { duration: 0.2 } }}
+      transition={{ delay: index * 0.08, duration: 0.35, type: 'spring', stiffness: 120 }}
+      whileHover={{ y: -2, boxShadow: '0 4px 24px 0 rgba(80,120,255,0.08)' }}
+      className="mb-4"
     >
-      <Card className="shadow-lg hover:shadow-xl transition-all duration-300 border-l-4 border-l-blue-500 bg-gradient-to-br from-white to-gray-50">
-        <CardHeader className="pb-4">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <FileText className="h-5 w-5 text-blue-600" />
+      <div className={cn(
+        'rounded-xl border bg-gradient-to-br from-white to-blue-50 shadow-md transition-all duration-300',
+        expanded ? 'ring-2 ring-blue-400' : 'hover:ring-1 hover:ring-blue-200'
+      )}>
+        {/* Main Card Row */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between px-5 py-4 cursor-pointer" onClick={onToggle}>
+          <div className="flex items-center space-x-4 flex-1 min-w-0">
+            <div className="p-2 bg-blue-100 rounded-lg flex items-center justify-center">
+              <FileText className="h-6 w-6 text-blue-600" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center space-x-2">
+                <span className="font-bold text-lg text-blue-900 truncate">Case #{index + 1}</span>
+                <Badge className={cn('text-xs font-semibold px-2 py-1 rounded-full border', confidence.bg, confidence.text, confidence.border)}>
+                  {(caseData.matchConfidence * 100).toFixed(0)}% Match
+                </Badge>
               </div>
-              <div>
-                <CardTitle className="text-lg font-bold text-gray-900">
-                  Case #{caseData.id}
-                </CardTitle>
-                <div className="flex items-center mt-1">
-                  <TrendingUp className="h-4 w-4 text-blue-500 mr-1" />
-                  <Badge 
-                    className={cn(
-                      "text-xs font-semibold px-2 py-1 rounded-full",
-                      confidence.bg,
-                      confidence.text,
-                      confidence.border,
-                      "border"
+              <div className="flex flex-wrap gap-3 mt-1 text-sm text-gray-700">
+                <span className="flex items-center"><UserCheck className="h-4 w-4 mr-1 text-blue-500" />Age: {caseData.age ?? 'N/A'}</span>
+                <span className="flex items-center"><ClipboardList className="h-4 w-4 mr-1 text-blue-500" />Sex: {caseData.sex ?? 'N/A'}</span>
+                <span className="flex items-center"><Activity className="h-4 w-4 mr-1 text-blue-500" />ID: {caseData.subject_id ?? caseData.hadm_id ?? 'N/A'}</span>
+              </div>
+              <div className="flex flex-wrap gap-1 mt-2">
+                {caseData.icd_label && caseData.icd_label.length > 0 ? (
+                  <>
+                    {caseData.icd_label.slice(0, 3).map((label, idx) => (
+                      <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-800 border-green-300">{label}</Badge>
+                    ))}
+                    {caseData.icd_label.length > 3 && (
+                      <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600">+{caseData.icd_label.length - 3} more</Badge>
                     )}
-                  >
-                    {(caseData.matchConfidence * 100).toFixed(0)}% Match
-                  </Badge>
+                  </>
+                ) : (
+                  <span className="text-xs text-gray-400">No diagnosis info</span>
+                )}
+              </div>
+              <div className="mt-2 text-sm text-black max-w-xl line-clamp-2">
+                {summary}
                 </div>
+              <div className="flex flex-wrap gap-3 mt-2">
+                {quickStats.map((stat, i) => (
+                  <span key={i} className="inline-flex items-center px-2 py-1 bg-gray-100 rounded text-xs text-gray-700 border border-gray-200 mr-2">
+                    {stat.icon}<span className="ml-1 font-medium">{stat.label}:</span> <span className="ml-1">{stat.value}</span>
+                  </span>
+                ))}
               </div>
             </div>
           </div>
-        </CardHeader>
-        
-        <CardContent className="space-y-4">
-          {/* Patient Demographics */}
-          <div className="flex items-center space-x-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <UserCheck className="h-5 w-5 text-blue-600" />
-            <div className="flex-1">
-              <div className="grid grid-cols-3 gap-2 text-sm">
-                <div>
-                  <span className="font-medium text-blue-700">Age:</span>
-                  <p className="text-blue-900">{caseData.age !== undefined ? caseData.age : 'N/A'}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-blue-700">Sex:</span>
-                  <p className="text-blue-900">{caseData.sex || 'N/A'}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-blue-700">ID:</span>
-                  <p className="text-blue-900 text-xs">{caseData.subject_id !== undefined ? caseData.subject_id : 'N/A'}</p>
-                </div>
-              </div>
-            </div>
+          <div className="ml-4 flex-shrink-0 flex flex-col items-end justify-between h-full">
+            <Button variant="ghost" size="icon" className="rounded-full hover:bg-blue-100" aria-label={expanded ? 'Collapse' : 'Expand'}>
+              {expanded ? <ChevronUp className="h-6 w-6 text-blue-600" /> : <ChevronDown className="h-6 w-6 text-blue-600" />}
+            </Button>
           </div>
-
-          {/* Diagnosis */}
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <Stethoscope className="h-4 w-4 text-green-600" />
-              <span className="font-semibold text-green-700 text-sm">Diagnosis Outcome</span>
-            </div>
-            <div className="pl-6">
-              {caseData.icd_label && caseData.icd_label.length > 0 ? (
-                <div className="flex flex-wrap gap-1">
-                  {caseData.icd_label.slice(0, 3).map((label, idx) => (
-                    <Badge 
-                      key={idx}
-                      variant="outline" 
-                      className="text-xs bg-green-50 text-green-800 border-green-300"
-                    >
-                      {label}
-                    </Badge>
-                  ))}
-                  {caseData.icd_label.length > 3 && (
-                    <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600">
-                      +{caseData.icd_label.length - 3} more
-                    </Badge>
+        </div>
+        {/* Expanded Section */}
+        <AnimatePresence>
+          {expanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="px-6 pb-5"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                <div>
+                  <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+                    <div className="font-bold text-black mb-1 text-base">Full Note:</div>
+                    <div className="whitespace-pre-wrap text-black font-medium text-base max-h-48 overflow-auto">{caseData.note || 'No note available.'}</div>
+                  </div>
+                  {caseData.icd && (
+                    <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+                      <div className="font-bold text-black mb-1 text-base">ICD Codes:</div>
+                      <div className="text-black">{caseData.icd.join(', ')}</div>
+                    </div>
+                  )}
+                  {caseData.icd_label && (
+                    <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+                      <div className="font-bold text-black mb-1 text-base">ICD Labels:</div>
+                      <div className="text-black">{caseData.icd_label.join(', ')}</div>
+                    </div>
+                  )}
+                  {caseData.vitals && (
+                    <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+                      <div className="font-bold text-black mb-1 text-base">Vitals:</div>
+                      <div className="text-black">{Object.entries(caseData.vitals).map(([k, v]) => `${k}: ${v}`).join(', ')}</div>
+                </div>
                   )}
                 </div>
-              ) : (
-                <p className="text-sm text-gray-500 italic">No diagnosis information available</p>
-              )}
+                <div>
+                  {caseData.outcomes && (
+                    <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+                      <div className="font-bold text-black mb-1 text-base">Outcomes:</div>
+                      <div className="text-black">{JSON.stringify(caseData.outcomes, null, 2)}</div>
+                </div>
+                  )}
+                  {caseData.treatments && (
+                    <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+                      <div className="font-bold text-black mb-1 text-base">Treatments:</div>
+                      <div className="text-black">{JSON.stringify(caseData.treatments, null, 2)}</div>
+              </div>
+                  )}
+                  {caseData.diagnostics && (
+                    <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+                      <div className="font-bold text-black mb-1 text-base">Diagnostics:</div>
+                      <div className="text-black">{JSON.stringify(caseData.diagnostics, null, 2)}</div>
             </div>
+                  )}
+                  {caseData.metadata && (
+                    <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+                      <div className="font-bold text-black mb-1 text-base">Metadata:</div>
+                      <div className="text-black">{JSON.stringify(caseData.metadata, null, 2)}</div>
+            </div>
+                  )}
+                </div>
+              </div>
+              <div className="text-xs text-gray-400 mt-2">Case ID: {caseData.id}</div>
+            </motion.div>
+          )}
+        </AnimatePresence>
           </div>
-
-          {/* Case Summary */}
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4 text-purple-600" />
-              <span className="font-semibold text-purple-700 text-sm">Clinical Summary</span>
-            </div>
-            <div className="pl-6">
-              <p className="text-sm text-gray-700 leading-relaxed line-clamp-3 bg-purple-50 p-3 rounded-lg border border-purple-200">
-                {formatNoteSummary(caseData.note)}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </motion.div>
   );
 };
 
 export default function SimilarCasesPanel({ isOpen, onOpenChange, cases, isLoading, error }: SimilarCasesPanelProps) {
+  const [expandedIds, setExpandedIds] = React.useState<string[]>([]);
+  const handleToggle = (id: string) => {
+    setExpandedIds((prev) => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+  // Always treat cases as an array for rendering
+  const safeCases: SimilarCaseOutput[] = Array.isArray(cases) ? cases : [];
   const renderContent = () => {
     if (isLoading) {
-      return (
-        <motion.div 
-          className="flex flex-col items-center justify-center h-96 py-10"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          >
-            <Loader2 className="h-16 w-16 text-blue-500 mb-6" />
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-center"
-          >
-            <p className="text-lg font-medium text-blue-600 mb-2">Finding Similar Cases</p>
-            <p className="text-sm text-gray-500">Analyzing patient patterns and clinical profiles...</p>
-          </motion.div>
-        </motion.div>
-      );
+      return <div className="p-6 text-center">Loading similar cases...</div>;
     }
-
     if (error) {
-      return (
-        <motion.div 
-          className="flex flex-col items-center justify-center h-96 py-10 text-center"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-        >
-          <AlertCircle className="h-16 w-16 text-red-500 mb-6" />
-          <h3 className="text-lg font-semibold text-red-700 mb-2">Unable to Load Similar Cases</h3>
-          <p className="text-sm text-gray-600 max-w-md">{error}</p>
-          <Button 
-            variant="outline" 
-            className="mt-4"
-            onClick={() => window.location.reload()}
-          >
-            Try Again
-          </Button>
-        </motion.div>
-      );
+      return <div className="p-6 text-center text-red-600">{error}</div>;
     }
-
-    if (!cases || cases.length === 0) {
-      return (
-        <motion.div 
-          className="text-center py-16"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Users className="mx-auto h-16 w-16 text-gray-400 mb-6" />
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">No Similar Cases Found</h3>
-          <p className="text-gray-500 max-w-md mx-auto">
-            No matching cases were found based on the current patient profile and search criteria. 
-            This could indicate a unique case or the need for different search parameters.
-          </p>
-        </motion.div>
-      );
+    if (!Array.isArray(cases)) {
+      // Remove this error log and fallback, since we now always use safeCases
+      // console.error('SimilarCasesPanel: cases is not an array:', cases);
+      // return <div className="p-6 text-center text-red-600">Error: Similar cases data is malformed. Please try again or contact support.</div>;
     }
-
-    const sortedAndLimitedCases = [...cases]
-      .sort((a, b) => b.matchConfidence - a.matchConfidence)
-      .slice(0, 5);
-
+    if (safeCases.length === 0) {
+      return <div className="p-6 text-center text-gray-500">No similar cases found.</div>;
+    }
     return (
-      <AnimatePresence>
-        <div className="space-y-6">
-          {sortedAndLimitedCases.map((caseData, index) => (
-            <CaseCard key={caseData.id} caseData={caseData} index={index} />
-          ))}
-        </div>
-      </AnimatePresence>
+      <div className="space-y-4">
+        {safeCases.map((caseData, idx) => (
+          <EnhancedCaseCard
+            key={caseData.id}
+            caseData={caseData}
+            index={idx}
+            expanded={expandedIds.includes(caseData.id)}
+            onToggle={() => handleToggle(caseData.id)}
+          />
+        ))}
+      </div>
     );
   };
-
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-lg md:max-w-xl lg:max-w-3xl p-0 flex flex-col">
@@ -311,11 +313,9 @@ export default function SimilarCasesPanel({ isOpen, onOpenChange, cases, isLoadi
             </div>
           </SheetHeader>
         </motion.div>
-        
         <ScrollArea className="flex-grow p-6">
           {renderContent()}
         </ScrollArea>
-        
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -324,7 +324,7 @@ export default function SimilarCasesPanel({ isOpen, onOpenChange, cases, isLoadi
           <SheetFooter className="p-6 border-t mt-auto bg-gray-50">
             <div className="flex justify-between items-center w-full">
               <p className="text-xs text-gray-500">
-                {cases && cases.length > 0 && `Showing top ${Math.min(5, cases.length)} of ${cases.length} matches`}
+                {safeCases.length > 0 && `Showing top ${Math.min(5, safeCases.length)} of ${safeCases.length} matches`}
               </p>
               <SheetClose asChild>
                 <Button variant="outline" className="hover:bg-gray-100">

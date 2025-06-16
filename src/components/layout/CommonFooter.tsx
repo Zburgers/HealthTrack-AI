@@ -3,7 +3,7 @@ import React from 'react';
 import Link from 'next/link';
 
 const CommonFooter: React.FC = () => {
-  const currentYear = new Date().getFullYear();
+  const currentYear = 2025;
 
   return (
     <footer className="bg-slate-900/50 border-t border-slate-700/50 mt-12 md:mt-20">

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEmbeddings } from '@/lib/embedding'; // Corrected import
-import { findSimilarCases } from '@/lib/vectorSearch';
+import { findSimilarCases, SimilarCasesFilterSort } from '@/lib/vectorSearch';
 import { SimilarCasesApiInput, SimilarCaseOutput } from '@/types/similar-cases';
 import { z, ZodError } from 'zod';
+import { makeAICacheKey, getAICache, setAICache } from '@/lib/aiCache';
+import stringify from 'json-stable-stringify';
 
 // Define Zod schema for input validation based on SimilarCasesApiInput
 const SimilarCasesApiInputSchema = z.object({
@@ -58,6 +60,32 @@ function prepareInputTextForEmbedding(input: SimilarCasesApiInput): string {
   return optimizedText;
 }
 
+// Accept filtering and sorting parameters from query string or POST body
+// Supported: minAge, maxAge, gender, icdCodes, minConfidence, sortBy, sortOrder
+
+function parseFilterAndSortParams(req: NextRequest, body: any) {
+  // Try to get from query string first
+  const url = req.nextUrl;
+  const minAge = url.searchParams.get('minAge') ?? body.minAge;
+  const maxAge = url.searchParams.get('maxAge') ?? body.maxAge;
+  const gender = url.searchParams.get('gender') ?? body.gender;
+  const icdCodes = url.searchParams.get('icdCodes')
+    ? url.searchParams.get('icdCodes')!.split(',').map((c) => c.trim()).filter(Boolean)
+    : body.icdCodes;
+  const minConfidence = url.searchParams.get('minConfidence') ?? body.minConfidence;
+  const sortBy = url.searchParams.get('sortBy') ?? body.sortBy;
+  const sortOrder = url.searchParams.get('sortOrder') ?? body.sortOrder;
+  return {
+    minAge: minAge !== undefined ? Number(minAge) : undefined,
+    maxAge: maxAge !== undefined ? Number(maxAge) : undefined,
+    gender: gender || undefined,
+    icdCodes: icdCodes || undefined,
+    minConfidence: minConfidence !== undefined ? Number(minConfidence) : undefined,
+    sortBy: sortBy || undefined,
+    sortOrder: sortOrder || undefined,
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -65,33 +93,49 @@ export async function POST(request: NextRequest) {
     // 1. Validate input using Zod
     const validatedInput = SimilarCasesApiInputSchema.parse(body);
 
-    // 2. Prepare text for embedding from validated input
+    // 2. Parse filter and sort params
+    const filterSortParams = parseFilterAndSortParams(request, body);
+
+    // Persistent cache logic: hash input + filter/sort params
+    const cacheKey = makeAICacheKey('similar-cases', stringify({ input: validatedInput, filterSortParams }));
+    const cached = await getAICache(cacheKey);
+    if (cached) {
+      console.log('[API Similar Cases] Cache hit:', cacheKey);
+      // If cached is an object with a 'data' property, return cached.data; else, return cached directly if it's an array
+      if (Array.isArray(cached)) {
+        return NextResponse.json(cached, { status: 200 });
+      } else if (cached && Array.isArray(cached.data)) {
+        return NextResponse.json(cached.data, { status: 200 });
+      } else {
+        return NextResponse.json([], { status: 200 });
+      }
+    }
+
+    // 3. Prepare text for embedding from validated input
     const inputText = prepareInputTextForEmbedding(validatedInput);
 
     // Log the exact text and its length before sending for embedding
     console.log(`[API Similar Cases] Prepared inputText for embedding (length: ${inputText.length}): "${inputText}"`);
     console.log(`[API Similar Cases] Note: Character-based truncation to approx. <100 tokens will occur in getEmbeddings if needed. Vertex AI will determine final token count.`);
 
-    // 3. Get embedding from Vertex AI
-    // getEmbeddings expects an array of texts and returns an array of embeddings.
-    // For a single input text, we pass it as a single-element array.
+    // 4. Get embedding from Vertex AI
     const embeddingsArray = await getEmbeddings([inputText]);
 
     if (!embeddingsArray || embeddingsArray.length === 0 || !embeddingsArray[0] || embeddingsArray[0].length === 0) {
-      // This case should ideally be handled within getEmbeddingFromVertexAI by throwing an error
       return NextResponse.json({ message: 'Failed to generate query embedding from Vertex AI.' }, { status: 500 });
     }
     
-    const queryEmbedding = embeddingsArray[0]; // Use the first (and only) embedding
+    const queryEmbedding = embeddingsArray[0];
 
-    // 4. Find similar cases in MongoDB Atlas
-    //    The number of candidates and limit can be made configurable, e.g., via query params or env vars.
-    const similarCases = await findSimilarCases(queryEmbedding, 150, 10);
-    // console.log('[API Similar Cases POST] Cases found by vectorSearch:', JSON.stringify(similarCases, null, 2));
+    // 5. Find similar cases in MongoDB Atlas with filters and sorting
+    const similarCases = await findSimilarCases(queryEmbedding, 150, 10, filterSortParams as SimilarCasesFilterSort);
 
     if (!similarCases) {
       return NextResponse.json({ error: 'No similar cases found or error in processing.' }, { status: 404 });
     }
+
+    // Store in persistent cache (24h expiry)
+    await setAICache(cacheKey, 'similar-cases', { input: validatedInput, filterSortParams }, similarCases, 24 * 60 * 60 * 1000);
 
     return NextResponse.json(similarCases, { status: 200 });
 
@@ -102,18 +146,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Invalid input data.", errors: error.errors }, { status: 400 });
     }
 
-    // Handle errors thrown by getEmbeddingFromVertexAI or findSimilarCases
-    // These functions should throw errors with meaningful messages.
     let statusCode = 500;
     let message = 'An unexpected error occurred while processing your request.';
 
     if (error.message.toLowerCase().includes('vertex ai')) {
       message = 'Error communicating with Vertex AI service.';
-      // Potentially log error.cause or more details for internal review
     } else if (error.message.toLowerCase().includes('mongodb')) {
       message = 'Error querying the database for similar cases.';
     }
-    // Add more specific error handling if needed
 
     return NextResponse.json({ message: message, details: error.message }, { status: statusCode });
   }

@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import React, { useState, useEffect, useCallback } from 'react';
 import { format, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { TreatmentTimelineView } from '@/components/results/TreatmentTimelineView';
 
 import {
   ArrowLeft,
@@ -867,5 +868,73 @@ export default function PatientDetailPage() {
         </Dialog>
       )}
     </MainLayout>
+  );
+}
+
+// --- Case Detail Page (for historical case deep-dive) ---
+export function CaseDetailPage() {
+  const router = useRouter();
+  const params = useParams();
+  const { id } = params as { id: string };
+  const [caseData, setCaseData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    fetch(`/api/case-details/${id}`)
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.message || 'Failed to fetch case details');
+        }
+        return res.json();
+      })
+      .then(setCaseData)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return <div className="p-8 text-center">Loading case details...</div>;
+  if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
+  if (!caseData) return <div className="p-8 text-center">No case data found.</div>;
+
+  return (
+    <div className="max-w-3xl mx-auto p-6 space-y-6">
+      <h1 className="text-2xl font-bold mb-2">Case Detail: {caseData.id}</h1>
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+        <h2 className="font-semibold text-lg mb-1">Full Case Narrative</h2>
+        <p className="text-gray-800 whitespace-pre-wrap">{caseData.note || 'No narrative available.'}</p>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-gray-50 border rounded-lg p-4">
+          <h3 className="font-semibold mb-1">Demographics</h3>
+          <p>Age: {caseData.age}</p>
+          <p>Sex: {caseData.sex}</p>
+          <p>Subject ID: {caseData.subject_id}</p>
+          <p>HADM ID: {caseData.hadm_id}</p>
+        </div>
+        <div className="bg-gray-50 border rounded-lg p-4">
+          <h3 className="font-semibold mb-1">ICD / Diagnosis</h3>
+          <p>ICD Codes: {caseData.icd?.join(', ') || 'N/A'}</p>
+          <p>ICD Labels: {caseData.icd_label?.join(', ') || 'N/A'}</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-gray-100 border rounded-lg p-4">
+          <h3 className="font-semibold mb-1">Case Metadata</h3>
+          <p>Length of Stay: {caseData.outcomes?.lengthOfStay ?? 'N/A'} days</p>
+          <p>Discharge Status: {caseData.outcomes?.dischargeStatus ?? 'N/A'}</p>
+          <p>Complexity Score: {caseData.metadata?.complexityScore ?? 'N/A'}</p>
+          <p>Outcome Class: {caseData.metadata?.outcomeClass ?? 'N/A'}</p>
+        </div>
+      </div>
+      {/* Treatment Timeline Section */}
+      <div className="bg-yellow-50 border rounded-lg p-4">
+        <TreatmentTimelineView treatments={caseData.treatments} />
+      </div>
+    </div>
   );
 }
