@@ -1,0 +1,58 @@
+{
+  "vertex_ai": {
+    "project_id": "healthtrack-hack",
+    "region": "us-central1",
+    "model_config": {
+      "primary_model": "gemini-2.0-flash-001",
+      "fallback_model": "gemini-1.5-pro",
+      "generation_config": {
+        "max_output_tokens": 2048,
+        "temperature": 0.1,
+        "top_p": 0.8,
+        "top_k": 40
+      }
+    },
+    "prompt_templates": {
+      "analyze_patient_symptoms": {
+        "version": "v2_optimized",
+        "estimated_tokens": 650,
+        "safety_level": "high"
+      },
+      "enhance_soap_notes": {
+        "version": "v2_optimized", 
+        "estimated_tokens": 580,
+        "safety_level": "high"
+      },
+      "summarize_patient_condition": {
+        "version": "v2_optimized",
+        "estimated_tokens": 620,
+        "safety_level": "high"
+      }
+    },
+    "performance": {
+      "retry_config": {
+        "max_retries": 3,
+        "backoff_ms": 1000
+      },
+      "timeout_ms": 30000,
+      "batch_size": 5
+    },
+    "monitoring": {
+      "enable_logging": true,
+      "log_level": "info",
+      "metrics_collection": true
+    }
+  },
+  "migration": {
+    "genkit_compatibility": true,
+    "api_versioning": {
+      "v1": "genkit",
+      "v2": "vertex-ai"
+    },
+    "feature_flags": {
+      "use_vertex_ai": true,
+      "fallback_to_genkit": false,
+      "enable_batch_processing": true
+    }
+  }
+}
