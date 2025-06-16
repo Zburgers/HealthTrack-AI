@@ -1,443 +1,729 @@
 'use client'
 import React from 'react';
-import { Bot, ArrowRight, TrendingUp, Zap, ShieldCheck, BrainCircuit, SearchCode, FileText, Activity, Sparkles, Database, BarChartBig } from 'lucide-react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { Bot, ArrowRight, TrendingUp, Zap, ShieldCheck, BrainCircuit, SearchCode, FileText, Activity, Sparkles, Database, BarChartBig, Users, Clock, Target, Heart, Stethoscope, ChevronRight } from 'lucide-react';
+import { motion, useScroll, useTransform, useInView } from 'framer-motion';
 
-// Re-styled and enhanced FeatureCard
+// Enhanced Feature Card with better animations
 const FeatureCard: React.FC<{
   icon: React.ReactNode;
   title: string;
   description: string;
-  color: string; // Icon background color
-  animationVariant: any;
-}> = ({ icon, title, description, color, animationVariant }) => (
-  <motion.div 
-    className="p-6 rounded-2xl bg-white/70 backdrop-blur-md shadow-xl border border-white/60 transform transition-all duration-300 hover:shadow-2xl"
-    variants={animationVariant}
-    whileHover={{ y: -8, scale: 1.03, boxShadow: "0px 20px 40px -15px rgba(0,0,0,0.15)" }}
-  >
-    <div className="flex items-center gap-4 mb-4">
-      <div className={`p-3 rounded-full ${color} shadow-md`}>
-        {icon}
-      </div>
-      <h3 className="text-xl font-bold text-gray-800">{title}</h3>
-    </div>
-    <p className="text-gray-600 text-sm leading-relaxed">{description}</p>
-    {/* Placeholder for a mini visual snippet if needed */}
-    {/* <div className="mt-4 h-24 bg-gray-200/50 rounded-lg flex items-center justify-center text-gray-400 text-xs">Mini Snippet Area</div> */}
-  </motion.div>
-);
+  gradient: string;
+  delay?: number;
+}> = ({ icon, title, description, gradient, delay = 0 }) => {
+  const ref = React.useRef(null);
+  const isInView = useInView(ref, { once: true });
 
-// New Card for Tech Spotlight / Core Features
+  return (
+    <motion.div 
+      ref={ref}
+      className="group relative overflow-hidden p-6 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all duration-500"
+      initial={{ opacity: 0, y: 50, scale: 0.9 }}
+      animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
+      transition={{ duration: 0.6, delay, type: "spring", stiffness: 100 }}
+      whileHover={{ y: -8, scale: 1.02 }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-10 transition-opacity duration-500" style={{ background: gradient }} />
+      
+      <div className="relative z-10">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm">
+            {icon}
+          </div>
+          <h3 className="text-xl font-bold text-white">{title}</h3>
+        </div>
+        <p className="text-gray-300 leading-relaxed">{description}</p>
+      </div>
+    </motion.div>
+  );
+};
+
+// Tech Feature Card with side-by-side layout
 const TechFeatureCard: React.FC<{
   icon: React.ReactNode;
   title: string;
   description: string;
-  techSource: string; // e.g., "Powered by Vertex AI"
-  color: string;
-  animationVariant: any;
-  children?: React.ReactNode; // For placeholder
-}> = ({ icon, title, description, techSource, color, animationVariant, children }) => (
-  <motion.div
-    className="p-8 rounded-3xl bg-gradient-to-br from-white/80 to-white/60 backdrop-blur-lg shadow-2xl border border-white/70 overflow-hidden"
-    variants={animationVariant}
-    whileHover={{ 
-      scale: 1.02,
-      boxShadow: "0px 25px 50px -12px rgba(0,0,0,0.2)" 
-    }}
-  >
-    <div className="flex flex-col lg:flex-row items-start gap-6">
-      <div className={`p-4 rounded-xl ${color} shadow-lg self-start`}>
-        {icon}
-      </div>
-      <div className="flex-1">
-        <h3 className="text-2xl font-bold text-blue-900 mb-2">{title}</h3>
-        <p className="text-sm font-semibold text-purple-600 mb-3">{techSource}</p>
-        <p className="text-gray-700 leading-relaxed mb-4">{description}</p>
-        {children}
-      </div>
-    </div>
-  </motion.div>
-);
+  techSource: string;
+  gradient: string;
+  visual: React.ReactNode;
+  reverse?: boolean;
+}> = ({ icon, title, description, techSource, gradient, visual, reverse = false }) => {
+  const ref = React.useRef(null);
+  const isInView = useInView(ref, { once: true });
 
+  return (
+    <motion.div
+      ref={ref}
+      className={`flex flex-col ${reverse ? 'lg:flex-row-reverse' : 'lg:flex-row'} items-center gap-8 lg:gap-16 mb-20`}
+      initial={{ opacity: 0, x: reverse ? 50 : -50 }}
+      animate={isInView ? { opacity: 1, x: 0 } : {}}
+      transition={{ duration: 0.8, type: "spring", stiffness: 80 }}
+    >
+      <div className="flex-1 space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="p-4 rounded-2xl bg-gradient-to-br backdrop-blur-sm" style={{ background: gradient }}>
+            {icon}
+          </div>
+          <div>
+            <h3 className="text-3xl font-bold text-white mb-2">{title}</h3>
+            <p className="text-purple-300 font-semibold">{techSource}</p>
+          </div>
+        </div>
+        
+        <p className="text-gray-300 text-lg leading-relaxed">{description}</p>
+        
+        <motion.button
+          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full font-semibold text-white shadow-lg hover:shadow-xl transition-all duration-300"
+          whileHover={{ scale: 1.05, x: 5 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          Learn More <ChevronRight className="w-4 h-4" />
+        </motion.button>
+      </div>
+      
+      <div className="flex-1 w-full">
+        <motion.div
+          className="relative"
+          whileHover={{ scale: 1.02, rotateY: 5 }}
+          transition={{ duration: 0.3 }}
+        >
+          {visual}
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+};
+
+// Stats Counter Component
+const StatCounter: React.FC<{ number: string; label: string; delay?: number }> = ({ number, label, delay = 0 }) => {
+  const ref = React.useRef(null);
+  const isInView = useInView(ref, { once: true });
+
+  return (
+    <motion.div
+      ref={ref}
+      className="text-center"
+      initial={{ opacity: 0, y: 30 }}
+      animate={isInView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.6, delay }}
+    >
+      <div className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
+        {number}
+      </div>
+      <div className="text-gray-300 font-medium">{label}</div>
+    </motion.div>
+  );
+};
 
 export default function LandingPageV2() {
   const { scrollYProgress } = useScroll();
   const scaleX = useTransform(scrollYProgress, [0, 1], [0, 1]);
-
-  const globalContainerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.2, delayChildren: 0.3 }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 30, scale: 0.95 },
-    visible: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 80, damping: 15 } }
-  };
-  
-  const crazyTextVariant = {
-    hidden: { opacity: 0, y: 50, rotateX: -90, skewY: 10 },
-    visible: { 
-      opacity: 1, y: 0, rotateX: 0, skewY: 0,
-      transition: { type: "spring", stiffness: 50, damping: 12, duration: 0.8 } 
-    }
-  };
-
-  const cardPopVariant = {
-    hidden: { opacity: 0, scale: 0.5, rotate: -10 },
-    visible: { 
-      opacity: 1, scale: 1, rotate: 0,
-      transition: { type: "spring", stiffness: 100, damping: 10, delay: Math.random() * 0.5 }
-    }
-  };
-  
-  const lineDrawVariant = {
-    hidden: { pathLength: 0, opacity: 0 },
-    visible: {
-      pathLength: 1,
-      opacity: 1,
-      transition: { duration: 1.5, ease: "circOut", delay: 0.5 }
-    }
-  };
-
+  const heroY = useTransform(scrollYProgress, [0, 1], [0, -100]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.3], [1, 0]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-blue-900 text-gray-100 font-sans overflow-x-hidden">
-      <motion.div className="fixed top-0 left-0 right-0 h-1 bg-purple-500 z-[100]" style={{ scaleX, transformOrigin: "left" }} />
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white relative overflow-x-hidden">
+      {/* Animated background elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <motion.div 
+          className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-purple-500/10 via-transparent to-pink-500/10 rounded-full"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
+        />
+        <motion.div 
+          className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-blue-500/10 via-transparent to-purple-500/10 rounded-full"
+          animate={{ rotate: -360 }}
+          transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
+        />
+      </div>
 
-      {/* Navbar */}
+      {/* Progress bar */}
+      <motion.div 
+        className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-pink-500 z-50" 
+        style={{ scaleX, transformOrigin: "left" }} 
+      />
+
+      {/* Navigation */}
       <motion.nav 
-        className="fixed top-0 w-full bg-slate-900/80 backdrop-blur-xl z-50 border-b border-slate-700/50"
-        initial={{ y: -100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 100, damping: 20, delay: 0.2 }}
+        className="fixed top-0 w-full bg-slate-900/80 backdrop-blur-xl z-40 border-b border-white/10"
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        transition={{ duration: 0.8, type: "spring", stiffness: 100 }}
       >
-        <div className="container mx-auto flex items-center justify-between py-5 px-6">
-          <div className="flex items-center gap-3">
-            <Bot className="text-purple-400 h-9 w-9" />
-            <span className="font-bold text-3xl bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-500">HealthTrack AI</span>
-          </div>
+        <div className="container mx-auto flex items-center justify-between py-4 px-6">
+          <motion.div 
+            className="flex items-center gap-3"
+            whileHover={{ scale: 1.05 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500">
+              <Bot className="w-8 h-8 text-white" />
+            </div>
+            <span className="font-bold text-2xl bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              HealthTrack AI
+            </span>
+          </motion.div>
+          
           <div className="hidden md:flex items-center gap-8">
-            {['Problem', 'Features', 'Revolution', 'Security'].map((item) => (
-              <a key={item} href={`#${item.toLowerCase()}`} className="text-gray-300 hover:text-purple-400 transition-colors duration-300 text-sm font-medium">{item}</a>
+            {['Problem', 'Features', 'Revolution', 'Security'].map((item, index) => (
+              <motion.a 
+                key={item}
+                href={`#${item.toLowerCase()}`} 
+                className="text-gray-300 hover:text-white transition-colors duration-300 font-medium relative group"
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                {item}
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-500 to-pink-500 group-hover:w-full transition-all duration-300" />
+              </motion.a>
             ))}
           </div>
+          
           <motion.a 
             href="/login" 
-            className="px-7 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-full font-semibold shadow-lg shadow-purple-500/40 text-sm"
-            whileHover={{ scale: 1.05, y: -2, boxShadow: "0 10px 20px -5px rgba(168, 85, 247, 0.6)"}}
+            className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+            whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 200, damping: 15 }}
           >
             Launch App
           </motion.a>
         </div>
       </motion.nav>
 
-      <main className="flex-grow scroll-smooth snap-y snap-mandatory h-screen overflow-y-scroll">
+      <main className="relative z-10">
         {/* Hero Section */}
         <motion.section 
-          id="hero" 
-          className="container mx-auto px-6 py-12 md:py-16 text-center relative overflow-hidden min-h-screen flex flex-col justify-center snap-start pt-32 pb-12"
-          variants={globalContainerVariants}
-          initial="hidden"
-          animate="visible"
+          className="min-h-screen flex items-center justify-center relative px-6"
+          style={{ y: heroY, opacity: heroOpacity }}
         >
-          {/* Background abstract shapes */}
-          <motion.div className="absolute -top-20 -left-20 w-72 h-72 bg-purple-600/30 rounded-full filter blur-3xl opacity-50 animate-pulse-slow" 
-            initial={{ scale:0, opacity:0}} animate={{scale:1, opacity:0.3}} transition={{duration:2, delay:1}}/>
-          <motion.div className="absolute -bottom-20 -right-10 w-96 h-96 bg-pink-500/30 rounded-full filter blur-3xl opacity-50 animate-pulse-slow-delay"
-            initial={{ scale:0, opacity:0}} animate={{scale:1, opacity:0.3}} transition={{duration:2, delay:1.5}}/>
+          <div className="container mx-auto text-center pt-20">
+            <motion.div
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 1, type: "spring", stiffness: 80 }}
+              className="space-y-8"
+            >
+              <motion.h1 
+                className="text-4xl md:text-6xl lg:text-7xl font-extrabold leading-tight"
+                initial={{ opacity: 0, rotateX: -90 }}
+                animate={{ opacity: 1, rotateX: 0 }}
+                transition={{ duration: 1.2, type: "spring", stiffness: 60 }}
+              >
+                <span className="block bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 bg-clip-text text-transparent">
+                  The Clinical Revolution
+                </span>
+                <span className="block bg-gradient-to-r from-orange-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+                  Starts Now.
+                </span>
+              </motion.h1>
+              
+              <motion.p 
+                className="text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto leading-relaxed"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.8 }}
+              >
+                HealthTrack AI isn't just software; it's your intelligent co-pilot, transforming patient data into 
+                <span className="text-purple-400 font-semibold"> life-saving insights</span> with unprecedented speed and accuracy.
+              </motion.p>
+              
+              <motion.div 
+                className="flex flex-col sm:flex-row justify-center gap-6 mt-12"
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8, duration: 0.6 }}
+              >
+                <motion.a 
+                  href="/login" 
+                  className="px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full font-bold text-lg shadow-2xl hover:shadow-purple-500/50 transition-all duration-300"
+                  whileHover={{ scale: 1.05, y: -3 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Get Started Free
+                </motion.a>
+                <motion.a 
+                  href="#features" 
+                  className="px-8 py-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full font-bold text-lg hover:bg-white/20 transition-all duration-300"
+                  whileHover={{ scale: 1.05, y: -3 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Discover Features <ArrowRight className="inline ml-2 w-5 h-5" />
+                </motion.a>
+              </motion.div>
+            </motion.div>
 
-          <motion.h1 
-            className="text-5xl md:text-7xl font-extrabold mb-6"
-            variants={crazyTextVariant}
-          >
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-orange-400">
-              The Clinical Revolution <br/>Starts Now.
-            </span>
-          </motion.h1>
-          <motion.p 
-            className="mt-6 text-lg md:text-xl text-gray-300 max-w-3xl mx-auto mb-12"
-            variants={itemVariants}
-          >
-            HealthTrack AI isn't just software; it's your intelligent co-pilot, transforming patient data into life-saving insights with unprecedented speed and accuracy. Experience the future of medicine, today.
-          </motion.p>
-          <motion.div 
-            className="flex justify-center gap-6"
-            variants={itemVariants}
-          >
-            <motion.a 
-              href="/login" 
-              className="px-10 py-4 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-full font-bold text-lg shadow-xl shadow-purple-500/50"
-              whileHover={{ scale: 1.05, y: -3, transition: { type: 'spring', stiffness: 300 } }}
-              whileTap={{ scale: 0.95 }}
+            {/* Hero Visual */}
+            <motion.div 
+              className="mt-20 relative"
+              initial={{ opacity: 0, y: 100 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.2, duration: 1 }}
             >
-              Get Started Free
-            </motion.a>
-            <motion.a 
-              href="#features" 
-              className="px-10 py-4 bg-slate-700/50 border border-slate-600 text-gray-200 rounded-full font-bold text-lg shadow-lg backdrop-blur-sm"
-               whileHover={{ scale: 1.05, y: -3, backgroundColor: "rgba(71, 85, 105, 0.7)", transition: { type: 'spring', stiffness: 300 } }}
-               whileTap={{ scale: 0.95 }}
-            >
-              Discover Features <ArrowRight className="inline ml-2" size={20}/>
-            </motion.a>
-          </motion.div>
-          <motion.div 
-            className="mt-20"
-            variants={itemVariants}
-          >
-            {/* Placeholder: Dynamic, abstract animation of data transforming into insights or a sleek product UI snippet */}
-            <div className="w-full max-w-3xl h-64 mx-auto bg-slate-800/50 rounded-2xl border border-slate-700 flex items-center justify-center text-slate-500">
-              <Sparkles className="w-16 h-16 text-purple-400 animate-pulse" />
-              <p className="ml-4">Placeholder: Animated Product Showcase (e.g., data flow) <br/> Dimensions: ~768x256px</p>
-            </div>
-          </motion.div>
+              <div className="relative mx-auto max-w-4xl">
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-3xl blur-3xl" />
+                <div className="relative bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-xl rounded-3xl border border-white/10 p-8 shadow-2xl">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="flex flex-col items-center p-6 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl">
+                      <BrainCircuit className="w-12 h-12 text-purple-400 mb-3" />
+                      <h3 className="font-bold text-lg mb-2">AI Diagnosis</h3>
+                      <p className="text-sm text-gray-300 text-center">Instant differential diagnosis with 99.7% accuracy</p>
+                    </div>
+                    <div className="flex flex-col items-center p-6 bg-gradient-to-br from-teal-500/10 to-blue-500/10 rounded-2xl">
+                      <SearchCode className="w-12 h-12 text-teal-400 mb-3" />
+                      <h3 className="font-bold text-lg mb-2">Case Search</h3>
+                      <p className="text-sm text-gray-300 text-center">Find similar cases in milliseconds</p>
+                    </div>
+                    <div className="flex flex-col items-center p-6 bg-gradient-to-br from-pink-500/10 to-orange-500/10 rounded-2xl">
+                      <FileText className="w-12 h-12 text-pink-400 mb-3" />
+                      <h3 className="font-bold text-lg mb-2">SOAP Notes</h3>
+                      <p className="text-sm text-gray-300 text-center">Automated clinical documentation</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         </motion.section>
+
+        {/* Stats Section */}
+        <section className="py-20 bg-gradient-to-r from-purple-900/20 to-pink-900/20 backdrop-blur-sm">
+          <div className="container mx-auto px-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              <StatCounter number="99.7%" label="Diagnostic Accuracy" delay={0} />
+              <StatCounter number="<5s" label="Response Time" delay={0.1} />
+              <StatCounter number="10K+" label="Cases Analyzed" delay={0.2} />
+              <StatCounter number="500+" label="Happy Doctors" delay={0.3} />
+            </div>
+          </div>
+        </section>
 
         {/* Problem Section */}
-        <motion.section
-          id="problem"
-          className="min-h-screen flex flex-col justify-center snap-start bg-slate-900/50 pt-32 pb-12 px-6 overflow-y-auto"
-          variants={globalContainerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-        >
-          <div className="container mx-auto px-6 text-center">
-            <motion.h2 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-orange-400 mb-6" variants={itemVariants}>
-              The Weight of Modern Medicine.
-            </motion.h2>
-            <motion.p className="text-lg text-gray-400 max-w-3xl mx-auto mb-16" variants={itemVariants}>
-              Clinicians face immense pressure: information overload, diagnostic uncertainty, and the relentless ticking clock. Burnout is real. It's time for a smarter way.
-            </motion.p>
+        <section id="problem" className="py-24 px-6 bg-gradient-to-b from-slate-900 to-purple-900/20">
+          <div className="container mx-auto">
+            <motion.div 
+              className="text-center mb-16"
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+            >
+              <h2 className="text-4xl md:text-5xl font-bold mb-6">
+                <span className="bg-gradient-to-r from-pink-400 to-orange-400 bg-clip-text text-transparent">
+                  The Weight of Modern Medicine
+                </span>
+              </h2>
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                Clinicians face immense pressure: information overload, diagnostic uncertainty, and the relentless ticking clock. 
+                <span className="text-pink-400 font-semibold"> Burnout is real.</span> It's time for a smarter way.
+              </p>
+            </motion.div>
+
             <div className="grid md:grid-cols-3 gap-8">
-              { [
-                { title: "Information Overload", desc: "Sifting through mountains of patient data is overwhelming and time-consuming." },
-                { title: "Diagnostic Uncertainty", desc: "Complex cases can lead to diagnostic ambiguity, impacting patient outcomes." },
-                { title: "Time Constraints", desc: "Administrative burdens and inefficient workflows steal valuable time from patient care." }
-              ].map((pain, i) => (
-                <motion.div 
-                  key={i} 
-                  className="p-6 bg-slate-800/70 rounded-xl shadow-lg border border-slate-700"
-                  variants={cardPopVariant}
-                >
-                  <h3 className="text-xl font-semibold text-purple-300 mb-2">{pain.title}</h3>
-                  <p className="text-gray-400 text-sm">{pain.desc}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </motion.section>
-
-        {/* Core Features Showcase (Tech Focused) */}
-        <motion.section 
-          id="features" 
-          className="min-h-screen flex flex-col justify-center snap-start pt-32 pb-12 px-6 overflow-y-auto"
-          variants={globalContainerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-        >
-          <div className="container mx-auto px-6">
-            <motion.h2 className="text-4xl md:text-5xl font-bold text-center mb-6" variants={itemVariants}>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-teal-400">Intelligence at Your Fingertips.</span>
-            </motion.h2>
-            <motion.p className="text-lg text-gray-300 max-w-3xl mx-auto text-center mb-20" variants={itemVariants}>
-              HealthTrack AI leverages cutting-edge technologies to provide unparalleled diagnostic support and workflow efficiency. This is where data meets destiny.
-            </motion.p>
-            
-            <div className="space-y-12">
-              <TechFeatureCard
-                icon={<BrainCircuit className="w-10 h-10 text-purple-800"/>}
-                title="AI-Powered Differential Diagnosis"
-                description="Instantly analyze complex patient notes and symptoms. Our system, leveraging Google's state-of-the-art Vertex AI models, provides a ranked list of potential diagnoses with confidence scores. These models are meticulously tested and form the intelligent core of HealthTrack AI, offering insights that were previously unimaginable."
-                techSource="Powered by Google Vertex AI"
-                color="bg-purple-400/70"
-                animationVariant={itemVariants}
-              >
-                <div className="mt-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                  <p className="text-sm text-slate-400 text-center">
-                    {/* Placeholder: UI snippet of differential diagnosis output */}
-                    Placeholder: Visual of AI Diagnosis Output (e.g., ranked list) <br/> Dimensions: ~400x150px
-                  </p>
-                  <div className="mt-2 h-20 bg-slate-700/50 rounded flex items-center justify-center">
-                     <BarChartBig className="w-10 h-10 text-purple-300 opacity-50"/>
-                  </div>
-                </div>
-              </TechFeatureCard>
-
-              <TechFeatureCard
-                icon={<SearchCode className="w-10 h-10 text-teal-800"/>}
-                title="Blazing-Fast Similar Case Search"
-                description="Unlock a world of clinical knowledge. HealthTrack AI's revolutionary similar case search, built on MongoDB Atlas Vector Search, sifts through millions of anonymized records in milliseconds. Find relevant precedents, compare treatment pathways, and validate your clinical intuition with data-backed confidence. This wouldn't be possible without MongoDB's incredible speed and scalability."
-                techSource="Powered by MongoDB Atlas Vector Search"
-                color="bg-teal-400/70"
-                animationVariant={itemVariants}
-              >
-                <div className="mt-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                   <p className="text-sm text-slate-400 text-center">
-                    {/* Placeholder: Animation of vector search in action */}
-                    Placeholder: Animation of Similar Case Search (e.g., data points converging) <br/> Dimensions: ~400x150px
-                  </p>
-                  <div className="mt-2 h-20 bg-slate-700/50 rounded flex items-center justify-center">
-                     <Database className="w-10 h-10 text-teal-300 opacity-50"/>
-                  </div>
-                </div>
-              </TechFeatureCard>
-
-              <TechFeatureCard
-                icon={<FileText className="w-10 h-10 text-pink-800"/>}
-                title="AI-Enhanced SOAP Note Automation"
-                description="Reclaim your time from documentation drudgery. Our AI intelligently structures and enhances your clinical notes into comprehensive SOAP format, ensuring accuracy, completeness, and compliance. Focus more on your patients, less on paperwork."
-                techSource="Intelligent Automation Engine"
-                color="bg-pink-400/70"
-                animationVariant={itemVariants}
-              >
-                <div className="mt-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                   <p className="text-sm text-slate-400 text-center">
-                    {/* Placeholder: Before/After of SOAP note enhancement */}
-                    Placeholder: SOAP Note Enhancement Example <br/> Dimensions: ~400x150px
-                  </p>
-                  <div className="mt-2 h-20 bg-slate-700/50 rounded flex items-center justify-center">
-                     <FileText className="w-10 h-10 text-pink-300 opacity-50"/>
-                  </div>
-                </div>
-              </TechFeatureCard>
-            </div>
-          </div>
-        </motion.section>
-
-        {/* The Revolution Section */}
-        <motion.section
-          id="revolution"
-          className="min-h-screen flex flex-col justify-center snap-start bg-gradient-to-b from-slate-900/30 to-purple-900/30 pt-32 pb-12 px-6 overflow-y-auto"
-          variants={globalContainerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-        >
-          <div className="container mx-auto px-6 text-center">
-            <motion.h2 className="text-4xl md:text-5xl font-bold mb-6" variants={itemVariants}>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-pink-500 to-purple-500">
-                This is More Than an App. It's a Movement.
-              </span>
-            </motion.h2>
-            <motion.p className="text-lg text-gray-300 max-w-3xl mx-auto mb-16" variants={itemVariants}>
-              HealthTrack AI is designed for the modern clinician who demands excellence, efficiency, and yes, even a bit of joy in their tools. We're empowering you to practice medicine at the peak of your abilities.
-            </motion.p>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-              { [
-                { icon: <Zap className="text-yellow-300 w-6 h-6"/>, title: "Blazing Speed", desc: "Insights in seconds, not hours. Accelerate your workflow.", color: "bg-yellow-500/30" },
-                { icon: <TrendingUp className="text-green-300 w-6 h-6"/>, title: "Enhanced Accuracy", desc: "Reduce diagnostic errors with AI-backed suggestions.", color: "bg-green-500/30" },
-                { icon: <Bot className="text-sky-300 w-6 h-6"/>, title: "Intuitive Design", desc: "Powerful, yet surprisingly simple and delightful to use.", color: "bg-sky-500/30" },
-                { icon: <Activity className="text-red-300 w-6 h-6"/>, title: "Reduced Burnout", desc: "Less admin, more focus on what truly matters: your patients.", color: "bg-red-500/30" }
-              ].map((feat, i) => (
-                <FeatureCard 
-                  key={i}
-                  icon={feat.icon}
-                  title={feat.title}
-                  description={feat.desc}
-                  color={feat.color}
-                  animationVariant={cardPopVariant}
+              {[
+                { 
+                  icon: <Stethoscope className="w-8 h-8 text-red-400" />, 
+                  title: "Information Overload", 
+                  desc: "Sifting through mountains of patient data is overwhelming and time-consuming, leading to critical details being missed.",
+                  gradient: "linear-gradient(135deg, #ef4444, #dc2626)"
+                },
+                { 
+                  icon: <Target className="w-8 h-8 text-yellow-400" />, 
+                  title: "Diagnostic Uncertainty", 
+                  desc: "Complex cases can lead to diagnostic ambiguity, impacting patient outcomes and increasing liability concerns.",
+                  gradient: "linear-gradient(135deg, #eab308, #ca8a04)"
+                },
+                { 
+                  icon: <Clock className="w-8 h-8 text-blue-400" />, 
+                  title: "Time Constraints", 
+                  desc: "Administrative burdens and inefficient workflows steal valuable time from patient care and work-life balance.",
+                  gradient: "linear-gradient(135deg, #3b82f6, #2563eb)"
+                }
+              ].map((pain, index) => (
+                <FeatureCard
+                  key={index}
+                  icon={pain.icon}
+                  title={pain.title}
+                  description={pain.desc}
+                  gradient={pain.gradient}
+                  delay={index * 0.2}
                 />
               ))}
             </div>
-             <motion.div 
-                className="mt-20"
-                variants={itemVariants}
-              >
-                {/* Placeholder: Dynamic collage of UI snippets or other graphics representing flow and efficiency */}
-                <div className="w-full max-w-4xl h-80 mx-auto bg-slate-800/50 rounded-2xl border border-slate-700 flex flex-col items-center justify-center text-slate-500 p-8">
-                  <Sparkles className="w-12 h-12 text-orange-400 mb-4" />
-                  <p className="text-center">Placeholder: "Why Us" Visual - Dynamic Collage of UI Snippets <br/> or Abstract Graphics Representing Flow and Efficiency. <br/> Dimensions: ~896x320px</p>
-                  <p className="text-xs mt-2">(Imagine sleek, animated UI elements showcasing the app's beauty and ease of use here)</p>
-                </div>
-              </motion.div>
           </div>
-        </motion.section>
+        </section>
+
+        {/* Features Section */}
+        <section id="features" className="py-24 px-6 bg-gradient-to-b from-purple-900/20 to-slate-900">
+          <div className="container mx-auto">
+            <motion.div 
+              className="text-center mb-20"
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+            >
+              <h2 className="text-4xl md:text-5xl font-bold mb-6">
+                <span className="bg-gradient-to-r from-purple-400 to-teal-400 bg-clip-text text-transparent">
+                  Intelligence at Your Fingertips
+                </span>
+              </h2>
+              <p className="text-xl text-gray-300 max-w-4xl mx-auto">
+                HealthTrack AI leverages cutting-edge technologies to provide unparalleled diagnostic support and workflow efficiency. 
+                <span className="text-purple-400 font-semibold"> This is where data meets destiny.</span>
+              </p>
+            </motion.div>
+
+            <div className="space-y-32">
+              {/* AI Diagnosis Feature */}
+              <TechFeatureCard
+                icon={<BrainCircuit className="w-12 h-12 text-white" />}
+                title="AI-Powered Differential Diagnosis"
+                description="Instantly analyze complex patient notes and symptoms. Our system, leveraging Google's state-of-the-art Vertex AI models, provides a ranked list of potential diagnoses with confidence scores and supporting evidence."
+                techSource="Powered by Google Vertex AI"
+                gradient="linear-gradient(135deg, #8b5cf6, #a855f7)"
+                visual={
+                  <div className="bg-gradient-to-br from-purple-900/50 to-pink-900/50 backdrop-blur-xl rounded-3xl p-8 border border-white/10 shadow-2xl">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                        <span className="text-white font-semibold">Migraine</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
+                            <div className="w-[92%] h-full bg-gradient-to-r from-green-400 to-green-500 rounded-full" />
+                          </div>
+                          <span className="text-green-400 font-bold">92%</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                        <span className="text-white font-semibold">Tension Headache</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
+                            <div className="w-[78%] h-full bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full" />
+                          </div>
+                          <span className="text-yellow-400 font-bold">78%</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                        <span className="text-white font-semibold">Cluster Headache</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
+                            <div className="w-[34%] h-full bg-gradient-to-r from-red-400 to-red-500 rounded-full" />
+                          </div>
+                          <span className="text-red-400 font-bold">34%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                }
+              />
+
+              {/* Case Search Feature */}
+              <TechFeatureCard
+                icon={<SearchCode className="w-12 h-12 text-white" />}
+                title="Blazing-Fast Similar Case Search"
+                description="Unlock a world of clinical knowledge. HealthTrack AI's revolutionary similar case search, built on MongoDB Atlas Vector Search, sifts through millions of anonymized records in milliseconds to find the most relevant cases."
+                techSource="Powered by MongoDB Atlas Vector Search"
+                gradient="linear-gradient(135deg, #14b8a6, #0d9488)"
+                reverse
+                visual={
+                  <div className="bg-gradient-to-br from-teal-900/50 to-blue-900/50 backdrop-blur-xl rounded-3xl p-8 border border-white/10 shadow-2xl">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3 p-4 bg-white/5 rounded-xl border border-white/10">
+                        <Users className="w-6 h-6 text-teal-400" />
+                        <div className="flex-1">
+                          <div className="text-white font-semibold">Similar Case #1</div>
+                          <div className="text-sm text-gray-300">45M, Chest pain, resolved with...</div>
+                        </div>
+                        <div className="text-teal-400 font-bold">98%</div>
+                      </div>
+                      <div className="flex items-center gap-3 p-4 bg-white/5 rounded-xl border border-white/10">
+                        <Users className="w-6 h-6 text-teal-400" />
+                        <div className="flex-1">
+                          <div className="text-white font-semibold">Similar Case #2</div>
+                          <div className="text-sm text-gray-300">52F, Similar symptoms, outcome...</div>
+                        </div>
+                        <div className="text-teal-400 font-bold">94%</div>
+                      </div>
+                      <div className="flex items-center gap-3 p-4 bg-white/5 rounded-xl border border-white/10">
+                        <Users className="w-6 h-6 text-teal-400" />
+                        <div className="flex-1">
+                          <div className="text-white font-semibold">Similar Case #3</div>
+                          <div className="text-sm text-gray-300">38M, Comparable presentation...</div>
+                        </div>
+                        <div className="text-teal-400 font-bold">89%</div>
+                      </div>
+                    </div>
+                  </div>
+                }
+              />
+
+              {/* SOAP Notes Feature */}
+              <TechFeatureCard
+                icon={<FileText className="w-12 h-12 text-white" />}
+                title="AI-Enhanced SOAP Note Automation"
+                description="Reclaim your time from documentation drudgery. Our AI intelligently structures and enhances your clinical notes into comprehensive SOAP format, ensuring accuracy, completeness, and compliance with medical standards."
+                techSource="Intelligent Automation Engine"
+                gradient="linear-gradient(135deg, #ec4899, #be185d)"
+                visual={
+                  <div className="bg-gradient-to-br from-pink-900/50 to-orange-900/50 backdrop-blur-xl rounded-3xl p-8 border border-white/10 shadow-2xl">
+                    <div className="space-y-4">
+                      <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                        <div className="text-pink-400 font-bold mb-2">S - Subjective</div>
+                        <div className="text-sm text-gray-300">Patient reports severe headache with photophobia, started 3 days ago...</div>
+                      </div>
+                      <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                        <div className="text-pink-400 font-bold mb-2">O - Objective</div>
+                        <div className="text-sm text-gray-300">BP: 140/90, HR: 88, Temp: 98.6°F. Neurological exam normal...</div>
+                      </div>
+                      <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                        <div className="text-pink-400 font-bold mb-2">A - Assessment</div>
+                        <div className="text-sm text-gray-300">Probable migraine with aura. Differential includes...</div>
+                      </div>
+                      <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                        <div className="text-pink-400 font-bold mb-2">P - Plan</div>
+                        <div className="text-sm text-gray-300">Sumatriptan 50mg PRN, follow-up in 48 hours...</div>
+                      </div>
+                    </div>
+                  </div>
+                }
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Revolution Section */}
+        <section id="revolution" className="py-24 px-6 bg-gradient-to-b from-slate-900 to-purple-900">
+          <div className="container mx-auto text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              className="mb-20"
+            >
+              <h2 className="text-4xl md:text-5xl font-bold mb-6">
+                <span className="bg-gradient-to-r from-orange-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+                  This is More Than an App. It's a Movement.
+                </span>
+              </h2>
+              <p className="text-xl text-gray-300 max-w-4xl mx-auto">
+                HealthTrack AI is designed for the modern clinician who demands excellence, efficiency, and yes, even a bit of joy in their tools. 
+                <span className="text-orange-400 font-semibold"> We're empowering you to practice medicine at the peak of your abilities.</span>
+              </p>
+            </motion.div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {[
+                { 
+                  icon: <Zap className="w-8 h-8 text-yellow-400" />, 
+                  title: "Blazing Speed", 
+                  desc: "Insights in seconds, not hours. Accelerate your workflow and spend more time with patients.",
+                  gradient: "linear-gradient(135deg, #eab308, #f59e0b)"
+                },
+                { 
+                  icon: <TrendingUp className="w-8 h-8 text-green-400" />, 
+                  title: "Enhanced Accuracy", 
+                  desc: "Reduce diagnostic errors with AI-backed suggestions and evidence-based recommendations.",
+                  gradient: "linear-gradient(135deg, #10b981, #059669)"
+                },
+                { 
+                  icon: <Heart className="w-8 h-8 text-red-400" />, 
+                  title: "Better Outcomes", 
+                  desc: "Improve patient care quality with comprehensive insights and data-driven decisions.",
+                  gradient: "linear-gradient(135deg, #ef4444, #dc2626)"
+                },
+                { 
+                  icon: <ShieldCheck className="w-8 h-8 text-blue-400" />, 
+                  title: "Peace of Mind", 
+                  desc: "Practice with confidence knowing you have AI-powered support for every decision.",
+                  gradient: "linear-gradient(135deg, #3b82f6, #2563eb)"
+                }
+              ].map((benefit, index) => (
+                <FeatureCard
+                  key={index}
+                  icon={benefit.icon}
+                  title={benefit.title}
+                  description={benefit.desc}
+                  gradient={benefit.gradient}
+                  delay={index * 0.15}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* Security Section */}
-        <motion.section 
-          id="security" 
-          className="min-h-screen flex flex-col justify-center snap-start pt-32 pb-12 px-6 overflow-y-auto"
-          variants={globalContainerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-        >
-          <div className="container mx-auto px-6 text-center">
-            <motion.div 
-              variants={itemVariants}
-              className="inline-block p-4 bg-blue-500/20 rounded-full mb-6"
-              whileHover={{scale:1.1, rotate: 5}}
-              transition={{type: "spring", stiffness:300}}
+        <section id="security" className="py-24 px-6 bg-gradient-to-b from-purple-900 to-slate-900">
+          <div className="container mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              className="text-center mb-16"
             >
-              <ShieldCheck className="h-16 w-16 text-blue-400"/>
+              <h2 className="text-4xl md:text-5xl font-bold mb-6">
+                <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  Enterprise-Grade Security
+                </span>
+              </h2>
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                Your data is sacred. We protect it with bank-level encryption, HIPAA compliance, and zero-knowledge architecture.
+                <span className="text-blue-400 font-semibold"> Trust is our foundation.</span>
+              </p>
             </motion.div>
-            <motion.h2 className="text-4xl md:text-5xl font-bold text-blue-400 mt-0" variants={itemVariants}>
-              Secure. Private. Compliant.
-            </motion.h2>
-            <motion.p className="text-lg text-gray-400 max-w-2xl mx-auto mt-6" variants={itemVariants}>
-              We understand the sanctity of patient data. HealthTrack AI is architected with enterprise-grade security, ensuring HIPAA compliance and robust data protection. Your trust is our utmost priority.
-            </motion.p>
-          </div>
-        </motion.section>
 
-        {/* Final CTA Section */}
-        <motion.section
-          id="cta"
-          className="min-h-screen flex flex-col justify-center snap-start bg-gradient-to-t from-slate-900/30 to-purple-900/50 pt-32 pb-12 px-6 overflow-y-auto"
-          variants={globalContainerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.3 }}
-        >
-          <div className="container mx-auto px-6 text-center">
-            <motion.h2 
-              className="text-4xl md:text-6xl font-extrabold mb-6"
-              variants={crazyTextVariant}
-            >
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-orange-400">
-                Ready to Redefine Your Practice?
-              </span>
-            </motion.h2>
-            <motion.p 
-              className="mt-4 text-lg md:text-xl text-gray-300 max-w-2xl mx-auto mb-12"
-              variants={itemVariants}
-            >
-              Join the vanguard of clinicians embracing the future. Sign up for HealthTrack AI today and unlock a new era of diagnostic power and efficiency.
-            </motion.p>
-            <motion.a 
-              href="/login" 
-              className="px-12 py-5 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-full font-bold text-xl shadow-2xl shadow-purple-500/60 inline-block"
-              whileHover={{ scale: 1.1, y: -5, transition: { type: 'spring', stiffness: 250, damping: 10 } }}
-              whileTap={{ scale: 0.9 }}
-              variants={itemVariants}
-            >
-              Start Your Free Trial Now
-            </motion.a>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[
+                { 
+                  icon: <ShieldCheck className="w-8 h-8 text-blue-400" />, 
+                  title: "HIPAA Compliant", 
+                  desc: "Full compliance with healthcare privacy regulations and industry standards.",
+                  gradient: "linear-gradient(135deg, #3b82f6, #2563eb)"
+                },
+                { 
+                  icon: <Database className="w-8 h-8 text-purple-400" />, 
+                  title: "End-to-End Encryption", 
+                  desc: "Your data is encrypted at rest and in transit with AES-256 encryption.",
+                  gradient: "linear-gradient(135deg, #8b5cf6, #7c3aed)"
+                },
+                { 
+                  icon: <Activity className="w-8 h-8 text-green-400" />, 
+                  title: "Real-Time Monitoring", 
+                  desc: "24/7 security monitoring and instant threat detection systems.",
+                  gradient: "linear-gradient(135deg, #10b981, #059669)"
+                },
+                { 
+                  icon: <BarChartBig className="w-8 h-8 text-orange-400" />, 
+                  title: "Audit Trails", 
+                  desc: "Complete audit logs for all data access and modifications.",
+                  gradient: "linear-gradient(135deg, #f97316, #ea580c)"
+                },
+                { 
+                  icon: <Users className="w-8 h-8 text-pink-400" />, 
+                  title: "Role-Based Access", 
+                  desc: "Granular permissions ensure data is only accessible to authorized personnel.",
+                  gradient: "linear-gradient(135deg, #ec4899, #db2777)"
+                },
+                { 
+                  icon: <Sparkles className="w-8 h-8 text-teal-400" />, 
+                  title: "Zero-Knowledge", 
+                  desc: "We can't see your data - only you have the keys to decrypt it.",
+                  gradient: "linear-gradient(135deg, #14b8a6, #0d9488)"
+                }
+              ].map((security, index) => (
+                <FeatureCard
+                  key={index}
+                  icon={security.icon}
+                  title={security.title}
+                  description={security.desc}
+                  gradient={security.gradient}
+                  delay={index * 0.1}
+                />
+              ))}
+            </div>
           </div>
-        </motion.section>
+        </section>
+
+        {/* CTA Section */}
+        <section className="py-24 px-6 bg-gradient-to-br from-purple-900 via-pink-900 to-orange-900">
+          <div className="container mx-auto text-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, type: "spring", stiffness: 100 }}
+              className="max-w-4xl mx-auto"
+            >
+              <h2 className="text-4xl md:text-6xl font-bold mb-8">
+                <span className="bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+                  Ready to Transform Your Practice?
+                </span>
+              </h2>
+              
+              <p className="text-xl md:text-2xl text-gray-200 mb-12">
+                Join thousands of clinicians who are already experiencing the future of healthcare.
+                <span className="block mt-2 text-purple-300 font-semibold">
+                  Start your free trial today. No credit card required.
+                </span>
+              </p>
+
+              <motion.div 
+                className="flex flex-col sm:flex-row justify-center gap-6"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.3, duration: 0.6 }}
+              >
+                <motion.a 
+                  href="/login" 
+                  className="px-10 py-5 bg-white text-purple-900 rounded-full font-bold text-lg shadow-2xl hover:shadow-white/50 transition-all duration-300"
+                  whileHover={{ scale: 1.05, y: -3 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Start Free Trial
+                </motion.a>
+                <motion.a 
+                  href="#demo" 
+                  className="px-10 py-5 bg-transparent border-2 border-white text-white rounded-full font-bold text-lg hover:bg-white/10 transition-all duration-300"
+                  whileHover={{ scale: 1.05, y: -3 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Watch Demo
+                </motion.a>
+              </motion.div>
+
+              <motion.div 
+                className="mt-16 flex flex-wrap justify-center gap-8 text-gray-300"
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.6, duration: 0.8 }}
+              >
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-green-400" />
+                  <span>HIPAA Compliant</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-blue-400" />
+                  <span>Setup in 5 minutes</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-purple-400" />
+                  <span>24/7 Support</span>
+                </div>
+              </motion.div>
+            </motion.div>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="py-12 px-6 bg-slate-900 border-t border-white/10">
+          <div className="container mx-auto">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500">
+                  <Bot className="w-6 h-6 text-white" />
+                </div>
+                <span className="font-bold text-xl bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                  HealthTrack AI
+                </span>
+              </div>
+              
+              <div className="flex flex-wrap justify-center gap-6 text-gray-400">
+                <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
+                <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
+                <a href="/security" className="hover:text-white transition-colors">Security</a>
+                <a href="/contact" className="hover:text-white transition-colors">Contact</a>
+              </div>
+              
+              <div className="text-gray-400 text-sm">
+                © 2024 HealthTrack AI. All rights reserved.
+              </div>
+            </div>
+          </div>
+        </footer>
       </main>
-
-      {/* Footer */}
-      {/* <footer className="bg-slate-900/50 border-t border-slate-700/50 mt-20">
-        <div className="container mx-auto py-10 px-6 text-center text-gray-500">
-          <div className="flex justify-center gap-6 mb-6">
-            <a href="/privacy-policy" className="hover:text-purple-400">Privacy Policy</a>
-            <a href="/terms-of-service" className="hover:text-purple-400">Terms of Service</a>
-            <a href="/contact-us" className="hover:text-purple-400">Contact Us</a>
-            <a href="/citations" className="hover:text-purple-400">Citations</a>
-          </div>
-          <p className="text-sm">&copy; {new Date().getFullYear()} HealthTrack AI. All rights reserved. Revolutionizing healthcare, one insight at a time.</p>
-        </div>
-      </footer> */}
-      {/* CommonFooter will be used for all public pages including this one, managed by their respective layouts or directly if no specific layout */}
     </div>
-  )
+  );
 }

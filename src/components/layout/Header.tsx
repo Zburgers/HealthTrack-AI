@@ -27,10 +27,10 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-background/40 backdrop-blur-lg border-b border-border/30 sticky top-0 z-50 shadow-lg ring-1 ring-black/5 font-body">
+    <header className="bg-background/40 backdrop-blur-lg border-b border-border/30 sticky top-0 z-50 shadow-lg ring-1 ring-black/5 font-body" role="banner">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center space-x-3">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8 text-primary">
+        <Link href="/" className="flex items-center space-x-3" aria-label="HealthTrack AI - Go to homepage">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-8 w-8 text-primary" aria-hidden="true">
             <path d="M20.29 8.29A5.55 5.55 0 0 0 16.5 3.5H9A5.5 5.5 0 0 0 3.5 9v7.5A5.55 5.55 0 0 0 8.29 20.29L12 22l3.71-1.71A5.55 5.55 0 0 0 20.5 16.5V9a5.5 5.5 0 0 0-0.21-0.71z"></path>
             <path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M16 14h.01"></path>
             <path d="M8 10h.01"></path><path d="M12 10h.01"></path><path d="M16 10h.01"></path>
@@ -39,18 +39,18 @@ export default function Header() {
             HealthTrack
           </span>
         </Link>
-        <div className="flex items-center space-x-4">
+        <nav className="flex items-center space-x-4" role="navigation" aria-label="User account navigation">
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background">
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background" aria-label="Open user menu">
                   <Avatar className="h-10 w-10">
                     <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || 'User'} />
                     <AvatarFallback className="font-medium">{user.email ? user.email[0].toUpperCase() : 'U'}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-60 bg-card border-border shadow-lg rounded-lg mt-2" align="end" forceMount>
+              <DropdownMenuContent className="w-60 bg-card border-border shadow-lg rounded-lg mt-2" align="end" forceMount role="menu" aria-label="User account options">
                 <DropdownMenuLabel className="font-normal px-3 py-2">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-semibold leading-none text-foreground">{user.displayName || 'User Name'}</p>
@@ -71,11 +71,11 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button onClick={() => router.push('/login')} variant="default" size="lg" className="font-medium">
+            <Button onClick={() => router.push('/login')} variant="default" size="lg" className="font-medium" aria-label="Sign in to your account">
               Sign In
             </Button>
           )}
-        </div>
+        </nav>
       </div>
     </header>
   );

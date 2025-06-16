@@ -145,6 +145,17 @@ const TableHead = React.forwardRef<
       sortable && "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-1 rounded-md",
       className
     )}
+    role={sortable ? "columnheader" : undefined}
+    aria-sort={
+      sortable 
+        ? sortDirection === 'asc' 
+          ? 'ascending' 
+          : sortDirection === 'desc' 
+            ? 'descending' 
+            : 'none'
+        : undefined
+    }
+    tabIndex={sortable ? 0 : undefined}
     {...props}
   >
     <div className={cn(
@@ -161,6 +172,7 @@ const TableHead = React.forwardRef<
             opacity: sortDirection ? 1 : 0.5
           }}
           transition={{ duration: 0.2 }}
+          aria-hidden="true"
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
             <path d="M6 2L9 6H3L6 2Z" />

@@ -783,48 +783,53 @@ export function Sidebar({ className, navItems }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <div className={cn("h-full flex flex-col", className)}>
+    <aside className={cn("h-full flex flex-col", className)} role="navigation" aria-label="Main navigation">
       <div className="flex-grow p-3 space-y-1.5">
-        {navItems.map((item, index) => {
-          const IconComponent = item.icon;
-          const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+        <nav>
+          {navItems.map((item, index) => {
+            const IconComponent = item.icon;
+            const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
 
-          return (
-            <motion.div // Wrap Link with motion.div for animations
-              key={item.href}
-              custom={index} // Pass index for staggered animation
-              variants={navItemVariants}
-              initial="initial"
-              animate="animate"
-              whileHover="hover"
-              whileTap="tap"
-              // Apply 'active' variant conditionally - Tailwind handles bg, so this is for other transforms if needed
-              // animate={isActive ? ["animate", "active"] : "animate"} // Combine base animate with active
-            >
-              <Link
-                href={item.href}
-                className={cn(
-                  "flex items-center justify-start rounded-md px-3 py-2.5 text-sm font-medium transition-colors duration-150 ease-in-out group w-full", // Ensure Link takes full width of motion.div
-                  isActive
-                    ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
-                    : "text-muted-foreground hover:text-foreground" // Tailwind handles non-active hover bg
-                )}
+            return (
+              <motion.div // Wrap Link with motion.div for animations
+                key={item.href}
+                custom={index} // Pass index for staggered animation
+                variants={navItemVariants}
+                initial="initial"
+                animate="animate"
+                whileHover="hover"
+                whileTap="tap"
+                // Apply 'active' variant conditionally - Tailwind handles bg, so this is for other transforms if needed
+                // animate={isActive ? ["animate", "active"] : "animate"} // Combine base animate with active
               >
-                {IconComponent && (
-                  <IconComponent
-                    className={cn(
-                      "mr-3 h-5 w-5",
-                      isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
-                    )}
-                  />
-                )}
-                <span>{item.label}</span>
-              </Link>
-            </motion.div>
-          );
-        })}
+                <Link
+                  href={item.href}
+                  className={cn(
+                    "flex items-center justify-start rounded-md px-3 py-2.5 text-sm font-medium transition-colors duration-150 ease-in-out group w-full", // Ensure Link takes full width of motion.div
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+                      : "text-muted-foreground hover:text-foreground" // Tailwind handles non-active hover bg
+                  )}
+                  aria-current={isActive ? "page" : undefined}
+                  aria-label={`Navigate to ${item.label}`}
+                >
+                  {IconComponent && (
+                    <IconComponent
+                      className={cn(
+                        "mr-3 h-5 w-5",
+                        isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
+                      )}
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span>{item.label}</span>
+                </Link>
+              </motion.div>
+            );
+          })}
+        </nav>
       </div>
-    </div>
+    </aside>
   );
 }
 

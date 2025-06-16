@@ -82,7 +82,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
             navItems={navItems}
             className="fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 hidden md:block z-30 bg-card text-card-foreground border-r border-border shadow-lg"
           />
-          <main className="flex-1 md:ml-64 overflow-y-auto bg-app-background">
+          <main className="flex-1 md:ml-64 overflow-y-auto bg-app-background" role="main" aria-label="Main content">
             <AnimatePresence mode="wait">
               <motion.div
                 key={pathname}
