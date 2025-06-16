@@ -10,8 +10,8 @@ export const dynamic = 'force-dynamic';
  * Fetches a full case document from the case_embeddings collection by ObjectId.
  * Returns 200 with the case, 404 if not found, 400 if invalid ObjectId.
  */
-export async function GET(request: NextRequest, context: { params: { id: string } }) {
-  const { id } = context.params;
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   if (!id || typeof id !== 'string' || !ObjectId.isValid(id)) {
     return NextResponse.json({ message: 'Case ID must be a valid ObjectId string.' }, { status: 400 });
   }
