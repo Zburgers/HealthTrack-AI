@@ -2,8 +2,9 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
+  # 1. Build Docker Image
   - name: 'gcr.io/cloud-builders/docker'
-    id: Build Docker Image
+    id: Build Image
     args:
       [
         'build',
@@ -26,8 +27,15 @@ steps:
       - NEXT_PUBLIC_FIREBASE_PROJECT_ID
       - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
 
-  - name: 'gcr.io/cloud-builders/gcloud'
+  # 2. Push Image to Google Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    id: Push Image
+    args: ['push', 'gcr.io/$PROJECT_ID/healthtrack-ai']
+
+  # 3. Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: Deploy to Cloud Run
+    entrypoint: gcloud
     args:
       [
         'run', 'deploy', 'healthtrack-ai',
