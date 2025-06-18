@@ -4,13 +4,13 @@
 // Firebase Configuration
 // These details can be found in your Firebase project settings.
 export const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // Optional, for Analytics
+  apiKey:"AIzaSyCpwvJq21TWOG0c_1L3vHDOxK2-8NRrm8Q",
+  authDomain: "healthtrack-hack.firebaseapp.com",
+  projectId: "healthtrack-hack",
+  storageBucket: "healthtrack-hack.firebasestorage.app",
+  messagingSenderId: "943971604875",
+  appId: "1:943971604875:web:a8073fdfe64dd2073e378e",
+  measurementId:"G-6QSSQ74QHL", // Optional, for Analytics
 };
 
 // Placeholders to check against - ensure these match the exact strings used as defaults if any.
