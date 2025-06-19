@@ -1,8 +1,11 @@
 import { z } from 'zod';
 import util from 'util';
 import { exec as oldExec } from 'child_process';
+import { InferenceClient } from "@huggingface/inference";
+import { HF_KEY } from '@/config';
 
 const exec = util.promisify(oldExec);
+const hfClient = new InferenceClient(HF_KEY);
 
 // Environment variable names
 const ENV_VERTEX_AI_ENDPOINT_HOST = 'VERTEX_AI_ENDPOINT_HOST';
@@ -23,7 +26,56 @@ const VertexAIEmbeddingResponseSchema = z.object({
   modelVersionId: z.string().optional(),
 });
 
+/**
+ * Get embeddings for a list of texts using Hugging Face Inference API (feature extraction).
+ * @param texts Array of input strings to embed
+ * @returns Promise resolving to an array of embedding vectors (number[][])
+ */
 export async function getEmbeddings(texts: string[]): Promise<number[][]> {
+  if (!HF_KEY) {
+    console.error("HF_TOKEN environment variable is not set.");
+    throw new Error("HF_TOKEN environment variable is not set.");
+  }
+
+  if (!texts || texts.length === 0) {
+    console.warn('getEmbeddings called with no texts.');
+    return [];
+  }
+
+  // Truncate texts if they are too long (keeping same logic as Vertex AI)
+  const processedTexts = texts.map(text => {
+    if (text.length > MAX_CHARS_FOR_EMBEDDING) {
+      console.warn(`Input text truncated from ${text.length} to ${MAX_CHARS_FOR_EMBEDDING} characters to meet token limits.`);
+      return text.substring(0, MAX_CHARS_FOR_EMBEDDING);
+    }
+    return text;
+  });
+
+  try {
+    // Use featureExtraction endpoint for actual embeddings
+    const model = "pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb";
+    const embeddings: number[][] = [];
+
+    for (const text of processedTexts) {
+      const output = await hfClient.featureExtraction({
+        model,
+        inputs: text,
+      });
+      // output is an array of numbers (the embedding vector)
+      embeddings.push(output as number[]);
+    }
+    
+    return embeddings;
+  } catch (error) {
+    console.error('Error getting embeddings from Hugging Face:', error);
+    if (error instanceof Error) {
+      throw new Error(`Failed to get embeddings: ${error.message}`);
+    }
+    throw new Error('An unknown error occurred while getting embeddings.');
+  }
+}
+
+export async function getEmbeddingsVertexAI(texts: string[]): Promise<number[][]> {
   const authProjectId = process.env[ENV_GCLOUD_PROJECT];
   const vertexEndpointHost = process.env[ENV_VERTEX_AI_ENDPOINT_HOST];
   const vertexProjectId = process.env[ENV_VERTEX_AI_PROJECT_ID_FOR_ENDPOINT];
@@ -52,7 +104,7 @@ export async function getEmbeddings(texts: string[]): Promise<number[][]> {
   }
 
   if (!texts || texts.length === 0) {
-    console.warn('getEmbeddings called with no texts.');
+    console.warn('getEmbeddingsVertexAI called with no texts.');
     return [];
   }
 

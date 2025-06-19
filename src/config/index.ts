@@ -85,3 +85,5 @@ export const APP_CONFIG = {
   // Add any other app-wide configurations here
   appName: 'HealthTrack AI',
 };
+
+export const HF_KEY = process.env.HF_KEY || process.env.HUGGINGFACE_API_KEY; // Use either variable if both are set

@@ -110,6 +110,20 @@ const formatSummary = (note: string | undefined) => {
   return summary;
 };
 
+// Helper function to format values for display
+const formatValue = (value: any): string => {
+  if (value instanceof Date) {
+    return value.toLocaleDateString();
+  }
+  if (typeof value === 'object' && value !== null) {
+    if ('date' in value && 'action' in value) {
+      return `${value.date}: ${value.action}`;
+    }
+    return JSON.stringify(value);
+  }
+  return String(value);
+};
+
 // Enhanced Case Card
 const EnhancedCaseCard = ({ caseData, index, expanded, onToggle }: { caseData: SimilarCaseOutput; index: number; expanded: boolean; onToggle: () => void }) => {
   const confidence = getConfidenceColor(caseData.matchConfidence);
@@ -187,59 +201,143 @@ const EnhancedCaseCard = ({ caseData, index, expanded, onToggle }: { caseData: S
               transition={{ duration: 0.3 }}
               className="px-6 pb-5"
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                <div>
-                  <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm dark:bg-slate-800 dark:border-slate-700">
-                    <div className="font-bold text-black mb-1 text-base">Full Note:</div>
-                    <div className="whitespace-pre-wrap text-black font-medium text-base max-h-48 overflow-auto">{caseData.note || 'No note available.'}</div>
-                  </div>
+              <div className="grid grid-cols-1 gap-4 mt-2">
+                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                  <div className="font-bold text-black text-lg mb-2">Full Clinical Note</div>
+                  <ScrollArea className="h-[400px] w-full rounded-md border p-4">
+                    <div className="whitespace-pre-wrap text-gray-800 text-base leading-relaxed">
+                      {caseData.note || 'No clinical note available.'}
+                    </div>
+                  </ScrollArea>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {caseData.icd && (
-                    <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm dark:bg-slate-800 dark:border-slate-700">
-                      <div className="font-bold text-black mb-1 text-base">ICD Codes:</div>
-                      <div className="text-black">{caseData.icd.join(', ')}</div>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                      <div className="font-bold text-black text-lg mb-2">ICD Codes</div>
+                      <div className="text-gray-800 space-y-1">
+                        {caseData.icd.map((code, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <span className="font-mono bg-blue-50 px-2 py-1 rounded text-sm">{code}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
+
                   {caseData.icd_label && (
-                    <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm dark:bg-slate-800 dark:border-slate-700">
-                      <div className="font-bold text-black mb-1 text-base">ICD Labels:</div>
-                      <div className="text-black">{caseData.icd_label.join(', ')}</div>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                      <div className="font-bold text-black text-lg mb-2">Diagnoses</div>
+                      <div className="text-gray-800 space-y-1">
+                        {caseData.icd_label.map((label, idx) => (
+                          <div key={idx} className="bg-gray-50 px-3 py-2 rounded-md text-sm">
+                            {label}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
+
                   {caseData.vitals && (
-                    <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm dark:bg-slate-800 dark:border-slate-700">
-                      <div className="font-bold text-black mb-1 text-base">Vitals:</div>
-                      <div className="text-black">{Object.entries(caseData.vitals).map(([k, v]) => `${k}: ${v}`).join(', ')}</div>
-                </div>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                      <div className="font-bold text-black text-lg mb-2">Vital Signs</div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {Object.entries(caseData.vitals).map(([key, value]) => (
+                          value && (
+                            <div key={key} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-md">
+                              <span className="font-medium text-gray-700 uppercase text-sm">{key}:</span>
+                              <span className="text-gray-900">{formatValue(value)}</span>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    </div>
                   )}
-                </div>
-                <div>
+
                   {caseData.outcomes && (
-                    <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm dark:bg-slate-800 dark:border-slate-700">
-                      <div className="font-bold text-black mb-1 text-base">Outcomes:</div>
-                      <div className="text-black">{JSON.stringify(caseData.outcomes, null, 2)}</div>
-                </div>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                      <div className="font-bold text-black text-lg mb-2">Outcomes</div>
+                      <div className="space-y-2">
+                        {Object.entries(caseData.outcomes).map(([key, value]) => (
+                          value && (
+                            <div key={key} className="bg-gray-50 px-3 py-2 rounded-md">
+                              <span className="font-medium text-gray-700 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                              <span className="ml-2 text-gray-900">
+                                {Array.isArray(value) ? value.map(item => formatValue(item)).join(', ') : formatValue(value)}
+                              </span>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    </div>
                   )}
+
                   {caseData.treatments && (
-                    <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm dark:bg-slate-800 dark:border-slate-700">
-                      <div className="font-bold text-black mb-1 text-base">Treatments:</div>
-                      <div className="text-black">{JSON.stringify(caseData.treatments, null, 2)}</div>
-              </div>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                      <div className="font-bold text-black text-lg mb-2">Treatments</div>
+                      <div className="space-y-2">
+                        {Object.entries(caseData.treatments).map(([key, value]) => (
+                          value && (
+                            <div key={key} className="bg-gray-50 px-3 py-2 rounded-md">
+                              <span className="font-medium text-gray-700 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                              <div className="mt-1 ml-2 text-gray-900">
+                                {Array.isArray(value) ? (
+                                  <ul className="list-disc list-inside space-y-1">
+                                    {value.map((item, idx) => (
+                                      <li key={idx}>{formatValue(item)}</li>
+                                    ))}
+                                  </ul>
+                                ) : formatValue(value)}
+                              </div>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    </div>
                   )}
+
                   {caseData.diagnostics && (
-                    <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm dark:bg-slate-800 dark:border-slate-700">
-                      <div className="font-bold text-black mb-1 text-base">Diagnostics:</div>
-                      <div className="text-black">{JSON.stringify(caseData.diagnostics, null, 2)}</div>
-            </div>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                      <div className="font-bold text-black text-lg mb-2">Diagnostics</div>
+                      <div className="space-y-2">
+                        {Object.entries(caseData.diagnostics).map(([key, value]) => (
+                          value && (
+                            <div key={key} className="bg-gray-50 px-3 py-2 rounded-md">
+                              <span className="font-medium text-gray-700 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                              <div className="mt-1 ml-2 text-gray-900">
+                                {Array.isArray(value) ? (
+                                  <ul className="list-disc list-inside space-y-1">
+                                    {value.map((item, idx) => (
+                                      <li key={idx}>{formatValue(item)}</li>
+                                    ))}
+                                  </ul>
+                                ) : formatValue(value)}
+                              </div>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    </div>
                   )}
+
                   {caseData.metadata && (
-                    <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm dark:bg-slate-800 dark:border-slate-700">
-                      <div className="font-bold text-black mb-1 text-base">Metadata:</div>
-                      <div className="text-black">{JSON.stringify(caseData.metadata, null, 2)}</div>
-            </div>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                      <div className="font-bold text-black text-lg mb-2">Additional Information</div>
+                      <div className="space-y-2">
+                        {Object.entries(caseData.metadata).map(([key, value]) => (
+                          value !== undefined && value !== null && (
+                            <div key={key} className="bg-gray-50 px-3 py-2 rounded-md">
+                              <span className="font-medium text-gray-700 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                              <span className="ml-2 text-gray-900">{formatValue(value)}</span>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
-              <div className="text-xs text-gray-400 mt-2">Case ID: {caseData.id}</div>
+              <div className="text-xs text-gray-400 mt-4 text-right">Case ID: {caseData.id}</div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -257,7 +355,40 @@ export default function SimilarCasesPanel({ isOpen, onOpenChange, cases, isLoadi
   const safeCases: SimilarCaseOutput[] = Array.isArray(cases) ? cases : [];
   const renderContent = () => {
     if (isLoading) {
-      return <div className="p-6 text-center">Loading similar cases...</div>;
+      return (
+        <div className="flex flex-col items-center justify-center p-6 space-y-4">
+          <div className="relative">
+            <div className="animate-pulse h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center">
+              <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+            </div>
+            <div className="absolute -top-1 -right-1">
+              <div className="animate-pulse h-6 w-6 bg-blue-500 rounded-full flex items-center justify-center">
+                <Users className="h-3 w-3 text-white" />
+              </div>
+            </div>
+          </div>
+          <div className="text-center space-y-2">
+            <p className="text-lg font-semibold text-gray-700">Finding Similar Cases</p>
+            <p className="text-sm text-gray-500">Analyzing patient records and matching patterns...</p>
+          </div>
+          <div className="space-y-3 w-full max-w-md">
+            <div className="animate-pulse flex space-x-4 bg-white p-4 rounded-lg border border-gray-100">
+              <div className="h-12 w-12 rounded-lg bg-blue-100"></div>
+              <div className="flex-1 space-y-3">
+                <div className="h-4 w-3/4 bg-blue-100 rounded"></div>
+                <div className="h-3 w-1/2 bg-gray-100 rounded"></div>
+              </div>
+            </div>
+            <div className="animate-pulse flex space-x-4 bg-white p-4 rounded-lg border border-gray-100">
+              <div className="h-12 w-12 rounded-lg bg-blue-100"></div>
+              <div className="flex-1 space-y-3">
+                <div className="h-4 w-2/3 bg-blue-100 rounded"></div>
+                <div className="h-3 w-1/3 bg-gray-100 rounded"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
     }
     if (error) {
       return <div className="p-6 text-center text-red-600">{error}</div>;

@@ -320,6 +320,7 @@ export default function AnalysisPage() {
   const { analysisResult, analysisReturnPath, currentCaseDisplayData, setAnalysisResult: setAppStateContext } = useAppState();
   const router = useRouter();
   const { toast } = useToast(); // Add toast hook
+  // Force loading state to true initially when coming from patient view
   const [isLoadingContext, setIsLoadingContext] = useState(true);
   const [restoringState, setRestoringState] = useState(false);
   const [editableSoapNotes, setEditableSoapNotes] = useState('');
@@ -552,6 +553,10 @@ export default function AnalysisPage() {
   // --- Combined Analysis and Summary Fetch ---
   useEffect(() => {
     if (!currentCaseDisplayData) return;
+    
+    // Force loading state to true whenever we start an analysis
+    setIsLoadingContext(true);
+    
     // Build patientInformation string
     let patientInformation = '';
     let vitals = '';
@@ -913,7 +918,7 @@ export default function AnalysisPage() {
   };
 
 
-  if (restoringState || isLoadingContext || !currentCaseDisplayData) {
+  if (restoringState || isLoadingContext || !currentCaseDisplayData || !analysisResult) {
     return (
       <MainLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh]">

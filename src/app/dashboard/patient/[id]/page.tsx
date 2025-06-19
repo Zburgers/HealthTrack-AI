@@ -153,10 +153,10 @@ export default function PatientDetailPage() {
 
     return () => clearInterval(pollInterval);
   }, [isAnalyzing, patientId, fetchPatientDetails, pollCount]);
-
   const handleViewFullAnalysis = () => {
     if (patient?.aiAnalysis) {
-      setAnalysisResult(patient.aiAnalysis, `/dashboard/patient/${patient.id}`, patient);
+      // Set a temporary loading state first before pushing to analysis page
+      setAnalysisResult(null, `/dashboard/patient/${patient.id}`, patient);
       router.push('/analysis');
     }
   };
