@@ -77,8 +77,7 @@ steps:
         '--max-instances', '10',
         '--tag', 'latest',
         '--set-env-vars',
-        'GEMINI_API_KEY=$$GEMINI_API_KEY,\
-        GOOGLE_API_KEY=$$GOOGLE_API_KEY,\
+        'GOOGLE_API_KEY=$$GOOGLE_API_KEY,\
         MONGODB_URI=$$MONGODB_URI,\
         MONGODBPW=$$MONGODBPW,\
         ATLAS_VECTOR_SEARCH_INDEX_NAME=$$ATLAS_VECTOR_SEARCH_INDEX_NAME,\
