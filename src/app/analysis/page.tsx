@@ -26,6 +26,12 @@ import {
 import { format, parseISO } from 'date-fns';
 import type { Patient, NewCaseFormValues, AIAnalysisOutput, ICD10Code, DifferentialDiagnosisItem } from '@/types'; // Added AIAnalysisOutput, ICD10Code, DifferentialDiagnosisItem
 import { cn } from '@/lib/utils';
+import { 
+  parseSOAPNotes, 
+  isValidSOAPFormat, 
+  getSoapValidationSummary,
+  formatToXMLFormat 
+} from '@/lib/soap-parser';
 import { SimilarCasesApiInput, SimilarCaseOutput } from '@/types/similar-cases';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PatientConditionSummaryOutput } from '@/types/ai-outputs'; // Added import
@@ -86,21 +92,18 @@ const SoapSection: React.FC<{ title: string; content?: string; icon?: React.Reac
   );
 };
 
+// Parsed SOAP Notes Display Component
 const ParsedSoapNotesDisplay: React.FC<{ notes?: string }> = ({ notes }) => {
-  const sections = useMemo(() => {
-    if (!notes) return { s: '', o: '', a: '', p: '' }; // Default for undefined notes
-    const s = notes?.match(/S:([\s\S]*?)(O:|A:|P:|$)/i)?.[1]?.trim() || '';
-    const o = notes?.match(/O:([\s\S]*?)(A:|P:|$)/i)?.[1]?.trim() || '';
-    const a = notes?.match(/A:([\s\S]*?)(P:|$)/i)?.[1]?.trim() || '';
-    const p = notes?.match(/P:([\s\S]*?)$/i)?.[1]?.trim() || '';
-    return { s, o, a, p };
+  const soapResult = useMemo(() => {
+    return parseSOAPNotes(notes || '');
   }, [notes]);
 
   if (!notes || notes.trim() === '') {
     return <p className="text-gray-500 italic p-4">No SOAP notes available to parse.</p>;
   }
-  // Check if all sections are empty after attempting to parse
-  if (!sections.s && !sections.o && !sections.a && !sections.p) {
+
+  // Check if parsing failed completely
+  if (!soapResult.subjective && !soapResult.objective && !soapResult.assessment && !soapResult.plan) {
     return (
       <div className="p-6 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-lg">
         <div className="flex items-start gap-3">
@@ -112,6 +115,16 @@ const ParsedSoapNotesDisplay: React.FC<{ notes?: string }> = ({ notes }) => {
             <p className="text-sm text-amber-700 mb-3">
               Please ensure the notes in the editor are formatted with <strong>S:</strong>, <strong>O:</strong>, <strong>A:</strong>, and <strong>P:</strong> prefixes (e.g., "S: Patient states...").
             </p>
+            {soapResult.errors && soapResult.errors.length > 0 && (
+              <div className="mb-3">
+                <p className="text-sm font-medium text-amber-800">Issues found:</p>
+                <ul className="list-disc list-inside text-sm text-amber-700">
+                  {soapResult.errors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3">
               <div className="flex items-center gap-2">
                 <SearchCheck className="h-4 w-4 text-blue-600" />
@@ -138,40 +151,64 @@ const ParsedSoapNotesDisplay: React.FC<{ notes?: string }> = ({ notes }) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      {/* Success header */}
+      {/* Success header with warnings for partial parsing */}
       <motion.div 
-        className="flex items-center gap-2 mb-4 p-3 bg-green-50 border border-green-200 rounded-lg"
+        className={`flex items-center gap-2 mb-4 p-3 border rounded-lg ${
+          soapResult.isValid 
+            ? 'bg-green-50 border-green-200' 
+            : 'bg-yellow-50 border-yellow-200'
+        }`}
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.3, delay: 0.1 }}
       >
-        <SearchCheck className="h-5 w-5 text-green-600" />
-        <span className="text-sm font-medium text-green-800">
-          ✅ SOAP notes successfully parsed into structured sections
-        </span>
+        {soapResult.isValid ? (
+          <SearchCheck className="h-5 w-5 text-green-600" />
+        ) : (
+          <AlertTriangleIcon className="h-5 w-5 text-yellow-600" />
+        )}
+        <div className="flex-1">
+          <span className={`text-sm font-medium ${
+            soapResult.isValid ? 'text-green-800' : 'text-yellow-800'
+          }`}>
+            {soapResult.isValid 
+              ? '✅ SOAP notes successfully parsed into structured sections'
+              : '⚠️ SOAP notes partially parsed - some sections may be incomplete'
+            }
+          </span>
+          {!soapResult.isValid && soapResult.errors && soapResult.errors.length > 0 && (
+            <div className="mt-1">
+              <ul className="list-disc list-inside text-xs text-yellow-700">
+                {soapResult.errors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       </motion.div>
       
       <SoapSection 
         title="S (Subjective)" 
-        content={sections.s} 
+        content={soapResult.subjective} 
         icon={<MessageSquare className="h-5 w-5 text-blue-600" />}
         color="blue"
       />
       <SoapSection 
         title="O (Objective)" 
-        content={sections.o} 
+        content={soapResult.objective} 
         icon={<Activity className="h-5 w-5 text-green-600" />}
         color="green"
       />
       <SoapSection 
         title="A (Assessment)" 
-        content={sections.a} 
+        content={soapResult.assessment} 
         icon={<Brain className="h-5 w-5 text-purple-600" />}
         color="purple"
       />
       <SoapSection 
         title="P (Plan)" 
-        content={sections.p} 
+        content={soapResult.plan} 
         icon={<ClipboardList className="h-5 w-5 text-orange-600" />}
         color="orange"
       />
@@ -415,20 +452,9 @@ export default function AnalysisPage() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };  }, [hasUnsavedChanges]);
 
-  // Helper function to validate SOAP format more robustly
+  // Helper function to validate SOAP format using the utility
   const isValidSoapFormat = (notes: string): boolean => {
-    if (!notes || notes.trim() === '') return false;
-    
-    // Check for traditional format with line breaks to avoid false positives
-    const hasTraditionalFormat = notes.includes('S:') && notes.includes('O:') && 
-                                notes.includes('A:') && notes.includes('P:');
-    
-    // Additional check: ensure S:, O:, A:, P: appear at line beginnings or after newlines
-    const soapRegex = /(?:^|\n)\s*[SOAP]:\s/g;
-    const matches = notes.match(soapRegex);
-    const hasProperStructure = matches && matches.length >= 4;
-    
-    return hasTraditionalFormat && Boolean(hasProperStructure);
+    return isValidSOAPFormat(notes);
   };
 
   const riskScoreExplanation = useMemo(() => {
@@ -1214,8 +1240,8 @@ export default function AnalysisPage() {
                               currentNotes={editableSoapNotes}
                               onNotesChange={handleSoapNotesChange}
                               onResetNotes={handleResetSoapNotes}
-                              patientDataForAI={patientDataForAI && patientDataForAI.patientInformation ? {
-                                patientInformation: patientDataForAI.patientInformation,
+                              patientDataForAI={patientDataForAI ? {
+                                patientInformation: `Patient: ${patientDataForAI.patientName}, Age: ${patientDataForAI.age}, Gender: ${patientDataForAI.gender}, Primary Complaint: ${patientDataForAI.primaryComplaint}, Medical History: ${patientDataForAI.medicalHistory ? `Allergies: ${patientDataForAI.medicalHistory.allergies?.join(', ') || 'None'}, Medications: ${patientDataForAI.medicalHistory.currentMedications?.join(', ') || 'None'}, Previous Conditions: ${patientDataForAI.medicalHistory.previousConditions?.join(', ') || 'None'}` : 'No medical history available'}`,
                                 vitals: patientDataForAI.vitals,
                                 observations: patientDataForAI.observations
                               } : undefined}
