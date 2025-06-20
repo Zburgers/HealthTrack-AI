@@ -2,13 +2,13 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PatientAvatar } from '@/components/ui/patient-avatar';
 import MainLayout from '@/components/layout/MainLayout';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -406,21 +406,14 @@ export default function DashboardPage() {
                   exit={{ opacity: 0, scale: 0.9 }}
                 >
                   <Card hoverable className={`shadow-lg border-l-4 ${getRiskScoreBorderColor(patient.riskScore)} flex flex-col h-full bg-card group`}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center space-x-3">                        <div className="relative">
-                          {patient.avatarUrl ? (
-                            <Image 
-                              src={patient.avatarUrl} 
-                              alt={patient.name} 
-                              width={48} 
-                              height={48} 
-                              className="rounded-full border-2 border-primary/20"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center border-2 border-primary/20">
-                              <User className="h-6 w-6 text-primary" />
-                            </div>
-                          )}
+                    <CardHeader className="pb-3">                      <div className="flex items-center space-x-3">
+                        <div className="relative">
+                          <PatientAvatar
+                            avatarUrl={patient.avatarUrl}
+                            name={patient.name}
+                            size="md"
+                            shape="circle"
+                          />
                           {patient.status === 'analyzing' && (
                             <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
                               <Sparkles className="h-2 w-2 text-white animate-pulse" />

@@ -1,7 +1,6 @@
 'use client';
 
 import { useRouter, useParams } from 'next/navigation';
-import Image from 'next/image';
 import type { Patient, VitalDisplayInfo, ICD10Code } from '@/types';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { PatientAvatar } from '@/components/ui/patient-avatar';
 import { useAppState } from '@/context/AppStateContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -18,6 +18,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { format, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TreatmentTimelineView } from '@/components/results/TreatmentTimelineView';
+import DeleteConfirmationModal from '@/components/ui/delete-confirmation-modal';
 
 import {
   ArrowLeft,
@@ -50,7 +51,8 @@ import {
   Copy,
   Edit,
   Pill,
-  Clock
+  Clock,
+  Trash2
 } from 'lucide-react';
 
 const getRiskScoreColor = (score: number): string => {
@@ -98,9 +100,10 @@ export default function PatientDetailPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [pollCount, setPollCount] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
-  
-  const [isIcd10ModalOpen, setIsIcd10ModalOpen] = useState(false);
+    const [isIcd10ModalOpen, setIsIcd10ModalOpen] = useState(false);
   const [selectedIcd10Code, setSelectedIcd10Code] = useState<ICD10Code | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchPatientDetails = useCallback(async () => {
     if (!patientId) {
@@ -160,10 +163,40 @@ export default function PatientDetailPage() {
       router.push('/analysis');
     }
   };
-
   const handleIcd10CodeClick = (code: ICD10Code) => {
     setSelectedIcd10Code(code);
     setIsIcd10ModalOpen(true);
+  };
+
+  const handleDeletePatient = async (deletionReason: string) => {
+    if (!patient) return;
+    
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/patients/${patient.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          deletionReason: deletionReason.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to archive patient');
+      }
+
+      // Close the modal and redirect to dashboard
+      setIsDeleteModalOpen(false);
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('Error archiving patient:', error);
+      throw error; // Re-throw to let the modal handle the error display
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (isLoading) {
@@ -282,15 +315,22 @@ export default function PatientDetailPage() {
         </div>
       </motion.div>
     );
-  };
-
-  return (
-    <MainLayout>      <TooltipProvider>
-        <div className="space-y-6">
-          {renderAnalyzingBanner()}
-          {renderAnalysisFailedBanner()}
-          
-          <motion.div 
+  };  return (
+    <>
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeletePatient}
+        patientName={patient.name}
+        isDeleting={isDeleting}
+      />
+      
+      <MainLayout>
+        <TooltipProvider>
+          <div className="space-y-6">
+            {renderAnalyzingBanner()}
+            {renderAnalysisFailedBanner()}
+            <motion.div 
             className="flex justify-between items-center"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -300,21 +340,27 @@ export default function PatientDetailPage() {
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
             </Button>
             <h1 className="font-headline text-3xl font-bold text-primary truncate max-w-md">{patient.name} - Details</h1>
-            <Button onClick={handleViewFullAnalysis} disabled={!patient.aiAnalysis}>
-              <BarChart3 className="mr-2 h-4 w-4" /> View Full AI Analysis
-            </Button>
+            <div className="flex items-center space-x-3">
+              <Button onClick={handleViewFullAnalysis} disabled={!patient.aiAnalysis}>
+                <BarChart3 className="mr-2 h-4 w-4" /> View Full AI Analysis
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => setIsDeleteModalOpen(true)}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                <Trash2 className="mr-2 h-4 w-4" /> Archive Case
+              </Button>
+            </div>
           </motion.div>
 
-          <motion.div {...cardAnimationProps(0.1)}>
-            <Card className="shadow-lg">
-              <CardHeader className="flex flex-row items-start space-x-4">
-                <Image
-                  src={patient.avatarUrl}
-                  alt={patient.name}
-                  width={100}
-                  height={100}
-                  className="rounded-lg border"
-                  data-ai-hint={patient.dataAiHint}
+          <motion.div {...cardAnimationProps(0.1)}>            <Card className="shadow-lg">
+              <CardHeader className="flex flex-row items-start space-x-4">                <PatientAvatar
+                  avatarUrl={patient.avatarUrl}
+                  name={patient.name}
+                  size="xl"
+                  shape="rounded"
+                  dataAiHint={patient.dataAiHint}
                 />
                 <div className="flex-1 space-y-1">
                   <CardTitle className="text-2xl font-headline text-foreground">{patient.name}</CardTitle>
@@ -832,11 +878,9 @@ export default function PatientDetailPage() {
                     )}
                   </CardContent>
                 </Card>
-              </motion.div>
-            </TabsContent>
+              </motion.div>            </TabsContent>
           </Tabs>
         </div>
-      </TooltipProvider>
 
       {selectedIcd10Code && (
         <Dialog open={isIcd10ModalOpen} onOpenChange={setIsIcd10ModalOpen}>
@@ -856,17 +900,17 @@ export default function PatientDetailPage() {
                   {selectedIcd10Code.description}
                 </p>
               </div>
-            </div>
-            <DialogFooter>
+            </div>            <DialogFooter>
               <DialogClose asChild>
                 <Button type="button" variant="outline">
                   Close
                 </Button>
               </DialogClose>
-            </DialogFooter>
-          </DialogContent>
+            </DialogFooter>          </DialogContent>
         </Dialog>
       )}
-    </MainLayout>
+        </TooltipProvider>
+      </MainLayout>
+    </>
   );
 }
