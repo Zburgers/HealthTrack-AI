@@ -14,12 +14,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
-import React, { useState, useEffect, useCallback } from 'react';
-import { format, parseISO } from 'date-fns';
+import { parseSOAPNotes } from '@/lib/soap-parser';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { format, parseISO, formatDistanceToNow } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TreatmentTimelineView } from '@/components/results/TreatmentTimelineView';
 import DeleteConfirmationModal from '@/components/ui/delete-confirmation-modal';
-
 import {
   ArrowLeft,
   UserCircle,
@@ -41,19 +41,142 @@ import {
   Sparkles,
   Calendar,
   MapPin,
-  Phone,
-  Mail,
+  Phone,  Mail,
   User,
   FileText,
   History,
   TrendingUp,
   Shield,
-  Copy,
-  Edit,
-  Pill,
   Clock,
-  Trash2
+  Pill,
+  Trash2,
+  CheckCircle,
+  MessageSquare
 } from 'lucide-react';
+
+// SOAP Section Component
+const SoapSection: React.FC<{ title: string; content?: string; icon?: React.ReactNode; color?: string }> = ({ 
+  title, 
+  content, 
+  icon, 
+  color = "blue" 
+}) => {
+  if (!content || content.trim() === '') return null;
+  
+  const colorClasses = {
+    blue: "bg-blue-50 border-blue-200 text-blue-800",
+    green: "bg-green-50 border-green-200 text-green-800", 
+    purple: "bg-purple-50 border-purple-200 text-purple-800",
+    orange: "bg-orange-50 border-orange-200 text-orange-800"
+  };
+  
+  return (
+    <motion.div 
+      className={`mb-4 p-4 rounded-lg border ${colorClasses[color as keyof typeof colorClasses]} shadow-sm`}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        {icon}
+        <h4 className="font-semibold text-base">{title}</h4>
+      </div>
+      <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
+    </motion.div>
+  );
+};
+
+// Parsed SOAP Notes Display Component
+const ParsedSoapNotesDisplay: React.FC<{ notes?: string }> = ({ notes }) => {
+  const soapResult = useMemo(() => {
+    return parseSOAPNotes(notes || '');
+  }, [notes]);
+
+  if (!notes || notes.trim() === '') {
+    return <p className="text-gray-500 italic p-4">No SOAP notes available to parse.</p>;
+  }
+
+  // Check if parsing failed completely
+  if (!soapResult.subjective && !soapResult.objective && !soapResult.assessment && !soapResult.plan) {
+    return (
+      <div className="p-6 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-lg">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0">
+            <AlertTriangle className="h-6 w-6 text-amber-600 mt-0.5" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-amber-800 text-base mb-2">Could not parse SOAP notes into sections.</p>
+            <p className="text-sm text-amber-700 mb-3">
+              Please ensure the notes are formatted with <strong>S:</strong>, <strong>O:</strong>, <strong>A:</strong>, and <strong>P:</strong> prefixes.
+            </p>
+            {soapResult.errors && soapResult.errors.length > 0 && (
+              <div className="mb-3">
+                <p className="text-sm font-medium text-amber-800">Issues found:</p>
+                <ul className="list-disc list-inside text-sm text-amber-700">
+                  {soapResult.errors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <details className="text-sm">
+              <summary className="cursor-pointer text-amber-700 hover:text-amber-900 font-medium">View original notes</summary>
+              <div className="mt-2 p-3 bg-white border border-amber-200 rounded-md">
+                <pre className="whitespace-pre-wrap text-gray-700 text-xs leading-relaxed">{notes}</pre>
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <motion.div 
+      className="space-y-4 p-4 bg-gradient-to-br from-gray-50 to-white rounded-lg border"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+    >
+      {/* Success header */}
+      <motion.div 
+        className="flex items-center gap-2 mb-4 p-3 bg-green-50 border border-green-200 rounded-lg"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+      >
+        <CheckCircle className="h-5 w-5 text-green-600" />
+        <span className="text-sm font-medium text-green-800">
+          ✅ SOAP notes successfully parsed into structured sections
+        </span>
+      </motion.div>      
+      <SoapSection 
+        title="S (Subjective)" 
+        content={soapResult.subjective} 
+        icon={<MessageSquare className="h-5 w-5 text-blue-600" />}
+        color="blue"
+      />
+      <SoapSection 
+        title="O (Objective)" 
+        content={soapResult.objective} 
+        icon={<Activity className="h-5 w-5 text-green-600" />}
+        color="green"
+      />
+      <SoapSection 
+        title="A (Assessment)" 
+        content={soapResult.assessment} 
+        icon={<Brain className="h-5 w-5 text-purple-600" />}
+        color="purple"
+      />
+      <SoapSection 
+        title="P (Plan)" 
+        content={soapResult.plan} 
+        icon={<ClipboardList className="h-5 w-5 text-orange-600" />}
+        color="orange"
+      />
+    </motion.div>
+  );
+};
 
 const getRiskScoreColor = (score: number): string => {
   if (score >= 0 && score <= 1) score *= 100; 
@@ -101,8 +224,7 @@ export default function PatientDetailPage() {
   const [pollCount, setPollCount] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
     const [isIcd10ModalOpen, setIsIcd10ModalOpen] = useState(false);
-  const [selectedIcd10Code, setSelectedIcd10Code] = useState<ICD10Code | null>(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedIcd10Code, setSelectedIcd10Code] = useState<ICD10Code | null>(null);  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchPatientDetails = useCallback(async () => {
@@ -217,11 +339,13 @@ export default function PatientDetailPage() {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
-        >
-          <AlertTriangle className="w-24 h-24 text-destructive mb-4" />
+        >          <AlertTriangle className="w-24 h-24 text-destructive mb-4" />
           <h1 className="font-headline text-3xl font-bold text-destructive mb-2">An Error Occurred</h1>
           <p className="text-muted-foreground mb-6">{error}</p>
-          <Button onClick={() => router.push('/dashboard')}>
+          <Button 
+            onClick={() => router.push('/dashboard')}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
           </Button>
         </motion.div>
@@ -237,13 +361,15 @@ export default function PatientDetailPage() {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
-        >
-          <UserCircle className="w-24 h-24 text-muted-foreground mb-4" />
+        >          <UserCircle className="w-24 h-24 text-muted-foreground mb-4" />
           <h1 className="font-headline text-3xl font-bold text-destructive mb-2">Patient Not Found</h1>
           <p className="text-muted-foreground mb-6">
             The patient you are looking for does not exist or the ID is incorrect.
           </p>
-          <Button onClick={() => router.push('/dashboard')}>
+          <Button 
+            onClick={() => router.push('/dashboard')}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
           </Button>
         </motion.div>
@@ -313,20 +439,21 @@ export default function PatientDetailPage() {
             Retry
           </Button>
         </div>
-      </motion.div>
-    );
-  };  return (
+      </motion.div>    );
+  };
+
+  return (
     <>
       <DeleteConfirmationModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleDeletePatient}
-        patientName={patient.name}
+        patientName={patient?.name || ''}
         isDeleting={isDeleting}
       />
       
-      <MainLayout>
-        <TooltipProvider>
+      <TooltipProvider>
+        <MainLayout>
           <div className="space-y-6">
             {renderAnalyzingBanner()}
             {renderAnalysisFailedBanner()}
@@ -861,7 +988,15 @@ export default function PatientDetailPage() {
                               {patient.aiAnalysis.treatmentSuggestions.map((suggestion, index) => <li key={index}>{suggestion}</li>)}
                             </ul>
                           </div>
+                        )}                        
+                        {/* SOAP Notes Section */}
+                        {patient.aiAnalysis.soapNotes && (
+                          <div>
+                            <h4 className="font-semibold text-primary mb-2">AI-Generated SOAP Notes:</h4>
+                            <ParsedSoapNotesDisplay notes={patient.aiAnalysis.soapNotes} />
+                          </div>
                         )}
+                        
                         <div className="mt-6 text-center">
                           <Button onClick={handleViewFullAnalysis} variant="default" size="lg">
                             <BarChart3 className="mr-2 h-5 w-5" /> View Full Interactive Analysis Page
@@ -899,18 +1034,21 @@ export default function PatientDetailPage() {
                 <p className="text-foreground/90 leading-relaxed">
                   {selectedIcd10Code.description}
                 </p>
-              </div>
-            </div>            <DialogFooter>
+              </div>            </div>
+            
+            <DialogFooter>
               <DialogClose asChild>
                 <Button type="button" variant="outline">
                   Close
                 </Button>
               </DialogClose>
-            </DialogFooter>          </DialogContent>
+            </DialogFooter>
+          </DialogContent>
         </Dialog>
       )}
-        </TooltipProvider>
-      </MainLayout>
+      
+        </MainLayout>
+      </TooltipProvider>
     </>
   );
 }

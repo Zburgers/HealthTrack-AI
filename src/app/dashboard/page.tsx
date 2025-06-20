@@ -213,8 +213,8 @@ const MetricCard = ({
   );
 };
 
-export default function DashboardPage() {
-  const [patients, setPatients] = useState<Patient[]>([]);
+export default function DashboardPage() {  const [patients, setPatients] = useState<Patient[]>([]);
+  const [archivedCount, setArchivedCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -226,18 +226,25 @@ export default function DashboardPage() {
     gender: 'all',
   });
   const [sortBy, setSortBy] = useState('lastVisitDesc');
-
   useEffect(() => {
     const fetchPatients = async () => {
       setIsLoading(true);
       setError(null);
       try {
+        // Fetch active patients
         const response = await fetch('/api/patients');
         if (!response.ok) {
           throw new Error('Failed to fetch patient data.');
         }
         const data = await response.json();
         setPatients(data);
+
+        // Fetch archived patients count
+        const archivedResponse = await fetch('/api/patients?archivedOnly=true');
+        if (archivedResponse.ok) {
+          const archivedData = await archivedResponse.json();
+          setArchivedCount(archivedData.length);
+        }
       } catch (e) {
         setError((e as Error).message);
       } finally {
@@ -607,8 +614,7 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground">
                 Overview of your clinical practice performance
               </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            </div>            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <MetricCard
                 title="Total Patients"
                 value={stats.total}
@@ -646,6 +652,36 @@ export default function DashboardPage() {
                 delay={0.4}
               />
             </div>
+            
+            {/* Archived Patients Info */}
+            {archivedCount > 0 && (
+              <motion.div 
+                className="mt-4"
+                variants={staggerItem}
+                initial="hidden"
+                animate="show"
+                transition={{ delay: 0.5 }}
+              >
+                <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg border">
+                  <div className="flex items-center space-x-3">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        {archivedCount} Archived Patient{archivedCount !== 1 ? 's' : ''}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Cases removed from active dashboard
+                      </p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/dashboard/archived">
+                      View Archive
+                    </Link>
+                  </Button>
+                </div>
+              </motion.div>
+            )}
           </motion.div>
 
           {/* Search and Filters Section */}

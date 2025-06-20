@@ -140,12 +140,18 @@ CRITICAL SAFETY:
 - Consider previous condition management
 - Include specific monitoring requirements
 
-FORMAT REQUIREMENTS:
-Each section MUST start with exact prefix:
-S: [content]
-O: [content] 
-A: [content]
-P: [content]
+FORMAT REQUIREMENTS (STRICT):
+Each section MUST start with exact prefix on new line:
+
+S: [subjective content here]
+
+O: [objective content here]
+
+A: [assessment content here]
+
+P: [plan content here]
+
+IMPORTANT: Use EXACTLY "S: ", "O: ", "A: ", "P: " at the start of lines. No extra characters or formatting.
 
 OUTPUT JSON:
 {

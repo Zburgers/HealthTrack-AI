@@ -7,6 +7,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles, RotateCcw, Save, Wand2, Info as InfoIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { 
+  isValidSOAPFormat, 
+  getSoapValidationSummary, 
+  formatToXMLFormat 
+} from '@/lib/soap-parser';
 
 interface SoapNotesEditorProps {
   currentNotes: string;
@@ -30,20 +35,9 @@ export default function SoapNotesEditor({
   isExistingPatient = false
 }: SoapNotesEditorProps) {  const { toast } = useToast();
   const [isEnhancing, setIsEnhancing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);  // Helper function to validate SOAP format more robustly
+  const [isSaving, setIsSaving] = useState(false);  // Helper function to validate SOAP format using the utility
   const isValidSoapFormat = (notes: string): boolean => {
-    if (!notes || notes.trim() === '') return false;
-    
-    // Check for traditional format with line breaks to avoid false positives
-    const hasTraditionalFormat = notes.includes('S:') && notes.includes('O:') && 
-                                notes.includes('A:') && notes.includes('P:');
-    
-    // Additional check: ensure S:, O:, A:, P: appear at line beginnings or after newlines
-    const soapRegex = /(?:^|\n)\s*[SOAP]:\s/g;
-    const matches = notes.match(soapRegex);
-    const hasProperStructure = matches && matches.length >= 4;
-    
-    return hasTraditionalFormat && Boolean(hasProperStructure);
+    return isValidSOAPFormat(notes);
   };
 
   const handleSave = async () => {
@@ -55,11 +49,16 @@ export default function SoapNotesEditor({
         variant: 'destructive',
       });
       return;
-    }    // Check if notes are properly formatted SOAP notes
-    if (!isValidSoapFormat(currentNotes)) {
+    }    // Check if notes are properly formatted SOAP notes using enhanced validation
+    const soapValidation = getSoapValidationSummary(currentNotes);
+    if (!soapValidation.isValid) {
       toast({
         title: 'Invalid SOAP Format',
-        description: 'Notes must be properly formatted with S:, O:, A:, and P: sections. Use AI Enhancement first.',
+        description: `Notes must be properly formatted with S:, O:, A:, and P: sections. ${
+          soapValidation.missingSections.length > 0 ? 
+          `Missing: ${soapValidation.missingSections.join(', ')}` : 
+          'Use AI Enhancement first.'
+        }`,
         variant: 'destructive',
       });
       return;
@@ -136,8 +135,8 @@ export default function SoapNotesEditor({
       setIsEnhancing(false);
     }
   };
-  // Modified logic: Allow enhancement if patient data is available (don't require existing notes)
-  const isEnhanceDisabled = isEnhancing || !patientDataForAI;
+  // Modified logic: Allow enhancement if patient data is available and there's content to enhance
+  const isEnhanceDisabled = isEnhancing || !patientDataForAI || !currentNotes.trim();
     // Save button logic: disabled if saving, no content, invalid format, or not an existing patient
   const isSaveDisabled = isSaving || !currentNotes.trim() || !isExistingPatient || !isValidSoapFormat(currentNotes);
   return (
@@ -265,7 +264,7 @@ P (Plan): Treatment plan and next steps"
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                {!patientDataForAI ? 'Patient data is required for AI enhancement.' : !currentNotes ? 'Enter notes to enhance.' : isEnhancing ? 'Enhancement in progress...' : 'Click to enhance and format notes using AI.'}
+                {!patientDataForAI ? 'Patient data is required for AI enhancement.' : !currentNotes.trim() ? 'Enter some notes to enhance with AI.' : isEnhancing ? 'Enhancement in progress...' : 'Click to enhance and format notes using AI.'}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

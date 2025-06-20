@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { Patient, PatientDocument } from '@/types';
+import { SimilarCaseOutput } from '@/types/similar-cases';
+import { 
+  formatToTraditionalFormat, 
+  isValidSOAPFormat, 
+  parseSOAPNotes,
+  createStructuredSoapNotes,
+  getSoapValidationSummary 
+} from '@/lib/soap-parser';
 import { ObjectId } from 'mongodb';
 import { z } from 'zod';
 
@@ -67,24 +75,23 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // Check if patient is soft deleted
     if (patient.isDeleted) {
       return NextResponse.json({ message: 'Patient has been archived' }, { status: 410 });
-    }
-
-    // Safely handle the lastVisit date with a fallback
+    }    // Safely handle the lastVisit date with a fallback
     const lastVisitDate = patient.last_updated && !isNaN(new Date(patient.last_updated).getTime())
         ? new Date(patient.last_updated)
-        : new Date();
-
-    // Safely format the SOAP note with fallbacks
+        : new Date();    // Helper function using the SOAP parser utility
     const formatSoapNote = (soap: PatientDocument['soap_note']) => {
       if (!soap) return '';
-      const parts = [
-        soap.subjective,
-        soap.objective,
-        soap.assessment,
-        soap.plan,
-      ];
-      return parts.filter(Boolean).join(' ');
-    };    // Robustly map the MongoDB document to the frontend Patient type
+      
+      // Use the utility's createStructuredSoapNotes for consistent formatting
+      const structuredSoap = createStructuredSoapNotes({
+        subjective: soap.subjective || '',
+        objective: soap.objective || '',
+        assessment: soap.assessment || '',
+        plan: soap.plan || ''
+      });
+      
+      return formatToTraditionalFormat(structuredSoap);
+    };// Robustly map the MongoDB document to the frontend Patient type
     const formattedPatient: Patient = {
       // Ensure patient._id is converted to string regardless of its original type (ObjectId or string)
       id: patient._id.toString(),
@@ -115,13 +122,37 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         allergyWarnings: patient.medical_history_analysis.allergy_warnings || [],
         medicationInteractions: patient.medical_history_analysis.medication_interactions || [],
         previousConditionsImpact: patient.medical_history_analysis.previous_conditions_impact || [],
-      } : undefined,
-      aiAnalysis: patient.status === 'complete' ? {
-        icd10Tags: (patient.icd_tags || []).map(tag => ({          code: tag.code || 'N/A',
+      } : undefined,      aiAnalysis: patient.status === 'complete' ? {
+        // Use the formatted soap note as summary since ai_metadata.summary is empty
+        summary: formatSoapNote(patient.soap_note) || patient.ai_metadata?.summary || 'AI analysis completed but no summary available.',
+        icd10Tags: (patient.icd_tags || []).map(tag => ({
+          code: tag.code || 'N/A',
           description: tag.label || 'No description',
         })),
-        riskScore: patient.risk_score || 0,
-        soapNotes: formatSoapNote(patient.soap_note),
+        differentialDiagnosis: (patient.risk_predictions || []).map(pred => ({
+          condition: pred.condition,
+          likelihood: `${pred.confidence}%`
+        })),
+        recommendedTests: patient.ai_metadata?.recommended_tests || [],
+        treatmentSuggestions: patient.ai_metadata?.treatment_suggestions || [],
+        riskScore: patient.risk_score || 0,        // Use ai_soap_notes if available, otherwise try to get structured SOAP from soap_note
+        soapNotes: patient.ai_soap_notes || formatSoapNote(patient.soap_note) || '',
+        similarCases: (patient.matched_cases || []).map(matchedCase => ({
+          id: matchedCase.case_id || '',
+          matchConfidence: matchedCase.similarity_score || 0,
+          age: 0, // Not available in matched_cases, would need to be fetched separately
+          sex: '', // Not available in matched_cases, would need to be fetched separately
+          hadm_id: 0, // Not available in matched_cases, would need to be fetched separately
+          subject_id: 0, // Not available in matched_cases, would need to be fetched separately
+          icd: [], // Not available in matched_cases, would need to be fetched separately
+          icd_label: matchedCase.diagnosis ? [matchedCase.diagnosis] : [],
+          note: matchedCase.summary || '',
+          vitals: undefined,
+          outcomes: undefined,
+          treatments: undefined,
+          diagnostics: undefined,
+          metadata: undefined
+        }))
       } : undefined,
       avatarUrl: null, // Let the frontend handle the fallback
       dataAiHint: 'portrait',
@@ -174,18 +205,19 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     if (updateData.aiSoapNotes) {
       if (typeof updateData.aiSoapNotes !== 'string') {
         return NextResponse.json({ message: 'aiSoapNotes must be a non-empty string' }, { status: 400 });
-      }
-
-      // Validate SOAP format - support both traditional (S:, O:, A:, P:) and structured (<s>, <o>, <a>, <p>) formats
+      }      // Validate SOAP format using the utility parser with enhanced validation
       const soapNotes = updateData.aiSoapNotes.trim();
-      const hasTraditionalFormat = soapNotes.includes('S:') && soapNotes.includes('O:') && 
-                                  soapNotes.includes('A:') && soapNotes.includes('P:');
-      const hasStructuredFormat = soapNotes.includes('<s>') && soapNotes.includes('<o>') && 
-                                 soapNotes.includes('<a>') && soapNotes.includes('<p>');
+      const soapValidation = getSoapValidationSummary(soapNotes);
       
-      if (!hasTraditionalFormat && !hasStructuredFormat) {
+      if (!soapValidation.isValid) {
         return NextResponse.json({ 
-          message: 'Invalid SOAP format. Notes must contain either S:, O:, A:, P: sections or <s>, <o>, <a>, <p> structured format.' 
+          message: `Invalid SOAP format. ${soapValidation.missingSections.length > 0 ? 
+            `Missing sections: ${soapValidation.missingSections.join(', ')}. ` : ''}Notes must contain properly formatted SOAP sections (S:, O:, A:, P: or XML format).`,
+          details: {
+            format: soapValidation.format,
+            sectionCount: soapValidation.sectionCount,
+            missingSections: soapValidation.missingSections
+          }
         }, { status: 400 });
       }
 
