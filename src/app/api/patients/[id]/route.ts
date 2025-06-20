@@ -2,9 +2,45 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { Patient, PatientDocument } from '@/types';
 import { ObjectId } from 'mongodb';
+import { z } from 'zod';
 
 // Explicitly mark this route as dynamic to prevent static analysis errors.
 export const dynamic = 'force-dynamic';
+
+// Validation schema for delete request body
+const DeleteRequestSchema = z.object({
+  deletionReason: z.string().min(10, "Deletion reason must be at least 10 characters")
+});
+
+/**
+ * Helper function to validate request and get patient ID
+ */
+async function validatePatientRequest(params: Promise<{ id: string }>) {
+  const resolvedParams = await params;
+  const id = resolvedParams.id;
+
+  if (!id || typeof id !== 'string') {
+    return { error: NextResponse.json({ message: 'Patient ID must be a non-empty string.' }, { status: 400 }) };
+  }
+
+  return { id, error: null };
+}
+
+/**
+ * Helper function to find patient by ID
+ */
+async function findPatientById(patientsCollection: any, id: string) {
+  let patient: PatientDocument | null = null;
+
+  if (ObjectId.isValid(id)) {
+    const objectIdToQuery = new ObjectId(id);
+    patient = await patientsCollection.findOne({ _id: objectIdToQuery });
+  } else {
+    patient = await patientsCollection.findOne({ _id: id as any });
+  }
+
+  return patient;
+}
 
 /**
  * GET /api/patients/[id]
@@ -13,34 +49,24 @@ export const dynamic = 'force-dynamic';
  * This version uses a different context signature to avoid Next.js build errors.
  */
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
-  // params is now expected to be a Promise for dynamic routes.
-  const params = await context.params;
-  const id = params.id;
-
-  if (!id || typeof id !== 'string') {
-    return NextResponse.json({ message: 'Patient ID must be a non-empty string.' }, { status: 400 });
-  }
+  const validation = await validatePatientRequest(context.params);
+  if (validation.error) return validation.error;
+  const { id } = validation;
 
   try {
     const client = await connectToDatabase();
     const db = client.db('healthtrack');
     const patientsCollection = db.collection<PatientDocument>('patients');
 
-    let patient: PatientDocument | null = null;
-
-    if (ObjectId.isValid(id)) {
-      const objectIdToQuery = new ObjectId(id);
-      patient = await patientsCollection.findOne({ _id: objectIdToQuery });
-    } else {
-      // If not a valid ObjectId string, try to find by the string ID directly.
-      // This assumes the _id field in the database might store plain strings for some documents.
-      // Note: PatientDocument defines _id as ObjectId, so this query uses 'as any'
-      // to bypass strict type checking for the query filter if id is a plain string.
-      patient = await patientsCollection.findOne({ _id: id as any });
-    }
+    const patient = await findPatientById(patientsCollection, id);
 
     if (!patient) {
       return NextResponse.json({ message: 'Patient not found' }, { status: 404 });
+    }
+
+    // Check if patient is soft deleted
+    if (patient.isDeleted) {
+      return NextResponse.json({ message: 'Patient has been archived' }, { status: 410 });
     }
 
     // Safely handle the lastVisit date with a fallback
@@ -91,14 +117,13 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         previousConditionsImpact: patient.medical_history_analysis.previous_conditions_impact || [],
       } : undefined,
       aiAnalysis: patient.status === 'complete' ? {
-        icd10Tags: (patient.icd_tags || []).map(tag => ({
-          code: tag.code || 'N/A',
+        icd10Tags: (patient.icd_tags || []).map(tag => ({          code: tag.code || 'N/A',
           description: tag.label || 'No description',
         })),
         riskScore: patient.risk_score || 0,
         soapNotes: formatSoapNote(patient.soap_note),
       } : undefined,
-      avatarUrl: 'https://placehold.co/100x100.png',
+      avatarUrl: null, // Let the frontend handle the fallback
       dataAiHint: 'portrait',
     };
 
@@ -115,19 +140,19 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
  * Updates specific fields of a patient record, particularly for saving AI SOAP notes.
  */
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
-  // Await params for dynamic routes
-  const params = await context.params;
-  const id = params.id;
+  const validation = await validatePatientRequest(context.params);
+  if (validation.error) return validation.error;
+  const { id } = validation;
 
-  if (!id || typeof id !== 'string') {
-    return NextResponse.json({ message: 'Patient ID must be a non-empty string.' }, { status: 400 });
-  }  try {
+  try {
     const updateData = await request.json();
     console.log('PATCH request received for patient:', id, 'Data:', updateData);
 
     const client = await connectToDatabase();
     const db = client.db('healthtrack');
-    const patientsCollection = db.collection<PatientDocument>('patients');    // Handle both ObjectId and string-based patient IDs
+    const patientsCollection = db.collection<PatientDocument>('patients');
+
+    // Handle both ObjectId and string-based patient IDs
     let queryFilter: any;
     
     if (ObjectId.isValid(id)) {
@@ -136,6 +161,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       // For string-based IDs like "patient-003"
       queryFilter = { _id: id };
     }
+
+    // Add soft delete check to query filter
+    queryFilter.isDeleted = { $ne: true };
 
     // Prepare update operations
     const updateFields: any = {
@@ -199,10 +227,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       }
     );
 
-    console.log('Update result:', result);
-
-    if (result.matchedCount === 0) {
-      return NextResponse.json({ message: 'Patient not found' }, { status: 404 });
+    console.log('Update result:', result);    if (result.matchedCount === 0) {
+      return NextResponse.json({ message: 'Patient not found or already archived' }, { status: 404 });
     }
 
     if (result.modifiedCount === 0) {
@@ -220,5 +246,103 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       return NextResponse.json({ message: 'Invalid JSON body' }, { status: 400 });
     }
     return NextResponse.json({ message: 'Failed to update patient', error: (error as Error).message }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/patients/[id]
+ * 
+ * Soft deletes a patient record by marking it as deleted rather than permanently removing it.
+ * This maintains data integrity while allowing case management.
+ */
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+  const validation = await validatePatientRequest(context.params);
+  if (validation.error) return validation.error;
+  const { id } = validation;
+
+  try {
+    // Parse and validate request body
+    const requestBody = await request.json();
+    const parseResult = DeleteRequestSchema.safeParse(requestBody);
+    
+    if (!parseResult.success) {
+      return NextResponse.json({ 
+        message: 'Invalid request body',
+        errors: parseResult.error.issues.map(issue => ({
+          field: issue.path.join('.'),
+          message: issue.message
+        }))
+      }, { status: 400 });
+    }
+
+    const { deletionReason } = parseResult.data;
+
+    // TODO: Add Firebase Admin SDK authentication here
+    // For now, using a placeholder user ID
+    // const user = await verifyFirebaseToken(request);
+    // if (!user) {
+    //   return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    // }
+    const deletedBy = 'system-user'; // Replace with actual user ID from Firebase token
+
+    const client = await connectToDatabase();
+    const db = client.db('healthtrack');
+    const patientsCollection = db.collection<PatientDocument>('patients');
+
+    // Find the patient first to check existence and current status
+    const patient = await findPatientById(patientsCollection, id);
+
+    if (!patient) {
+      return NextResponse.json({ message: 'Patient not found' }, { status: 404 });
+    }
+
+    // Check if patient is already soft deleted
+    if (patient.isDeleted) {
+      return NextResponse.json({ 
+        message: 'Patient is already archived',
+        archivedAt: patient.deletedAt,
+        archivedBy: patient.deletedBy,
+        reason: patient.deletionReason
+      }, { status: 409 });
+    }
+
+    // Perform soft delete
+    const updateResult = await patientsCollection.updateOne(
+      { _id: patient._id },
+      {
+        $set: {
+          isDeleted: true,
+          deletedAt: new Date(),
+          deletedBy: deletedBy,
+          deletionReason: deletionReason,
+          last_updated: new Date()
+        }
+      }
+    );
+
+    if (updateResult.matchedCount === 0) {
+      return NextResponse.json({ message: 'Failed to archive patient' }, { status: 500 });
+    }
+
+    console.log(`Patient ${id} soft deleted successfully by ${deletedBy}. Reason: ${deletionReason}`);
+
+    return NextResponse.json({
+      message: 'Patient archived successfully',
+      patientId: id,
+      archivedAt: new Date().toISOString(),
+      archivedBy: deletedBy
+    }, { status: 200 });
+
+  } catch (error) {
+    console.error(`Failed to delete patient with id ${id}:`, error);
+    
+    if (error instanceof SyntaxError) {
+      return NextResponse.json({ message: 'Invalid JSON body' }, { status: 400 });
+    }
+    
+    return NextResponse.json({ 
+      message: 'Failed to archive patient', 
+      error: (error as Error).message 
+    }, { status: 500 });
   }
 }

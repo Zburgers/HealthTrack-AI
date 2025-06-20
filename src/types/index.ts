@@ -49,12 +49,16 @@ export interface PatientDocument {
     allergy_warnings?: string[];
     medication_interactions?: string[];
     previous_conditions_impact?: string[];
-  };
-  ai_metadata: any;
+  };  ai_metadata: any;
   status: 'draft' | 'analyzing' | 'complete' | 'exported' | 'analysis_failed';
   owner_uid: string;
   ai_soap_notes?: string; // Add AI SOAP notes field
   ai_analysis_timestamp?: Date; // Track when AI analysis was performed
+  // Soft Delete Support
+  isDeleted?: boolean;
+  deletedAt?: Date;
+  deletedBy?: string;
+  deletionReason?: string;
 }
 
 
@@ -93,7 +97,7 @@ export interface PatientAlert {
 export interface Patient {
   id: string;
   name: string;
-  avatarUrl: string;
+  avatarUrl: string | null;
   dataAiHint: string;
   riskScore: number;
   conditions: string[];
@@ -124,8 +128,7 @@ export interface Patient {
     allergyWarnings?: string[];
     medicationInteractions?: string[];
     previousConditionsImpact?: string[];
-  };
-  matched_cases?: Array<{
+  };  matched_cases?: Array<{
     case_id: string;
     similarity_score: number;
     diagnosis?: string;
@@ -133,6 +136,11 @@ export interface Patient {
     linkType?: 'auto' | 'manual';
     savedAt?: Date;
   }>;
+  // Soft Delete Support
+  isDeleted?: boolean;
+  deletedAt?: Date;
+  deletedBy?: string;
+  deletionReason?: string;
 }
 
 export interface AppState {

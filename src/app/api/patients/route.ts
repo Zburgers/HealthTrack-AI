@@ -36,14 +36,13 @@ export async function GET() {
 
       return {
         id: p._id.toString(),
-        name: p.name,
-        age: p.age,
+        name: p.name,        age: p.age,
         gender: p.sex,
         lastVisit: lastVisitDate.toISOString(),
         riskScore: p.risk_score,
         conditions: p.icd_tag_summary || [],
         status: p.status || 'draft',
-        avatarUrl: 'https://placehold.co/100x100.png',
+        avatarUrl: null, // Let the frontend handle the fallback
         dataAiHint: 'portrait',
         primaryComplaint: '', // Not needed for dashboard view
         vitals: {},
