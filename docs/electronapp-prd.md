@@ -55,7 +55,7 @@ To convert the existing HealthTrack-AI web application into a downloadable **Ele
 ## 💡 Features (Phase 1)
 
 - [x] Unified `getDatabase()` API to route to local DB for Electron
-- [x] Local-first collections for `patients`, `notes`, `ai_cache`
+- [ ] Local-first collections for `patients`, `notes`, `ai_cache`, currently its there only remote so we need to make local also with embed mongo
 - [x] Remote-only vector search for `case_embeddings`
 - [x] AI inference through cloud APIs (as is)
 - [ ] Fully working Electron build with embedded MongoDB
