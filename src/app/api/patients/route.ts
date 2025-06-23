@@ -9,13 +9,39 @@ import { format } from 'date-fns';
 /**
  * GET /api/patients
  * 
- * Retrieves a list of all patients with a limited set of fields suitable for the dashboard view.
+ * Retrieves a list of patients with a limited set of fields suitable for the dashboard view.
+ * By default, only returns active (non-deleted) patients.
+ * 
+ * Query Parameters:
+ * - includeArchived: boolean - Include soft-deleted patients in results
+ * - archivedOnly: boolean - Return only soft-deleted patients (archive view)
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const includeArchived = searchParams.get('includeArchived') === 'true';
+    const archivedOnly = searchParams.get('archivedOnly') === 'true';
+
     const client = await connectToDatabase();
     const db = client.db('healthtrack');
-    const patientsCollection = db.collection<PatientDocument>('patients');    const projection = {
+    const patientsCollection = db.collection<PatientDocument>('patients');
+
+    // Build query filter based on parameters
+    let queryFilter: any = {};
+    
+    if (archivedOnly) {
+      // Only archived patients
+      queryFilter.isDeleted = true;
+    } else if (!includeArchived) {
+      // Only active patients (default behavior)
+      queryFilter.$or = [
+        { isDeleted: { $exists: false } },
+        { isDeleted: false }
+      ];
+    }
+    // If includeArchived is true, no filter is applied (returns all patients)
+
+    const projection = {
       name: 1,
       age: 1,
       sex: 1,
@@ -23,12 +49,15 @@ export async function GET() {
       risk_score: 1,
       icd_tag_summary: 1,
       status: 1,
-    };
-
-    const patients = await patientsCollection
-      .find({}, { projection })
+      isDeleted: 1,
+      deletedAt: 1,
+      deletionReason: 1,
+    };    const patients = await patientsCollection
+      .find(queryFilter, { projection })
       .sort({ last_updated: -1 })
-      .toArray();    const formattedPatients: Patient[] = patients.map(p => {
+      .toArray();
+
+    const formattedPatients: Patient[] = patients.map(p => {
       // Safely handle the lastVisit date
       const lastVisitDate = p.last_updated && !isNaN(new Date(p.last_updated).getTime())
         ? new Date(p.last_updated)
@@ -36,18 +65,22 @@ export async function GET() {
 
       return {
         id: p._id.toString(),
-        name: p.name,
-        age: p.age,
+        name: p.name,        age: p.age,
         gender: p.sex,
         lastVisit: lastVisitDate.toISOString(),
         riskScore: p.risk_score,
         conditions: p.icd_tag_summary || [],
         status: p.status || 'draft',
-        avatarUrl: 'https://placehold.co/100x100.png',
+        avatarUrl: null, // Let the frontend handle the fallback
         dataAiHint: 'portrait',
         primaryComplaint: '', // Not needed for dashboard view
         vitals: {},
         doctorsObservations: '',
+        // Soft delete information
+        isDeleted: p.isDeleted || false,
+        deletedAt: p.deletedAt,
+        deletedBy: p.deletedBy,
+        deletionReason: p.deletionReason,
       };
     });
 

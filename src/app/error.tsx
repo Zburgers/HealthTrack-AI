@@ -1,4 +1,3 @@
-
 'use client'; // Error components must be Client Components
 
 import { useEffect } from 'react';
@@ -40,7 +39,7 @@ export default function GlobalError({
         >
           <RotateCcw className="mr-2 h-5 w-5"/> Try again
         </Button>
-        <Button asChild variant="outline" size="lg">
+        <Button asChild variant="secondary" size="lg">
           <Link href="/dashboard">Go to Dashboard</Link>
         </Button>
       </div>
