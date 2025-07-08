@@ -1,0 +1,216 @@
+{
+  "project_handoff": {
+    "metadata": {
+      "created_date": "2025-07-09",
+      "handoff_reason": "Parallel development tracks - MongoDB vs SQLite implementations",
+      "target_branch": "origin/feature/crud-operations",
+      "target_commit": "c5862e3",
+      "commit_message": "feat: commit current codebase state for CRUD operations feature",
+      "last_working_state": "2025-06-24 - Dual-database architecture completion",
+      "agent_context": "MongoDB-focused development continuation"
+    },
+    
+    "project_overview": {
+      "name": "HealthTrack-AI",
+      "description": "Clinical AI tool for medical professionals - MongoDB implementation track",
+      "tech_stack": ["Next.js", "TypeScript", "MongoDB", "Electron", "Vertex AI", "Tailwind CSS"],
+      "primary_goal": "Continue MongoDB-based development with dual-database Electron architecture"
+    },
+    
+    "database_architecture": {
+      "type": "Dual MongoDB Setup",
+      "local_database": {
+        "purpose": "Electron app - private patient data storage",
+        "connection": "mongodb://localhost:27018/healthtrack_local",
+        "server": "mongodb-memory-server (embedded)",
+        "collections": ["patients", "notes", "ai_cache", "local_embeddings", "db_metadata"]
+      },
+      "remote_database": {
+        "purpose": "Atlas - MIMIC-IV vector search only", 
+        "connection": "MONGODB_URI environment variable",
+        "collections": ["case_embeddings"]
+      },
+      "routing_logic": "src/lib/mongodb/framework.ts - automatically routes operations to appropriate database"
+    },
+    
+    "key_collections_schema": {
+      "patients": {
+        "storage": "local_primary",
+        "key_fields": ["name", "age", "sex", "vitals", "symptoms", "soap_note", "icd_tags", "risk_predictions", "matched_cases"],
+        "relationships": "linked to notes.patient_id, local_embeddings.patient_id",
+        "soft_delete": "isDeleted, deletedAt, deletedBy fields"
+      },
+      "notes": {
+        "storage": "local_primary", 
+        "key_fields": ["patient_id", "note_text", "generated_by_ai", "finalized"],
+        "foreign_key": "patient_id -> patients._id"
+      },
+      "ai_cache": {
+        "storage": "local_primary",
+        "purpose": "Cache AI results to reduce API calls",
+        "ttl": "24 hours expiry"
+      },
+      "case_embeddings": {
+        "storage": "remote_only",
+        "purpose": "MIMIC-IV dataset for vector similarity search",
+        "vector_search": "MongoDB Atlas vector search capability"
+      }
+    },
+    
+    "current_working_features": {
+      "api_routes": [
+        "GET/POST /api/patients - List and create patients",
+        "GET/PATCH/DELETE /api/patients/[id] - Individual patient operations", 
+        "POST /api/enhance-notes - AI-powered SOAP note enhancement",
+        "POST /api/similar-cases - Vector similarity search against MIMIC-IV"
+      ],
+      "ui_pages": [
+        "/dashboard - Patient listing and overview",
+        "/patient/[id] - Individual patient details and SOAP notes",
+        "/new-case - Create new patient cases",
+        "/analysis - AI analysis results and risk assessment"
+      ],
+      "electron_features": [
+        "Local MongoDB embedded database",
+        "IPC handlers for database operations", 
+        "Dual-database routing logic",
+        "Database synchronization capabilities"
+      ]
+    },
+    
+    "repository_info": {
+      "git_remote_url": "Ask the handoff person for the exact git remote URL",
+      "target_branch": "origin/feature/crud-operations", 
+      "target_commit": "c5862e3",
+      "new_branch_name": "mongodb-development"
+    },
+
+    "setup_instructions": {
+      "step_1": "Create empty folder for new workspace: mkdir healthtrack-mongodb && cd healthtrack-mongodb",
+      "step_2": "Clone repository: git clone [ASK FOR GIT URL] .",
+      "step_3": "Checkout target branch: git checkout origin/feature/crud-operations",
+      "step_4": "Create new development branch: git checkout -b mongodb-development",
+      "step_5": "Install dependencies: npm install",
+      "step_6": "Copy environment variables from .env.example or ask for them",
+      "step_7": "Start web app: npm run dev OR Start Electron app: npm run electron:dev",
+      "step_8": "Verify setup by visiting http://localhost:3000 or launching Electron window"
+    },
+    
+    "what_to_ask_handoff_person": [
+      "Git repository remote URL for cloning",
+      "Environment variables (.env file contents)",
+      "Any specific team conventions or coding standards",
+      "Preferred branch naming or commit message format",
+      "Access to MongoDB Atlas cluster (if needed)",
+      "Google Cloud/Vertex AI credentials and project setup"
+    ],
+
+    "first_verification_steps": [
+      "After setup, run 'npm run dev' - should see Next.js start on port 3000",
+      "Visit http://localhost:3000 - should see HealthTrack-AI landing page",
+      "Try 'npm run electron:dev' - should launch Electron window",
+      "Check console for any MongoDB connection errors",
+      "Navigate to /dashboard - should show empty patient list",
+      "Try creating a new patient case to verify database works"
+    ],
+    
+    "development_guidelines": {
+      "database_access": "Always use src/lib/mongodb functions - never direct MongoDB client",
+      "collection_routing": "Framework automatically routes to local/remote - no manual selection needed",
+      "electron_db": "Local MongoDB runs on port 27018 via mongodb-memory-server",
+      "patient_data": "Stored locally for privacy - only MIMIC-IV data is remote",
+      "vector_search": "Uses MongoDB Atlas vector search for case similarity",
+      "testing": "Use test files in root directory for IPC and SOAP functionality"
+    },
+    
+    "critical_files_to_understand": {
+      "src/lib/mongodb/index.ts": "Main MongoDB module entry point",
+      "src/lib/mongodb/framework.ts": "Universal database routing logic",
+      "src/lib/mongodb/config.ts": "Collection distribution configuration",
+      "electron/db/sqlite-db.ts": "DO NOT USE - This is SQLite from parallel track",
+      "electron/ipc/database-handlers.ts": "IPC handlers for Electron database operations",
+      "docs/dual-database-architecture.md": "Complete architecture documentation"
+    },
+    
+    "what_to_avoid": {
+      "sqlite_files": "Ignore all SQLite-related files - they're from the parallel development track",
+      "framework_modification": "Don't modify the dual-database framework without understanding full impact",
+      "direct_mongodb": "Never use MongoDB client directly - always use the abstraction layer",
+      "remote_patient_data": "Never store patient data in remote database for privacy"
+    },
+    
+    "next_development_priorities": {
+      "immediate": [
+        "Verify all MongoDB operations work correctly",
+        "Test Electron app with local database",
+        "Confirm vector search functionality"
+      ],
+      "short_term": [
+        "Enhance SOAP notes parsing and validation", 
+        "Improve AI caching mechanisms",
+        "Add more robust error handling"
+      ],
+      "medium_term": [
+        "Implement database backup/restore features",
+        "Add conflict resolution for synchronization",
+        "Performance optimization for large datasets"
+      ]
+    },
+    
+    "testing_strategy": {
+      "api_testing": "Use test files: test-soap-migration.js, test-soap-parser.js",
+      "ipc_testing": "Use test-ipc-handlers-clean.js for Electron IPC verification", 
+      "database_testing": "test-sqlite-db.js contains general DB testing patterns",
+      "manual_testing": "Start with /dashboard page and create a new patient case"
+    },
+    
+    "troubleshooting_common_issues": {
+      "mongodb_connection": "Check MONGODB_URI and network connectivity to Atlas",
+      "electron_db": "Ensure mongodb-memory-server starts correctly on port 27018",
+      "vertex_ai": "Verify all GCP environment variables are set correctly",
+      "ipc_errors": "Check electron/ipc/database-handlers.ts for proper error handling"
+    },
+    
+    "senior_dev_consultation_points": [
+      "Database schema changes or new collections",
+      "Modifications to dual-database routing logic", 
+      "Performance issues with large patient datasets",
+      "Vector search accuracy and relevance tuning",
+      "Security considerations for patient data handling",
+      "Integration with new AI models or APIs"
+    ],
+    
+    "success_metrics": {
+      "functionality": "All existing features work without regression",
+      "performance": "Database operations complete within acceptable timeframes",
+      "reliability": "No data loss or corruption during operations", 
+      "privacy": "Patient data remains local and secure",
+      "ai_integration": "AI enhancements and analysis work correctly"
+    },
+
+    "handoff_checklist_for_colleague": {
+      "before_starting": [
+        "✅ Ask handoff person for git repository URL",
+        "✅ Get all environment variables (.env file)", 
+        "✅ Confirm access to MongoDB Atlas and Google Cloud",
+        "✅ Create fresh workspace folder"
+      ],
+      "setup_verification": [
+        "✅ git clone [URL] . && git checkout origin/feature/crud-operations",
+        "✅ git checkout -b mongodb-development", 
+        "✅ npm install completes without errors",
+        "✅ npm run dev starts Next.js on port 3000",
+        "✅ http://localhost:3000 shows HealthTrack-AI landing page",
+        "✅ npm run electron:dev launches Electron window"
+      ],
+      "functionality_verification": [
+        "✅ /dashboard page loads without errors",
+        "✅ Can create new patient via /new-case",
+        "✅ Patient appears in dashboard list", 
+        "✅ Can view patient details and edit SOAP notes",
+        "✅ MongoDB local database starts on port 27018",
+        "✅ No SQLite-related errors in console"
+      ]
+    }
+  }
+}
