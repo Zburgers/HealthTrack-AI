@@ -28,7 +28,7 @@ const DropdownMenuSubTrigger = React.forwardRef<
   <DropdownMenuPrimitive.SubTrigger
     ref={ref}
     className={cn(
-      "flex cursor-default gap-3 select-none items-center rounded-xl px-4 py-3 text-sm font-medium outline-none transition-all duration-200 focus:bg-accent/80 hover:bg-accent/60 data-[state=open]:bg-accent/80 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0", // Enhanced modern styling
+      "flex cursor-default gap-3 select-none items-center rounded-xl px-4 py-3 text-sm font-medium text-popover-foreground outline-none transition-all duration-200 focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0", // Enhanced modern styling with explicit text colors
       inset && "pl-11",
       className
     )}
@@ -63,7 +63,7 @@ const DropdownMenuSubContent = React.forwardRef<
 >(({ className, ...props }, ref) => (  <DropdownMenuPrimitive.SubContent
     ref={ref}
     className={cn(
-      "z-50 min-w-[12rem] overflow-hidden rounded-2xl border border-border/50 bg-popover/90 p-3 text-popover-foreground shadow-2xl backdrop-blur-lg ring-1 ring-black/5 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-105 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2", // Enhanced modern styling with consistent blur
+      "z-50 min-w-[12rem] overflow-hidden rounded-2xl border border-border bg-popover p-3 text-popover-foreground shadow-2xl backdrop-blur-lg ring-1 ring-black/5 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-105 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2", // Enhanced modern styling with better contrast
       className
     )}
     {...props}
@@ -94,7 +94,7 @@ const DropdownMenuContent = React.forwardRef<
         ref={ref}
         sideOffset={sideOffset}
         className={cn(
-          "z-50 min-w-[12rem] overflow-hidden rounded-2xl border border-border/50 bg-popover/90 p-3 text-popover-foreground shadow-2xl backdrop-blur-lg ring-1 ring-black/5 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-105 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2", // Enhanced modern styling with stronger blur
+          "z-50 min-w-[12rem] overflow-hidden rounded-2xl border border-border bg-popover p-3 text-popover-foreground shadow-2xl backdrop-blur-lg ring-1 ring-black/5 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-105 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2", // Enhanced modern styling with better contrast
           className
         )}
         asChild
@@ -126,7 +126,7 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium outline-none transition-all duration-200 focus:bg-accent/80 hover:bg-accent/60 focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0", // Enhanced modern styling
+      "relative flex cursor-default select-none items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-popover-foreground outline-none transition-all duration-200 focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0", // Enhanced modern styling with explicit text colors
       inset && "pl-11",
       className
     )}
@@ -136,11 +136,11 @@ const DropdownMenuItem = React.forwardRef<
     <motion.div
       whileHover={{ 
         scale: 1.01,
-        backgroundColor: "rgba(var(--accent), 0.8)",
         transition: { duration: 0.15 }
       }}
       whileTap={{ scale: 0.98 }}
       transition={{ duration: 0.15 }}
+      className="hover:bg-accent hover:text-accent-foreground transition-colors"
     >
       {children}
     </motion.div>
@@ -155,7 +155,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-xl py-3 pl-11 pr-4 text-sm font-medium outline-none transition-all duration-200 focus:bg-accent/80 hover:bg-accent/60 focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50", // Enhanced modern styling
+      "relative flex cursor-default select-none items-center rounded-xl py-3 pl-11 pr-4 text-sm font-medium text-popover-foreground outline-none transition-all duration-200 focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50", // Enhanced modern styling with explicit text colors
       className
     )}
     checked={checked}
@@ -195,7 +195,7 @@ const DropdownMenuRadioItem = React.forwardRef<
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-xl py-3 pl-11 pr-4 text-sm font-medium outline-none transition-all duration-200 focus:bg-accent/80 hover:bg-accent/60 focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50", // Enhanced modern styling
+      "relative flex cursor-default select-none items-center rounded-xl py-3 pl-11 pr-4 text-sm font-medium text-popover-foreground outline-none transition-all duration-200 focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50", // Enhanced modern styling with explicit text colors
       className
     )}
     {...props}

@@ -11,7 +11,7 @@
     --card-foreground: 220 15% 25%; /* Dark Cool Gray/Almost Black */
 
     --popover: 0 0% 100%; /* White */
-    --popover-foreground: 220 15% 25%; /* Dark Cool Gray/Almost Black */
+    --popover-foreground: 220 15% 15%; /* Dark Cool Gray/Almost Black */
 
     --primary: 210 100% 56%; /* Bright Blue */
     --primary-foreground: 0 0% 100%; /* White */
@@ -23,7 +23,7 @@
     --muted-foreground: 210 25% 55%; /* Soft Blue-Gray */
 
     --accent: 160 70% 45%; /* Teal */
-    --accent-foreground: 0 0% 100%; /* White */
+    --accent-foreground: 0 0% 100%; /* Pure white for maximum contrast */
 
     --destructive: 0 75% 55%; /* Clear Red */
     --destructive-foreground: 0 0% 100%; /* White */
@@ -43,8 +43,8 @@
     --card: 220 15% 20%; /* Slightly Lighter Dark Slate Blue */
     --card-foreground: 210 20% 90%;
 
-    --popover: 220 15% 18%;
-    --popover-foreground: 210 20% 90%;
+    --popover: 220 15% 22%; /* Slightly lighter for better contrast */
+    --popover-foreground: 210 20% 98%; /* Near white for better readability */
 
     --primary: 210 100% 66%; /* Lighter Bright Blue for dark mode */
     --primary-foreground: 220 15% 15%;
@@ -56,7 +56,7 @@
     --muted-foreground: 210 20% 65%;
 
     --accent: 160 70% 55%; /* Lighter Teal for dark mode */
-    --accent-foreground: 220 15% 15%;
+    --accent-foreground: 220 15% 10%; /* Very dark for maximum contrast */
 
     --destructive: 0 70% 65%; /* Lighter Red for dark mode */
     --destructive-foreground: 220 15% 15%;

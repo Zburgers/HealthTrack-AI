@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getEmbeddings } from '@/lib/embedding'; // Corrected import
+import { getEmbeddings } from '@/lib/embedding'; // Uses Hugging Face BioBERT model
 import { findSimilarCases, SimilarCasesFilterSort } from '@/lib/vectorSearch';
 import { SimilarCasesApiInput, SimilarCaseOutput } from '@/types/similar-cases';
 import { z, ZodError } from 'zod';
@@ -116,21 +116,22 @@ export async function POST(request: NextRequest) {
 
     // Log the exact text and its length before sending for embedding
     console.log(`[API Similar Cases] Prepared inputText for embedding (length: ${inputText.length}): "${inputText}"`);
-    console.log(`[API Similar Cases] Note: Character-based truncation to approx. <100 tokens will occur in getEmbeddings if needed. Vertex AI will determine final token count.`);
+    console.log(`[API Similar Cases] Using Hugging Face BioBERT model for embeddings`);
 
-    // 4. Get embedding from Vertex AI
+    // 4. Get embedding from Hugging Face using BioBERT model
     const embeddingsArray = await getEmbeddings([inputText]);
 
     if (!embeddingsArray || embeddingsArray.length === 0 || !embeddingsArray[0] || embeddingsArray[0].length === 0) {
-      return NextResponse.json({ message: 'Failed to generate query embedding from Vertex AI.' }, { status: 500 });
+      return NextResponse.json({ message: 'Failed to generate query embedding from Hugging Face.' }, { status: 500 });
     }
     
     const queryEmbedding = embeddingsArray[0];
 
-    // 5. Find similar cases in MongoDB Atlas with filters and sorting
-    const similarCases = await findSimilarCases(queryEmbedding, 150, 10, filterSortParams as SimilarCasesFilterSort);
+    // 5. Find similar cases using MongoDB Atlas vector search
+    console.log('[API Similar Cases] Querying MongoDB Atlas vector search for similar cases...');
+    const similarCases = await findSimilarCases(queryEmbedding, 150, 10, filterSortParams);
 
-    if (!similarCases) {
+    if (!similarCases || similarCases.length === 0) {
       return NextResponse.json({ error: 'No similar cases found or error in processing.' }, { status: 404 });
     }
 
@@ -149,8 +150,8 @@ export async function POST(request: NextRequest) {
     let statusCode = 500;
     let message = 'An unexpected error occurred while processing your request.';
 
-    if (error.message.toLowerCase().includes('vertex ai')) {
-      message = 'Error communicating with Vertex AI service.';
+    if (error.message.toLowerCase().includes('hugging face')) {
+      message = 'Error communicating with Hugging Face service.';
     } else if (error.message.toLowerCase().includes('mongodb')) {
       message = 'Error querying the database for similar cases.';
     }

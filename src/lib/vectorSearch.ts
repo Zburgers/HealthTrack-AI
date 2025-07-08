@@ -45,10 +45,10 @@ export async function findSimilarCases(
   //   console.warn(`Query embedding dimension is ${queryEmbedding.length}, expected 768. Ensure this matches your indexed embeddings.`);
   // }
 
-  try {
+  try {    
     const client = await connectToDatabase();
     const db = client.db(MONGODB_DATABASE);
-    const collection: Collection<CaseEmbeddingDocument> = db.collection(MONGODB_COLLECTION_CASE_EMBEDDINGS);
+    const collection = db.collection(MONGODB_COLLECTION_CASE_EMBEDDINGS);
 
     const pipeline: Document[] = [
       {
@@ -98,7 +98,7 @@ export async function findSimilarCases(
       }
     }
 
-    const similarCasesDocuments: Document[] = await collection.aggregate(pipeline).toArray();
+    const similarCasesDocuments: Document[] = await collection.aggregate(pipeline);
     // console.log('[VectorSearch] Raw documents from MongoDB:', JSON.stringify(similarCasesDocuments, null, 2));
 
     // Map to SimilarCaseOutput, ensuring all required fields are present and types are correct

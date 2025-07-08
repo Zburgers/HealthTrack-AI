@@ -38,7 +38,7 @@ export async function createSoftDeleteIndexes() {
     // Verify indexes were created
     const indexes = await patientsCollection.listIndexes().toArray();
     console.log('📋 Current indexes on patients collection:');
-    indexes.forEach(index => {
+    indexes.forEach((index: any) => {
       console.log(`  - ${index.name}: ${JSON.stringify(index.key)}`);
     });
 

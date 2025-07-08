@@ -50,7 +50,7 @@ export default function Header() {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-60 bg-card border-border shadow-lg rounded-lg mt-2" align="end" forceMount role="menu" aria-label="User account options">
+              <DropdownMenuContent className="w-60 bg-popover border-border shadow-lg rounded-lg mt-2" align="end" forceMount role="menu" aria-label="User account options">
                 <DropdownMenuLabel className="font-normal px-3 py-2">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-semibold leading-none text-foreground">{user.displayName || 'User Name'}</p>
@@ -60,11 +60,11 @@ export default function Header() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-border"/>
-                <DropdownMenuItem onClick={() => router.push('/settings')} className="px-3 py-2 text-sm hover:bg-muted focus:bg-muted cursor-pointer flex items-center text-foreground">
+                <DropdownMenuItem onClick={() => router.push('/settings')} className="px-3 py-2 text-sm cursor-pointer flex items-center">
                   <Settings className="mr-2 h-4 w-4 text-muted-foreground" />
                   <span>Settings</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleSignOut} className="px-3 py-2 text-sm hover:bg-muted focus:bg-muted cursor-pointer flex items-center text-red-500 hover:text-red-600">
+                <DropdownMenuItem onClick={handleSignOut} className="px-3 py-2 text-sm cursor-pointer flex items-center text-red-600 hover:text-red-700">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>

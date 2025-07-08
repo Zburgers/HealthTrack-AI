@@ -53,6 +53,7 @@ import {
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useErrorReporting } from '@/hooks/use-error-reporting';
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
@@ -62,7 +63,7 @@ const fadeInUp = {
 
 const formSchema = z.object({
   patientName: z.string().min(2, { message: 'Patient name must be at least 2 characters.' }).max(100),
-  age: z.coerce.number().int().positive({ message: 'Age must be a positive number.' }).min(0).max(120),
+  age: z.coerce.number().int().min(1, { message: 'Age must be greater than 0.' }).max(120),
   gender: z.enum(['Male', 'Female', 'Other'], { required_error: 'Gender is required.' }),
   visitDate: z.date({ required_error: 'Visit date is required.' }),
   primaryComplaint: z.string().min(5, { message: 'Primary complaint must be at least 5 characters.' }).max(1000),
@@ -112,15 +113,15 @@ const CASE_TYPE_COLORS: Record<typeof CASE_TYPE_OPTIONS[number], string> = {
 export default function NewCaseForm() {
   const { toast } = useToast();
   const router = useRouter();
+  const { reportError } = useErrorReporting();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeAccordionItem, setActiveAccordionItem] = useState<string | undefined>("patient");
-
   const form = useForm<NewCaseFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       patientName: '',
-      age: undefined, 
-      gender: undefined,
+      age: 0, 
+      gender: 'Male',
       visitDate: new Date(),
       primaryComplaint: '',
       previousConditions: '',
@@ -150,10 +151,9 @@ export default function NewCaseForm() {
       classification: false,
       notes: false
     };
-    
-    // Patient section - ALL required fields must be filled
+      // Patient section - ALL required fields must be filled
     if (watchedValues.patientName && 
-        watchedValues.age && 
+        watchedValues.age && watchedValues.age > 0 && 
         watchedValues.gender && 
         watchedValues.visitDate && 
         watchedValues.primaryComplaint?.trim()) {
@@ -233,6 +233,18 @@ export default function NewCaseForm() {
 
     } catch (error) {
       console.error('Submission Error:', error);
+      
+      // Report error to error tracking service
+      reportError(error as Error, {
+        component: 'NewCaseForm',
+        action: 'form_submission',
+        severity: 'high',
+        metadata: {
+          formData: values,
+          timestamp: new Date().toISOString(),
+        },
+      });
+      
       toast({
         title: '❌ Submission Failed',
         description: (error as Error).message || 'An unexpected error occurred.',

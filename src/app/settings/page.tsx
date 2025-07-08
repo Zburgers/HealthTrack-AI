@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
+import DatabaseSettings from '@/components/settings/DatabaseSettings';
 
 const cardAnimationProps = (delay: number = 0) => ({
   initial: { opacity: 0, y: 20 },
@@ -135,8 +136,7 @@ export default function SettingsPage() {
             </Card>
           </motion.div>
           
-          <motion.div {...cardAnimationProps(0.4)}>
-            <Card className="shadow-lg">
+          <motion.div {...cardAnimationProps(0.4)}>            <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle className="font-headline text-xl flex items-center text-primary">
                   <Bell className="mr-2 h-5 w-5" /> Notifications
@@ -148,6 +148,11 @@ export default function SettingsPage() {
                  <Button variant="ghost" className="mt-3 text-primary hover:bg-primary/10" disabled>Configure Notifications</Button>
               </CardContent>
             </Card>
+          </motion.div>
+
+          {/* Database Settings */}
+          <motion.div {...cardAnimationProps(0.4)}>
+            <DatabaseSettings />
           </motion.div>
         </div>
       </div>

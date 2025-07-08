@@ -1319,9 +1319,11 @@ export default function AnalysisPage() {
                               </p>
                             </div>
                           </TooltipTrigger>
-                          <TooltipContent className="fixed left-1/2 top-1/2 z-50 grid max-w-lg w-[90vw] translate-x-[-50%] translate-y-[-50%] gap-6 border bg-background p-8 shadow-2xl rounded-xl">
-                            <p className="font-medium">{riskScoreExplanation}</p>
-                            <p className="mt-2 text-xs text-gray-600">This score is an estimate based on AI analysis and should be interpreted by a medical professional.</p>
+                          <TooltipContent className="max-w-lg w-80 p-4 shadow-xl rounded-xl" side="bottom" sideOffset={8}>
+                            <div className="space-y-2">
+                              <p className="font-medium">{riskScoreExplanation}</p>
+                              <p className="text-xs text-muted-foreground">This score is an estimate based on AI analysis and should be interpreted by a medical professional.</p>
+                            </div>
                           </TooltipContent>
                         </Tooltip>
                       </CardContent>
