@@ -2,12 +2,14 @@
   "project_handoff": {
     "metadata": {
       "created_date": "2025-07-09",
-      "handoff_reason": "Parallel development tracks - MongoDB vs SQLite implementations",
-      "target_branch": "origin/feature/crud-operations",
-      "target_commit": "c5862e3",
-      "commit_message": "feat: commit current codebase state for CRUD operations feature",
-      "last_working_state": "2025-06-24 - Dual-database architecture completion",
-      "agent_context": "MongoDB-focused development continuation"
+      "updated_date": "2025-07-09",
+      "handoff_reason": "Clean MongoDB + Electron handoff - all extraneous files removed",
+      "target_branch": "mongodb-electron-optimized",
+      "target_commit": "e809144",
+      "commit_message": "feat: clean MongoDB + Electron optimized handoff branch",
+      "last_working_state": "2025-07-09 - Clean MongoDB + Electron architecture ready for handoff",
+      "agent_context": "MongoDB + Electron development with cleaned repository",
+      "repository_status": "All build artifacts, debug files, and large binaries removed"
     },
     
     "project_overview": {
@@ -79,16 +81,18 @@
     },
     
     "repository_info": {
-      "git_remote_url": "Ask the handoff person for the exact git remote URL",
-      "target_branch": "origin/feature/crud-operations", 
-      "target_commit": "c5862e3",
-      "new_branch_name": "mongodb-development"
+      "git_remote_url": "https://github.com/Zburgers/HealthTrack-AI.git",
+      "target_branch": "mongodb-electron-optimized", 
+      "target_commit": "e809144",
+      "new_branch_name": "mongodb-development",
+      "repository_status": "CLEANED - All dist/, build artifacts, and large files removed",
+      "size_optimized": "Repository now contains only source code and essential files"
     },
 
     "setup_instructions": {
       "step_1": "Create empty folder for new workspace: mkdir healthtrack-mongodb && cd healthtrack-mongodb",
-      "step_2": "Clone repository: git clone [ASK FOR GIT URL] .",
-      "step_3": "Checkout target branch: git checkout origin/feature/crud-operations",
+      "step_2": "Clone repository: git clone https://github.com/Zburgers/HealthTrack-AI.git .",
+      "step_3": "Checkout target branch: git checkout mongodb-electron-optimized",
       "step_4": "Create new development branch: git checkout -b mongodb-development",
       "step_5": "Install dependencies: npm install",
       "step_6": "Copy environment variables from .env.example or ask for them",
@@ -97,12 +101,12 @@
     },
     
     "what_to_ask_handoff_person": [
-      "Git repository remote URL for cloning",
       "Environment variables (.env file contents)",
       "Any specific team conventions or coding standards",
       "Preferred branch naming or commit message format",
       "Access to MongoDB Atlas cluster (if needed)",
-      "Google Cloud/Vertex AI credentials and project setup"
+      "Google Cloud/Vertex AI credentials and project setup",
+      "NOTE: Git repository URL is now included above - no need to ask"
     ],
 
     "first_verification_steps": [
@@ -190,13 +194,13 @@
 
     "handoff_checklist_for_colleague": {
       "before_starting": [
-        "✅ Ask handoff person for git repository URL",
+        "✅ Repository URL: https://github.com/Zburgers/HealthTrack-AI.git",
         "✅ Get all environment variables (.env file)", 
         "✅ Confirm access to MongoDB Atlas and Google Cloud",
         "✅ Create fresh workspace folder"
       ],
       "setup_verification": [
-        "✅ git clone [URL] . && git checkout origin/feature/crud-operations",
+        "✅ git clone https://github.com/Zburgers/HealthTrack-AI.git . && git checkout mongodb-electron-optimized",
         "✅ git checkout -b mongodb-development", 
         "✅ npm install completes without errors",
         "✅ npm run dev starts Next.js on port 3000",
