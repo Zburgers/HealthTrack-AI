@@ -1,9 +1,0 @@
-{
-  "name": "Test Patient",
-  "dateOfBirth": "1990-01-01", 
-  "gender": "male",
-  "contactInfo": {
-    "phone": "123-456-7890",
-    "email": "test@example.com"
-  }
-}
