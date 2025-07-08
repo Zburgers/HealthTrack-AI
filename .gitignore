@@ -62,12 +62,18 @@ node_modules/
 *.sln
 *.sw?
 # OS specific
-# Task files
-tasks.json
-tasks/ 
-
 .cursor/
 .github/
 .roo/
 .taskmaster/
 scripts/
+
+# Added by Task Master AI
+
+# Task files
+# tasks.json
+# tasks/
+
+# Added by Task Master AI
+tasks.json
+tasks/ 

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Configure the base URL for your API. This might be different in CI/CD environments.
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:9002';
 
 const similarCasesEndpoint = `${API_BASE_URL}/api/similar-cases`;
 
