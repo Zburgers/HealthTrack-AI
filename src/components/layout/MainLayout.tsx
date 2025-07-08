@@ -19,12 +19,16 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Desktop-optimized navigation (remove test-styles in production)
+  const isDesktop = process.env.ELECTRON_ENV === 'true' || typeof window !== 'undefined' && (window as any).electronAPI;
+  const isDev = process.env.NODE_ENV === 'development';
+  
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/new-case', label: 'New Case', icon: FilePlus2 },
     { href: '/analysis', label: 'Analysis', icon: BarChart2 },
     { href: '/settings', label: 'Settings', icon: Settings },
-    { href: '/test-styles', label: 'Test Styles', icon: Palette },
+    ...(isDev || !isDesktop ? [{ href: '/test-styles', label: 'Test Styles', icon: Palette }] : []),
   ];
 
   useEffect(() => {

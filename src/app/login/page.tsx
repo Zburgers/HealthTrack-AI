@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { signInWithPopup, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 // Import the getter functions, not the instances directly
 import { getFirebaseAuth, getGoogleAuthProvider } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, ShieldCheck, Users, Activity, Zap, BarChart3, Brain } from 'lucide-react';
+import { Loader2, Sparkles, ShieldCheck, Users, Activity, Zap, BarChart3, Brain, ArrowLeft, Home } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Enhanced Google Icon
@@ -115,9 +116,44 @@ export default function LoginPage() {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-sky-900 text-white flex flex-col items-center justify-center p-4 overflow-hidden">
+      {/* Back to Home Navigation */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="absolute top-4 left-4 z-20"
+      >
+        <Link href="/">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-slate-300 hover:text-white hover:bg-slate-700/50 transition-all duration-300 group"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+            Back to Home
+          </Button>
+        </Link>
+      </motion.div>
+
+      {/* Alternative floating home button */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.6, delay: 0.2, ease: "backOut" }}
+        className="absolute top-4 right-4 z-20"
+      >
+        <Link href="/">
+          <Button
+            variant="outline"
+            size="icon"
+            className="bg-slate-800/60 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700/80 hover:border-sky-500/50 transition-all duration-300 group backdrop-blur-sm"
+          >
+            <Home className="h-4 w-4 group-hover:scale-110 transition-transform" />
+          </Button>
+        </Link>
+      </motion.div>
       {/* Animated background shapes */}
       <motion.div 
         className="absolute top-0 left-0 w-72 h-72 bg-sky-500/30 rounded-full filter blur-3xl opacity-70 animate-pulse-slow"

@@ -1,8 +1,9 @@
 'use client';
 
 import { AnimatePresence } from 'framer-motion';
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
+  Dialog,
+  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
@@ -11,53 +12,9 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { X, FileJson, FileText, Share2, Copy, LinkIcon, Download, Sparkles, CheckCircle2, Clock, Shield } from 'lucide-react';
+import { FileJson, FileText, LinkIcon, Download, CheckCircle2, Clock, Shield } from 'lucide-react';
 import type { AIAnalysisOutput, Patient, NewCaseFormValues } from '@/types';
-import { cn } from '@/lib/utils';
 import React from 'react';
-
-// Creating our own custom dialog components to avoid conflicts
-const CustomDialog = DialogPrimitive.Root;
-const CustomDialogTrigger = DialogPrimitive.Trigger;
-const CustomDialogClose = DialogPrimitive.Close;
-
-const CustomDialogOverlay = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
->(({ className, ...props }, ref) => (
-  <DialogPrimitive.Overlay
-    ref={ref}
-    className={cn(
-      "fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className
-    )}
-    {...props}
-  />
-));
-CustomDialogOverlay.displayName = "CustomDialogOverlay";
-
-const CustomDialogContent = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <DialogPrimitive.Portal>
-    <CustomDialogOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "fixed left-[50%] top-[50%] z-50 w-full max-w-xl translate-x-[-50%] translate-y-[-50%] rounded-lg border bg-white p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 md:w-full",
-        className
-      )}
-      {...props}
-    >
-      {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
-    </DialogPrimitive.Content>
-  </DialogPrimitive.Portal>
-));
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -161,8 +118,8 @@ export default function ExportModal({ isOpen, onOpenChange, analysisData, patien
   ];  return (
     <AnimatePresence>
       {isOpen && (
-        <CustomDialog open={isOpen} onOpenChange={onOpenChange}>
-          <CustomDialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+          <DialogContent size="lg" className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="relative">
               {/* Enhanced Header with Gradient Background */}
               <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-t-lg -z-10" />
@@ -270,21 +227,20 @@ export default function ExportModal({ isOpen, onOpenChange, analysisData, patien
                 {/* Security & Compliance Notice */}                <div className="flex items-center justify-center gap-2 text-sm text-gray-600 bg-gray-50 p-3 rounded-lg w-full">                  <Shield className="h-4 w-4 text-green-600" />
                   <span>All exports are HIPAA compliant and include comprehensive AI analysis</span>
                 </div>
-                
-                {/* Action Buttons */}
-                <div className="flex justify-between items-center w-full">                  <CustomDialogClose asChild>
+                  {/* Action Buttons */}
+                <div className="flex justify-between items-center w-full">                  <DialogClose asChild>
                     <Button variant="ghost" className="px-6 hover:bg-gray-100">
                       Cancel
                     </Button>
-                  </CustomDialogClose>
+                  </DialogClose>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Clock className="h-4 w-4" />
                     <span>Reports generated in real-time</span>
                   </div>
                 </div>
               </DialogFooter>              </div>
-          </CustomDialogContent>
-        </CustomDialog>
+          </DialogContent>
+        </Dialog>
       )}
     </AnimatePresence>
   );

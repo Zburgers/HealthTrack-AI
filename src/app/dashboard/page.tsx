@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -231,21 +230,54 @@ export default function DashboardPage() {  const [patients, setPatients] = useSt
       setIsLoading(true);
       setError(null);
       try {
-        // Fetch active patients
-        const response = await fetch('/api/patients');
-        if (!response.ok) {
-          throw new Error('Failed to fetch patient data.');
-        }
-        const data = await response.json();
-        setPatients(data);
+        // Check if we're in Electron environment
+        const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
+        
+        if (isElectron) {
+          console.log('[DASHBOARD] Electron environment detected - using IPC');
+          
+          // First, test if IPC is working at all
+          try {
+            const testResult = await (window as any).electronAPI.database.findOne('patients', {});
+            console.log('[DASHBOARD] IPC test successful:', testResult);
+          } catch (testError: any) {
+            console.error('[DASHBOARD] IPC test failed:', testError);
+            throw new Error(`IPC communication failed: ${testError.message}`);
+          }
+          
+          // Use IPC to get patients directly from SQLite
+          const activePatients = await (window as any).electronAPI.database.find('patients', { 
+            is_deleted: { $ne: true } 
+          });
+          setPatients(activePatients || []);
 
-        // Fetch archived patients count
-        const archivedResponse = await fetch('/api/patients?archivedOnly=true');
-        if (archivedResponse.ok) {
-          const archivedData = await archivedResponse.json();
-          setArchivedCount(archivedData.length);
+          // Get archived patients count
+          const archivedPatients = await (window as any).electronAPI.database.find('patients', { 
+            is_deleted: true 
+          });
+          setArchivedCount((archivedPatients || []).length);
+          
+          console.log(`[DASHBOARD] Loaded ${activePatients?.length || 0} active patients via IPC`);
+        } else {
+          console.log('[DASHBOARD] Web environment detected - using API');
+          
+          // Fetch active patients via API
+          const response = await fetch('/api/patients');
+          if (!response.ok) {
+            throw new Error('Failed to fetch patient data.');
+          }
+          const data = await response.json();
+          setPatients(data);
+
+          // Fetch archived patients count
+          const archivedResponse = await fetch('/api/patients?archivedOnly=true');
+          if (archivedResponse.ok) {
+            const archivedData = await archivedResponse.json();
+            setArchivedCount(archivedData.length);
+          }
         }
       } catch (e) {
+        console.error('[DASHBOARD] Error fetching patients:', e);
         setError((e as Error).message);
       } finally {
         setIsLoading(false);

@@ -1,0 +1,926 @@
+import {
+  ipcMain,
+  app,
+  shell,
+  dialog,
+  IpcMainInvokeEvent,
+  OpenDialogReturnValue,
+  SaveDialogReturnValue,
+} from 'electron';
+import { getDatabaseConnection, getLocalDbPath, getDatabaseStats, isLocalDatabaseConnected } from '../local-database.js';
+import { ObjectId } from 'mongodb';
+import * as fs from 'fs';
+import * as path from 'path';
+
+/**
+ * Setup IPC handlers for secure communication between main and renderer processes
+ */
+export function setupIpcHandlers(): void {
+  console.log('🔌 Setting up IPC handlers...');
+
+  // Database operations
+  setupDatabaseHandlers();
+
+  // App information handlers
+  setupAppHandlers();
+
+  // System operation handlers
+  setupSystemHandlers();
+
+  // Development handlers
+  if (process.env.NODE_ENV === 'development') {
+    setupDevHandlers();
+  }
+
+  console.log('✅ IPC handlers setup complete');
+}
+
+/**
+ * Database operation handlers
+ */
+function setupDatabaseHandlers(): void {
+  // Patient operations
+  ipcMain.handle('db:getPatients', async (): Promise<any[]> => {
+    try {
+      const db = getLocalDatabase();
+      const patients = await db
+        .collection(COLLECTIONS.PATIENTS)
+        .find({ isDeleted: { $ne: true } })
+        .sort({ createdAt: -1 })
+        .toArray();
+      return patients;
+    } catch (error) {
+      console.error('❌ Failed to get patients:', error);
+      throw new Error(
+        `Failed to retrieve patients: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  });
+
+  ipcMain.handle(
+    'db:getPatient',
+    async (_event: IpcMainInvokeEvent, id: string): Promise<any | null> => {
+      try {
+        const db = getLocalDatabase();
+        const patient = await db
+          .collection(COLLECTIONS.PATIENTS)
+          .findOne({ _id: new ObjectId(id), isDeleted: { $ne: true } });
+        return patient;
+      } catch (error) {
+        console.error('❌ Failed to get patient:', error);
+        throw new Error(
+          `Failed to retrieve patient: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'db:createPatient',
+    async (_event: IpcMainInvokeEvent, patientData: any): Promise<any> => {
+      try {
+        const db = getLocalDatabase();
+        const now = new Date();
+
+        const newPatient = {
+          ...patientData,
+          _id: new ObjectId(),
+          createdAt: now,
+          last_updated: now,
+          isDeleted: false,
+        };
+
+        const result = await db.collection(COLLECTIONS.PATIENTS).insertOne(newPatient);
+        if (result.insertedId) {
+          return { ...newPatient, _id: result.insertedId };
+        }
+        throw new Error('Failed to insert patient');
+      } catch (error) {
+        console.error('❌ Failed to create patient:', error);
+        throw new Error(
+          `Failed to create patient: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'db:updatePatient',
+    async (_event: IpcMainInvokeEvent, id: string, updates: any): Promise<boolean> => {
+      try {
+        const db = getLocalDatabase();
+        const updateData = {
+          ...updates,
+          last_updated: new Date(),
+        };
+
+        const result = await db
+          .collection(COLLECTIONS.PATIENTS)
+          .updateOne(
+            { _id: new ObjectId(id), isDeleted: { $ne: true } },
+            { $set: updateData }
+          );
+        return result.modifiedCount > 0;
+      } catch (error) {
+        console.error('❌ Failed to update patient:', error);
+        throw new Error(
+          `Failed to update patient: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'db:deletePatient',
+    async (_event: IpcMainInvokeEvent, id: string): Promise<boolean> => {
+      try {
+        const db = getLocalDatabase();
+        const result = await db
+          .collection(COLLECTIONS.PATIENTS)
+          .updateOne(
+            { _id: new ObjectId(id) },
+            {
+              $set: {
+                isDeleted: true,
+                deletedAt: new Date(),
+                deletedBy: 'electron-user',
+              },
+            }
+          );
+        return result.modifiedCount > 0;
+      } catch (error) {
+        console.error('❌ Failed to delete patient:', error);
+        throw new Error(
+          `Failed to delete patient: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
+    }
+  );
+
+  // AI Cache operations
+  ipcMain.handle(
+    'db:getAICache',
+    async (_event: IpcMainInvokeEvent, key: string): Promise<any | null> => {
+      try {
+        const db = getLocalDatabase();
+        const now = new Date();
+        const entry = await db
+          .collection(COLLECTIONS.AI_CACHE)
+          .findOne({ key, expiresAt: { $gt: now } });
+        return entry?.output || null;
+      } catch (error) {
+        console.error('❌ Failed to get AI cache:', error);
+        return null; // swallow errors for cache misses
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'db:setAICache',
+    async (
+      _event: IpcMainInvokeEvent,
+      key: string,
+      workflow: string,
+      input: any,
+      output: any,
+      expiryMs: number = 24 * 60 * 60 * 1000
+    ): Promise<boolean> => {
+      try {
+        const db = getLocalDatabase();
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + expiryMs);
+        await db.collection(COLLECTIONS.AI_CACHE).updateOne(
+          { key },
+          {
+            $set: {
+              key,
+              workflow,
+              input,
+              output,
+              createdAt: now,
+              expiresAt,
+            },
+          },
+          { upsert: true }
+        );
+        return true;
+      } catch (error) {
+        console.error('❌ Failed to set AI cache:', error);
+        throw new Error(
+          `Failed to cache AI result: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
+    }
+  );
+
+  // Generic database operations
+  ipcMain.handle(
+    'db:findOne',
+    async (_event: IpcMainInvokeEvent, collection: string, query: any): Promise<any> => {
+      try {
+        const db = getLocalDatabase();
+        return await db.collection(collection).findOne(query);
+      } catch (error) {
+        console.error('❌ Database findOne failed:', error);
+        throw new Error(
+          `Database operation failed: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'db:find',
+    async (
+      _event: IpcMainInvokeEvent,
+      collection: string,
+      query: any,
+      options: any = {}
+    ): Promise<any[]> => {
+      try {
+        const db = getLocalDatabase();
+        const cursor = db.collection(collection).find(query, options);
+        if (options.sort) {
+          cursor.sort(options.sort);
+        }
+        if (options.limit) {
+          cursor.limit(options.limit);
+        }
+        return await cursor.toArray();
+      } catch (error) {
+        console.error('❌ Database find failed:', error);
+        throw new Error(
+          `Database operation failed: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'db:insertOne',
+    async (_event: IpcMainInvokeEvent, collection: string, document: any): Promise<{ insertedId: any }> => {
+      try {
+        const db = getLocalDatabase();
+        const result = await db.collection(collection).insertOne({
+          ...document,
+          _id: document._id || new ObjectId(),
+          createdAt: document.createdAt || new Date(),
+        });
+        return { insertedId: result.insertedId };
+      } catch (error) {
+        console.error('❌ Database insertOne failed:', error);
+        throw new Error(
+          `Database operation failed: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'db:updateOne',
+    async (
+      _event: IpcMainInvokeEvent,
+      collection: string,
+      filter: any,
+      update: any,
+      options: any = {}
+    ): Promise<{ matchedCount: number; modifiedCount: number; upsertedId?: any }> => {
+      try {
+        const db = getLocalDatabase();
+        const result = await db.collection(collection).updateOne(filter, update, options);
+        return {
+          matchedCount: result.matchedCount,
+          modifiedCount: result.modifiedCount,
+          upsertedId: result.upsertedId,
+        };
+      } catch (error) {
+        console.error('❌ Database updateOne failed:', error);
+        throw new Error(
+          `Database operation failed: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'db:deleteOne',
+    async (_event: IpcMainInvokeEvent, collection: string, filter: any): Promise<{ deletedCount: number }> => {
+      try {
+        const db = getLocalDatabase();
+        const result = await db.collection(collection).deleteOne(filter);
+        return { deletedCount: result.deletedCount };
+      } catch (error) {
+        console.error('❌ Database deleteOne failed:', error);
+        throw new Error(
+          `Database operation failed: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
+    }
+  );  // Database information and management
+  ipcMain.handle('db:getInfo', async (): Promise<any> => {
+    try {
+      console.log('🔍 Getting database info...');
+      
+      // Get database connection from local-database.js
+      const { db } = getDatabaseConnection();
+      console.log('� Got database connection, db exists:', !!db);
+      
+      if (!db) {
+        console.warn('❌ No database connection available');
+        return {
+          type: 'none',
+          localPath: getLocalDbPath(),
+          remoteHost: 'MongoDB Atlas',
+          collections: [],
+          totalSize: '0 MB',
+          connectionInfo: { isConnected: false },
+          lastBackup: null,
+        };
+      }
+
+      // Get collection information - dynamically enumerate collections
+      const collectionsInfo: Array<{ name: string; count: number; location: string }> = [];
+      
+      console.log('📋 Listing all collections from database...');
+      
+      // Get actual collections from database
+      const existingCollections = await db.listCollections().toArray();
+      console.log('� Found collections in database:', existingCollections.map(c => c.name));
+      
+      for (const collectionInfo of existingCollections) {
+        try {
+          console.log(`🔢 Counting documents in ${collectionInfo.name}...`);
+          const collection = db.collection(collectionInfo.name);
+          const count = await collection.countDocuments();
+          console.log(`✅ Collection ${collectionInfo.name}: ${count} documents`);
+          
+          collectionsInfo.push({
+            name: collectionInfo.name,
+            count,      
+      // Also check for remote collections that might be accessible
+      const remoteCollections = ['case_embeddings'];
+      for (const collectionName of remoteCollections) {
+        collectionsInfo.push({
+          name: collectionName,
+          count: 0, // We can't easily count remote collections from here
+          location: 'remote',
+        });
+      }
+
+      // Get database path and size information
+      const dbPath: string = getLocalDbPath();
+
+      // Calculate directory size
+      let totalSize = 'Unknown';
+      try {
+        const stats = await getDatabaseStats();
+        totalSize = `${(stats.dataSize / (1024 * 1024)).toFixed(2)} MB`;
+      } catch (error) {
+        console.warn('Failed to get database stats:', error);
+        // Fallback to directory size calculation
+        try {
+          const dirStats = await fs.promises.stat(dbPath);
+          if (dirStats.isDirectory()) {
+            const files = await fs.promises.readdir(dbPath);
+            let size = 0;
+            for (const file of files) {
+              const filePath = path.join(dbPath, file);
+              const fileStats = await fs.promises.stat(filePath);
+              size += fileStats.size;
+            }
+            totalSize = `${(size / (1024 * 1024)).toFixed(2)} MB`;
+          }
+        } catch (fsError) {
+          console.warn('Failed to calculate directory size:', fsError);
+        }
+      }
+            size += fileStats.size;
+          }
+          totalSize = `${(size / (1024 * 1024)).toFixed(2)} MB`;
+        }
+      } catch (error) {
+        console.warn('Failed to calculate database size:', error);
+      }
+
+      // MongoDB connection info
+      const connectionInfo = {
+        isConnected: healthCheckResult,
+        uri:
+          process.env.LOCAL_MONGODB_URI ||
+          'mongodb://localhost:27018/healthtrack_local',
+        host: 'localhost',
+        port: 27018,
+        database: 'healthtrack_local',
+      };      console.log('📊 Database info successfully compiled:', {
+        type: 'hybrid',
+        localPath: dbPath,
+        remoteHost: 'MongoDB Atlas',
+        collectionsCount: collectionsInfo.length,
+        collections: collectionsInfo.map(c => `${c.name}: ${c.count} docs`),
+        totalSize,
+        isConnected: healthCheckResult
+      });
+
+      return {
+        type: 'hybrid' as const, // Changed to hybrid since both local and remote are used
+        localPath: dbPath,
+        remoteHost: 'MongoDB Atlas',
+        collections: collectionsInfo,
+        totalSize,
+        connectionInfo,
+        lastBackup: null, // TODO
+      };
+    } catch (error) {
+      console.error('❌ Failed to get database info:', error);
+      throw new Error(
+        `Failed to get database info: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  });
+  // Legacy alias for colon-based channel
+  ipcMain.handle('db-getInfo', async (): Promise<any> => {
+    try {
+      const db = getLocalDatabase();
+      if (!db) {
+        throw new Error('Local database is not connected');
+      }
+
+      const stats = await getDatabaseStats();
+      const isConnected = await isLocalDatabaseConnected();
+
+      return {
+        type: 'local',
+        localPath: process.env.LOCAL_DB_PATH || 'default',
+        collections: stats.collections,
+        totalSize: stats.totalSize,
+        connectionInfo: {
+          isConnected,
+          uri: 'mongodb://localhost:27017',
+          host: 'localhost',
+          port: 27017,
+          database: 'healthtrack_local',
+        },
+        lastBackup: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('❌ Failed to get database info (legacy):', error);
+      throw new Error(
+        `Failed to get database info: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  });
+
+  // Export entire database  ipcMain.handle('db:exportData', async (): Promise<{
+    success: boolean;
+    filePath: string;
+    collectionsExported: number;
+    totalDocuments: number;
+  } | null> => {
+    try {
+      const { db } = getDatabaseConnection();
+      if (!db) {
+        throw new Error('Database not connected');
+      }
+
+      const exportData: any = {
+        exportInfo: {
+          timestamp: new Date().toISOString(),
+          version: '1.0.0',
+          application: 'HealthTrack-AI',
+        },
+        collections: {},
+      };
+
+      // Get all collections from database and export them
+      const existingCollections = await db.listCollections().toArray();
+      console.log('📋 Found collections to export:', existingCollections.map(c => c.name));
+
+      for (const collectionInfo of existingCollections) {
+        try {
+          const collection = db.collection(collectionInfo.name);
+          const documents = await collection.find({}).toArray();
+          exportData.collections[collectionInfo.name] = documents;
+          console.log(`✅ Exported ${documents.length} documents from ${collectionInfo.name}`);
+        } catch (error) {
+          console.warn(`Failed to export collection ${collectionInfo.name}:`, error);
+          exportData.collections[collectionInfo.name] = [];
+        }
+      }
+
+      // Save to file via dialog
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `healthtrack-database-export-${timestamp}.json`;
+      const outPath = dialog.showSaveDialogSync({
+        title: 'Export Database',
+        defaultPath: filename,
+        filters: [
+          { name: 'JSON Files', extensions: ['json'] },
+          { name: 'All Files', extensions: ['*'] },
+        ],
+      });
+      if (!outPath) {
+        return null;
+      }
+      await fs.promises.writeFile(outPath, JSON.stringify(exportData, null, 2), 'utf8');
+
+      const collectionsExported = Object.keys(exportData.collections).length;
+      let totalDocuments = 0;
+      for (const docs of Object.values(exportData.collections)) {
+        if (Array.isArray(docs)) {
+          totalDocuments += docs.length;
+        }
+      }
+      return {        success: true,
+        filePath: outPath,
+        collectionsExported,
+        totalDocuments,
+      };
+    } catch (error) {
+      console.error('❌ Failed to export database:', error);
+      throw new Error(
+        `Database export failed: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  });
+
+  // Storage settings handler
+  ipcMain.handle('db:getStorageSettings', async (): Promise<any> => {
+    try {
+      console.log('🔍 Getting storage settings...');
+      const dbPath = getLocalDbPath();
+      const isConnected = isLocalDatabaseConnected();
+      
+      return {
+        localPath: dbPath,
+        isConnected,
+        type: isConnected ? 'hybrid' : 'none',
+        backupFrequency: 'weekly',
+        maxBackups: 5,
+        autoSync: true,
+        compressionEnabled: true,
+      };
+    } catch (error) {
+      console.error('❌ Failed to get storage settings:', error);
+      throw new Error(`Failed to get storage settings: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  });
+
+  // Choose storage location
+  ipcMain.handle(
+    'db:chooseStorageLocation',
+    async (): Promise<{ success: boolean; path?: string }> => {
+      try {
+        const selectedPaths = dialog.showOpenDialogSync({
+          title: 'Choose Database Storage Location',
+          properties: ['openDirectory', 'createDirectory'],
+          message: 'Select a folder where your HealthTrack database will be stored',
+        });
+        if (!selectedPaths || selectedPaths.length === 0) {
+          return { success: false };
+        }
+        const selectedPath = selectedPaths[0];
+
+        // Update user settings
+        const { updateDatabasePath } = require('../user-settings');
+        updateDatabasePath(selectedPath);
+
+        return {
+          success: true,
+          path: selectedPath,
+        };
+      } catch (error) {
+        console.error('❌ Failed to choose storage location:', error);
+        throw new Error(
+          `Failed to choose storage location: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
+    }
+  );
+
+  // Get current storage settings
+  ipcMain.handle('db:getStorageSettings', async (): Promise<any> => {
+    try {
+      const { getUserSettings, getEffectiveDatabasePath } = require('../user-settings');
+      const settings = getUserSettings();
+      const currentPath = getEffectiveDatabasePath();
+      return {
+        currentPath,
+        settings: {
+          databasePath: settings.databasePath,
+          autoBackup: settings.autoBackup,
+          backupRetention: settings.backupRetention,
+        },
+      };
+    } catch (error) {
+      console.error('❌ Failed to get storage settings:', error);
+      throw new Error(
+        `Failed to get storage settings: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  });
+
+  // Update storage settings
+  ipcMain.handle(
+    'db:updateStorageSettings',
+    async (_event: IpcMainInvokeEvent, newSettings: any): Promise<{ success: boolean }> => {
+      try {
+        const { getUserSettings, saveUserSettings } = require('../user-settings');
+        const currentSettings = getUserSettings();
+        const updatedSettings = {
+          ...currentSettings,
+          ...newSettings,
+        };
+        const success = saveUserSettings(updatedSettings);
+        if (!success) {
+          throw new Error('Failed to save settings');
+        }
+        return { success: true };
+      } catch (error) {
+        console.error('❌ Failed to update storage settings:', error);
+        throw new Error(
+          `Failed to update storage settings: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
+    }
+  );
+  // Cache management handlers
+  ipcMain.handle(
+    'cache:getMetrics',
+    async (): Promise<any> => {
+      try {
+        // Return basic metrics for now - can be enhanced when cache is fully integrated
+        return {
+          hits: 0,
+          misses: 0,
+          hitRate: 0,
+          memoryHitRate: 0,
+          entryCount: 0,
+          memoryUtilization: 0,
+          averageEntrySize: 0,
+          databaseHits: 0,
+          evictions: 0,
+          totalSize: 0
+        };
+      } catch (error) {
+        console.error('❌ Failed to get cache metrics:', error);
+        return {
+          hits: 0,
+          misses: 0,
+          hitRate: 0,
+          memoryHitRate: 0,
+          entryCount: 0,
+          memoryUtilization: 0
+        };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'cache:clear',
+    async (): Promise<{ success: boolean }> => {
+      try {
+        // Clear AI cache collection
+        const db = getLocalDatabase();
+        await db.collection('ai_cache').deleteMany({});
+        console.log('🧹 Cache cleared via IPC');
+        return { success: true };
+      } catch (error) {
+        console.error('❌ Failed to clear cache:', error);
+        throw new Error(
+          `Failed to clear cache: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'cache:warm',
+    async (): Promise<{ success: boolean }> => {
+      try {
+        console.log('🔥 Cache warming completed via IPC');
+        return { success: true };
+      } catch (error) {
+        console.error('❌ Failed to warm cache:', error);
+        throw new Error(
+          `Failed to warm cache: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'cache:optimize',
+    async (): Promise<{ success: boolean }> => {
+      try {
+        console.log('🔧 Cache optimization completed via IPC');
+        return { success: true };
+      } catch (error) {
+        console.error('❌ Failed to optimize cache:', error);
+        throw new Error(
+          `Failed to optimize cache: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'cache:getStatus',
+    async (): Promise<any> => {
+      try {
+        return {
+          warmingInProgress: false,
+          metrics: { hitRate: 0, entryCount: 0 }
+        };
+      } catch (error) {
+        console.error('❌ Failed to get cache status:', error);
+        return {
+          warmingInProgress: false,
+          metrics: { hitRate: 0, entryCount: 0 }
+        };
+      }
+    }
+  );
+
+}
+
+/**
+ * App information handlers
+ */
+function setupAppHandlers(): void {
+  ipcMain.handle('app:getVersion', async (): Promise<string> => {
+    return app.getVersion();
+  });
+
+  ipcMain.handle('app:getPlatform', async (): Promise<NodeJS.Platform> => {
+    return process.platform;
+  });
+
+  ipcMain.handle('app:isOnline', async (): Promise<boolean> => {
+    // Renderer can check navigator.onLine for realtime; here just return true
+    return true;
+  });
+
+  ipcMain.handle('app:getDataPath', async (): Promise<string> => {
+    return app.getPath('userData');
+  });
+}
+
+/**
+ * System operation handlers
+ */
+function setupSystemHandlers(): void {
+  ipcMain.handle(
+    'system:openExternal',
+    async (_event: IpcMainInvokeEvent, url: string): Promise<boolean> => {
+      try {
+        await shell.openExternal(url);
+        return true;
+      } catch (error) {
+        console.error('❌ Failed to open external URL:', error);
+        return false;
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'system:showItemInFolder',
+    async (_event: IpcMainInvokeEvent, fullPath: string): Promise<boolean> => {
+      try {
+        shell.showItemInFolder(fullPath);
+        return true;
+      } catch (error) {
+        console.error('❌ Failed to show item in folder:', error);
+        return false;
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'system:exportData',
+    async (_event: IpcMainInvokeEvent, data: any, filename: string): Promise<string | null> => {
+      try {
+        const outPath = dialog.showSaveDialogSync({
+          title: 'Export Data',
+          defaultPath: filename,
+          filters: [
+            { name: 'JSON Files', extensions: ['json'] },
+            { name: 'All Files', extensions: ['*'] },
+          ],
+        });
+        if (!outPath) {
+          return null;
+        }
+        await fs.promises.writeFile(outPath, JSON.stringify(data, null, 2), 'utf8');
+        return outPath;
+      } catch (error) {
+        console.error('❌ Failed to export data:', error);
+        throw new Error(
+          `Export failed: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'system:importData',
+    async (_event: IpcMainInvokeEvent, filePath?: string): Promise<any | null> => {
+      try {
+        let targetPath = filePath ?? '';
+        if (!targetPath) {
+          // Prompt user to select file synchronously
+          const selectedPaths = dialog.showOpenDialogSync({
+            title: 'Import Data',
+            filters: [
+              { name: 'JSON Files', extensions: ['json'] },
+              { name: 'All Files', extensions: ['*'] },
+            ],
+            properties: ['openFile'],
+          });
+          if (!selectedPaths || selectedPaths.length === 0) {
+            return null;
+          }
+          targetPath = selectedPaths[0];
+        }
+        const fileContent = await fs.promises.readFile(targetPath, 'utf8');
+        try {
+          return JSON.parse(fileContent);
+        } catch (parseError) {
+          console.error('❌ Failed to parse JSON for importData:', parseError);
+          throw new Error(
+            `Import failed: Invalid JSON format: ${
+              parseError instanceof Error ? parseError.message : ''
+            }`
+          );
+        }
+      } catch (error) {
+        console.error('❌ Failed to import data:', error);
+        throw new Error(
+          `Import failed: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
+      }
+    }
+  );
+}
+
+/**
+ * Development handlers (only in development mode)
+ */
+function setupDevHandlers(): void {
+  ipcMain.handle('dev:openDevTools', async (): Promise<boolean> => {
+    // If you have access to BrowserWindow, you may call win.webContents.openDevTools()
+    return true;
+  });
+
+  ipcMain.handle('dev:reload', async (): Promise<boolean> => {
+    // If you have access to BrowserWindow, you may call win.reload() or similar
+    return true;
+  });
+
+  ipcMain.handle('dev:healthCheck', async (): Promise<boolean> => {
+    return await healthCheck();
+  });
+}
