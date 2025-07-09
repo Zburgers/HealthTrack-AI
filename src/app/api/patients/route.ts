@@ -16,7 +16,18 @@ export async function GET(request: Request) {
     const includeArchived = searchParams.get('includeArchived') === 'true';
     const archivedOnly = searchParams.get('archivedOnly') === 'true';
     
-    const db = await getDb('patients');
+    let db;
+    try {
+      db = await getDb('patients');
+    } catch (dbError) {
+      console.error('❌ Database connection failed:', dbError);
+      return NextResponse.json({ 
+        error: 'Database connection failed', 
+        details: 'Please check your MongoDB configuration in the database settings.',
+        dbError: dbError instanceof Error ? dbError.message : 'Unknown database error'
+      }, { status: 503 });
+    }
+    
     const patientsCollection = db.collection('patients');
     
     let queryFilter: any = {};

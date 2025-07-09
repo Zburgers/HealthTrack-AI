@@ -1,31 +1,64 @@
 /**
  * MongoDB Connection Module - Universal Database Framework
  * 
- * This module provides seamless access to both local and remote databases
- * without requiring changes to existing API routes. It automatically detects
- * the environment and routes database operations accordingly.
+ * This module provides seamless access to MongoDB Atlas database.
  */
 
-import { UniversalMongoClient, initializeDatabaseFramework } from './mongodb/framework';
+import { MongoClient, Db, ServerApiVersion } from 'mongodb';
+import { MONGODB_URI } from '@/config';
 
-// Global client instance for backward compatibility
-let universalClient: UniversalMongoClient | null = null;
+// Global client instance
+let mongoClient: MongoClient | null = null;
+let mongoDb: Db | null = null;
 
 /**
  * Main connection function that works in all environments
- * Automatically connects to local database in Electron, remote in web
+ * Returns a MongoDB client with proper collection() method
  */
 export async function connectToDatabase() {
-  if (universalClient) {
-    return universalClient;
+  if (mongoClient && mongoDb) {
+    return mongoClient;
   }
 
   try {
-    universalClient = await initializeDatabaseFramework();
-    console.log("✅ Successfully connected to database (universal framework)");
-    return universalClient;
+    if (!MONGODB_URI) {
+      throw new Error('MONGODB_URI environment variable is not configured. Please set up your MongoDB connection string.');
+    }
+
+    console.log("🔗 Connecting to MongoDB Atlas...");
+    
+    mongoClient = new MongoClient(MONGODB_URI, {
+      serverApi: {
+        version: ServerApiVersion.v1,
+        strict: false, // Allow $vectorSearch
+        deprecationErrors: true,
+      },
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+    });
+
+    await mongoClient.connect();
+    mongoDb = mongoClient.db('healthtrack');
+    
+    // Test the connection
+    await mongoDb.admin().ping();
+    
+    console.log("✅ Successfully connected to MongoDB Atlas");
+    return mongoClient;
   } catch (error) {
-    console.error("❌ Failed to connect to database:", error);
+    console.error("❌ Failed to connect to MongoDB Atlas:", error);
+    
+    // Clean up failed connection
+    if (mongoClient) {
+      try {
+        await mongoClient.close();
+      } catch (closeError) {
+        console.error("Failed to close failed MongoDB connection:", closeError);
+      }
+      mongoClient = null;
+      mongoDb = null;
+    }
+    
     throw error;
   }
 }
@@ -36,18 +69,29 @@ export async function connectToDatabase() {
 export async function verifyDatabaseConnection() {
   try {
     await connectToDatabase();
-    console.log("✅ Database connection verified successfully via universal framework");
+    console.log("✅ Database connection verified successfully");
   } catch (error) {
     console.error("❌ Database connection verification failed:", error);
     throw error;
   }
 }
 
+/**
+ * Close MongoDB connection
+ */
+export async function closeDatabaseConnection() {
+  if (mongoClient) {
+    try {
+      await mongoClient.close();
+      console.log("✅ MongoDB connection closed");
+    } catch (error) {
+      console.error("❌ Failed to close MongoDB connection:", error);
+    } finally {
+      mongoClient = null;
+      mongoDb = null;
+    }
+  }
+}
+
 // Re-export all the existing exports from the mongodb/index.ts file
 export * from './mongodb/index';
-
-// Re-export framework components for advanced usage
-export { 
-  UniversalMongoClient, 
-  initializeDatabaseFramework 
-} from './mongodb/framework';

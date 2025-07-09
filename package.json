@@ -19,7 +19,8 @@
   },
   "scripts": {
     "dev": "next dev --turbopack -p 9002",
-    "dev:electron": "cross-env ELECTRON_ENV=true next dev --turbopack -p 9002",
+    "dev:electron": "concurrently --names \"NEXT,ELECTRON\" --prefix-colors \"cyan,magenta\" --prefix \"[{name}]\" \"npm run dev:electron:next\" \"wait-on --interval 1000 --timeout 120000 --httpTimeout 5000 http://localhost:9002/api/health && ./scripts/electron-launcher.sh\"",
+    "dev:electron:next": "cross-env ELECTRON_ENV=true next dev --turbopack -p 9002",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
@@ -30,7 +31,7 @@
     "typecheck": "tsc --noEmit",
     "test": "start-server-and-test dev http://localhost:9002 test-only",
     "test-only": "jest",
-    "electron:dev": "concurrently --names \"NEXT,ELECTRON\" --prefix-colors \"cyan,magenta\" --prefix \"[{name}]\" \"npm run dev:electron\" \"wait-on --interval 1000 --timeout 120000 --httpTimeout 5000 http://localhost:9002/api/health && ./scripts/electron-launcher.sh\"",
+    "electron:dev": "npm run dev:electron",
     "electron:dev-only": "./scripts/electron-launcher.sh",
     "electron:pack": "electron-builder",
     "electron:build": "npm run prebuild:desktop && cross-env ELECTRON_ENV=true next build && electron-builder",
@@ -119,7 +120,7 @@
     "typescript": "^5.8.3",
     "wait-on": "^8.0.3"
   },
-  "main": "electron/main.js",
+  "main": "electron/dist/main.js",
   "build": {
     "appId": "com.healthtrack.ai",
     "productName": "HealthTrack AI",

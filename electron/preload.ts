@@ -35,6 +35,15 @@ export interface ElectronAPI {  // Database operations
     getStorageSettings: () => Promise<any>;
     updateStorageSettings: (settings: any) => Promise<any>;
     healthCheck: () => Promise<any>;
+    
+    // MongoDB URI management
+    getUserMongoUri: () => Promise<string | null>;
+    setUserMongoUri: (uri: string) => Promise<{ success: boolean; error?: string }>;
+    validateMongoUri: (uri: string) => Promise<{ valid: boolean; error?: string }>;
+    
+    // MongoDB health checks
+    healthCheckDefault: () => Promise<{ connected: boolean; error?: string; uri?: string }>;
+    healthCheckUser: () => Promise<{ connected: boolean; error?: string; uri?: string }>;
   };
   
   // Cache management operations
@@ -92,6 +101,15 @@ const electronAPI: ElectronAPI = {  database: {
     getStorageSettings: () => ipcRenderer.invoke('db-getStorageSettings'),
     updateStorageSettings: (settings: any) => ipcRenderer.invoke('db-updateStorageSettings', settings),
     healthCheck: () => ipcRenderer.invoke('db-healthCheck'),
+    
+    // MongoDB URI management
+    getUserMongoUri: () => ipcRenderer.invoke('db-getUserMongoUri'),
+    setUserMongoUri: (uri: string) => ipcRenderer.invoke('db-setUserMongoUri', uri),
+    validateMongoUri: (uri: string) => ipcRenderer.invoke('db-validateMongoUri', uri),
+    
+    // MongoDB health checks
+    healthCheckDefault: () => ipcRenderer.invoke('db-healthCheckDefault'),
+    healthCheckUser: () => ipcRenderer.invoke('db-healthCheckUser'),
   },
   
   cache: {

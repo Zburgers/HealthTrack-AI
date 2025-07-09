@@ -1,21 +1,32 @@
 /**
  * MongoDB Framework - Universal Database Access Layer
  * 
- * This framework provides seamless access to both local and remote databases
+ * This framework provides seamless access to both default and user-configured databases
  * without requiring changes to existing API routes or database operations.
+ * 
+ * Architecture:
+ * - Default MongoDB (env URI): case_embeddings collection only
+ * - User MongoDB (configurable URI): all other collections (patients, ai_cache, notes, etc.)
  */
 
-import { MongoClient, Db, ServerApiVersion } from 'mongodb';
-import { MONGODB_URI } from '@/config';
+import { MongoClient, Db, ServerApiVersion, Collection } from 'mongodb';
+
+// Environment variables
+const MONGODB_URI = process.env.MONGODB_URI;
+const DEFAULT_DB_NAME = 'healthtrack';
 
 // Global connection instances
-let localClient: MongoClient | null = null;
-let remoteClient: MongoClient | null = null;
-let localDb: Db | null = null;
-let remoteDb: Db | null = null;
+let defaultClient: MongoClient | null = null; // For case_embeddings (env URI)
+let userClient: MongoClient | null = null;    // For user data (configurable URI)
+let defaultDb: Db | null = null;
+let userDb: Db | null = null;
 
-// Collection routing configuration
-const LOCAL_COLLECTIONS = new Set([
+// User-configured URI (managed by Electron IPC)
+let userMongoUri: string | null = null;
+
+// Collection routing: which collections use which database
+const EMBEDDINGS_COLLECTIONS = new Set(['case_embeddings']);
+const USER_DATA_COLLECTIONS = new Set([
   'patients',
   'ai_cache', 
   'notes',
@@ -23,13 +34,6 @@ const LOCAL_COLLECTIONS = new Set([
   'db_metadata'
 ]);
 
-const REMOTE_COLLECTIONS = new Set([
-  'case_embeddings'
-]);
-
-/**
- * Detect if running in Electron environment
- */
 /**
  * Environment detection - Consistent with main db router
  */
@@ -60,29 +64,21 @@ function isElectronRenderer(): boolean {
 }
 
 /**
- * Initialize local database connection (DISABLED - Using SQLite instead)
+ * Initialize default MongoDB connection (for case_embeddings - always uses env URI)
  */
-async function initializeLocalDatabase(): Promise<void> {
-  // LOCAL MONGODB DISABLED - We've migrated to SQLite for local storage
-  // This function is kept for compatibility but does nothing
-  console.log('🔄 [LOCAL_DB] Local MongoDB disabled - using SQLite instead');
-  return;
-}
-
-/**
- * Initialize remote database connection
- */
-async function initializeRemoteDatabase(): Promise<void> {
-  if (remoteClient && remoteDb) {
+async function initializeDefaultMongoDBConnection(): Promise<void> {
+  if (defaultClient && defaultDb) {
     return; // Already connected
   }
 
   try {
     if (!MONGODB_URI) {
-      throw new Error('MONGODB_URI not configured');
+      throw new Error('MONGODB_URI environment variable not configured');
     }
 
-    remoteClient = new MongoClient(MONGODB_URI, {
+    console.log('🔗 [MONGODB_FRAMEWORK] Connecting to default MongoDB (embeddings)...');
+
+    defaultClient = new MongoClient(MONGODB_URI, {
       serverApi: {
         version: ServerApiVersion.v1,
         strict: false, // Allow $vectorSearch
@@ -92,67 +88,160 @@ async function initializeRemoteDatabase(): Promise<void> {
       serverSelectionTimeoutMS: 5000,
     });
 
-    await remoteClient.connect();
-    remoteDb = remoteClient.db('healthtrack');
+    await defaultClient.connect();
+    defaultDb = defaultClient.db(DEFAULT_DB_NAME);
     
-    console.log('✅ Connected to remote MongoDB Atlas');
+    console.log('✅ [MONGODB_FRAMEWORK] Connected to default MongoDB (embeddings)');
   } catch (error) {
-    console.error('❌ Failed to connect to remote MongoDB:', error);
+    console.error('❌ [MONGODB_FRAMEWORK] Failed to connect to default MongoDB:', error);
     throw error;
   }
 }
 
 /**
- * Determine which database to use for a collection
+ * Initialize user MongoDB connection (for user data - uses configurable URI)
  */
-function getTargetDatabase(collectionName: string): 'local' | 'remote' {
-  if (LOCAL_COLLECTIONS.has(collectionName)) {
-    return isElectronEnvironment() ? 'local' : 'remote';
+async function initializeUserMongoDBConnection(): Promise<void> {
+  try {
+    // Use user URI if configured, otherwise fall back to env URI
+    const connectionUri = userMongoUri || MONGODB_URI;
+    
+    if (!connectionUri) {
+      throw new Error('No MongoDB URI available for user data');
+    }
+
+    console.log('🔗 [MONGODB_FRAMEWORK] Connecting to user MongoDB...');
+
+    // Close existing connection if any
+    if (userClient) {
+      await userClient.close();
+    }
+    
+    userClient = new MongoClient(connectionUri, {
+      serverApi: {
+        version: ServerApiVersion.v1,
+        strict: false,
+        deprecationErrors: true,
+      },
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+    });
+
+    await userClient.connect();
+    userDb = userClient.db(DEFAULT_DB_NAME);
+    
+    console.log('✅ [MONGODB_FRAMEWORK] Connected to user MongoDB');
+  } catch (error) {
+    console.error('❌ [MONGODB_FRAMEWORK] Failed to connect to user MongoDB:', error);
+    throw error;
   }
-  
-  if (REMOTE_COLLECTIONS.has(collectionName)) {
-    return 'remote';
-  }
-  
-  // Default to remote for unknown collections
-  return 'remote';
 }
 
 /**
- * Get database instance for a collection
+ * Set user MongoDB URI (called from Electron IPC)
  */
-async function getDatabaseForCollection(collectionName: string, requestedDbName: string = 'healthtrack'): Promise<Db> {
-  const target = getTargetDatabase(collectionName);
+export function setUserMongoUri(uri: string): void {
+  userMongoUri = uri;
+}
+
+/**
+ * Get current user MongoDB URI
+ */
+export function getUserMongoUri(): string | null {
+  return userMongoUri;
+}
+
+/**
+ * Get database instance for a collection based on routing rules
+ */
+async function getDatabaseForCollection(collectionName: string, requestedDbName?: string): Promise<Db> {
+  console.log(`🔍 [MONGODB_FRAMEWORK] Getting database for collection "${collectionName}"`);
   
-  console.log(`🔍 Database routing for collection "${collectionName}": ${target} (Electron: ${isElectronEnvironment()}, Requested DB: ${requestedDbName})`);
-  
-  if (target === 'local') {
-    // LOCAL COLLECTIONS IN ELECTRON: These should use SQLite via IPC, not MongoDB
-    if (isElectronEnvironment()) {
-      console.error(`🚫 LOCAL COLLECTION ACCESS ERROR: Collection "${collectionName}" should use SQLite via IPC, not MongoDB framework`);
-      console.error(`💡 SOLUTION: Use the database adapter from @/lib/db instead of MongoDB framework for local collections in Electron`);
-      throw new Error(`Local collection "${collectionName}" requires SQLite access via IPC in Electron environment. Use @/lib/db adapter instead.`);
+  if (EMBEDDINGS_COLLECTIONS.has(collectionName)) {
+    // Use default database for embeddings
+    if (!defaultDb) {
+      await initializeDefaultMongoDBConnection();
+    }
+    if (!defaultDb) {
+      throw new Error('Default MongoDB database not available');
+    }
+    console.log(`☁️ [MONGODB_FRAMEWORK] Using default MongoDB for: ${collectionName}`);
+    return defaultDb;
+  } else {
+    // Use user database for all other collections
+    if (!userDb) {
+      await initializeUserMongoDBConnection();
+    }
+    if (!userDb) {
+      throw new Error('User MongoDB database not available');
+    }
+    console.log(`👤 [MONGODB_FRAMEWORK] Using user MongoDB for: ${collectionName}`);
+    return userDb;
+  }
+}
+
+/**
+ * Health check for default MongoDB (embeddings database)
+ */
+export async function checkDefaultDatabaseHealth(): Promise<{ connected: boolean; error?: string }> {
+  try {
+    if (!defaultClient || !defaultDb) {
+      await initializeDefaultMongoDBConnection();
     }
     
-    // In web environment, fall back to remote for local collections
-    console.log(`🌐 Web environment: Using remote database for collection "${collectionName}"`);
-    if (!remoteDb) {
-      await initializeRemoteDatabase();
-    }
-    if (!remoteDb) {
-      throw new Error('Remote database not available');
-    }
-    return remoteDb;
-  } else {
-    if (!remoteDb) {
-      await initializeRemoteDatabase();
-    }
-    if (!remoteDb) {
-      throw new Error('Remote database not available');
-    }
-    console.log(`☁️ Using REMOTE database: ${requestedDbName}`);
-    return remoteDb; // This uses the default 'healthtrack' name for remote
+    await defaultDb!.admin().ping();
+    return { connected: true };
+  } catch (error) {
+    console.error('❌ [MONGODB_FRAMEWORK] Default database health check failed:', error);
+    return { 
+      connected: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
   }
+}
+
+/**
+ * Health check for user MongoDB (user data database)
+ */
+export async function checkUserDatabaseHealth(): Promise<{ connected: boolean; error?: string }> {
+  try {
+    if (!userClient || !userDb) {
+      await initializeUserMongoDBConnection();
+    }
+    
+    await userDb!.admin().ping();
+    return { connected: true };
+  } catch (error) {
+    console.error('❌ [MONGODB_FRAMEWORK] User database health check failed:', error);
+    return { 
+      connected: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+}
+
+/**
+ * Get comprehensive database status for both connections
+ */
+export async function getDatabaseStatus(): Promise<{
+  default: { connected: boolean; error?: string; uri?: string };
+  user: { connected: boolean; error?: string; uri?: string };
+}> {
+  const [defaultHealth, userHealth] = await Promise.all([
+    checkDefaultDatabaseHealth(),
+    checkUserDatabaseHealth()
+  ]);
+
+  return {
+    default: {
+      ...defaultHealth,
+      uri: MONGODB_URI?.replace(/\/\/[^:]+:[^@]+@/, '//***:***@') || 'Not configured'
+    },
+    user: {
+      ...userHealth,
+      uri: userMongoUri?.replace(/\/\/[^:]+:[^@]+@/, '//***:***@') || 'Using default URI'
+    }
+  };
 }
 
 /**
@@ -173,21 +262,25 @@ export class UniversalMongoClient {
   }
 
   async connect(): Promise<void> {
-    // Initialize only remote connections - local SQLite is handled separately
-    console.log('🔗 [UNIVERSAL_CLIENT] Connecting to remote MongoDB only (local SQLite handled by Electron)');
-    await initializeRemoteDatabase();
+    // Initialize MongoDB connections
+    console.log('🔗 [UNIVERSAL_CLIENT] Connecting to MongoDB Atlas');
+    await initializeUserMongoDBConnection();
   }
 
   async close(): Promise<void> {
-    if (localClient) {
-      await localClient.close();
-      localClient = null;
-      localDb = null;
+    // Close user database connection if open
+    if (userClient) {
+      await userClient.close();
+      userClient = null;
+      userDb = null;
+      console.log('✅ [MONGODB_FRAMEWORK] User MongoDB connection closed');
     }
-    if (remoteClient) {
-      await remoteClient.close();
-      remoteClient = null;
-      remoteDb = null;
+    // Close default database connection if open
+    if (defaultClient) {
+      await defaultClient.close();
+      defaultClient = null;
+      defaultDb = null;
+      console.log('✅ [MONGODB_FRAMEWORK] Default MongoDB connection closed');
     }
   }
 }
@@ -224,7 +317,45 @@ export class UniversalCollection<T = any> {
    * Universal find operation
    */
   find(filter: any = {}, options: any = {}): any {
-    // Direct database access - return cursor-like object
+    // In Electron renderer, use IPC for database operations
+    if (isElectronRenderer()) {
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI?.database?.find) {
+        console.log(`🔗 [ELECTRON_IPC] find via IPC: ${this.collectionName}`);
+        return {
+          sort: (sortSpec: any) => ({
+            limit: (limitSpec: any) => ({
+              toArray: async () => {
+                const findOptions = { ...options, sort: sortSpec, limit: limitSpec };
+                return electronAPI.database.find(this.collectionName, filter, findOptions);
+              }
+            }),
+            toArray: async () => {
+              const findOptions = { ...options, sort: sortSpec };
+              return electronAPI.database.find(this.collectionName, filter, findOptions);
+            }
+          }),
+          limit: (limitSpec: any) => ({
+            sort: (sortSpec: any) => ({
+              toArray: async () => {
+                const findOptions = { ...options, limit: limitSpec, sort: sortSpec };
+                return electronAPI.database.find(this.collectionName, filter, findOptions);
+              }
+            }),
+            toArray: async () => {
+              const findOptions = { ...options, limit: limitSpec };
+              return electronAPI.database.find(this.collectionName, filter, findOptions);
+            }
+          }),
+          toArray: async () => {
+            return electronAPI.database.find(this.collectionName, filter, options);
+          }
+        };
+      }
+    }
+
+    // Direct database access for web or Electron main process - return cursor-like object
+    console.log(`🔗 [DIRECT_DB] find direct access: ${this.collectionName}`);
     return {
       sort: (sortSpec: any) => ({
         limit: (limitSpec: any) => ({
@@ -264,15 +395,17 @@ export class UniversalCollection<T = any> {
    * Universal findOne operation
    */
   async findOne(filter: any = {}, options: any = {}): Promise<any> {
-    // In Electron renderer, use IPC
+    // In Electron renderer, use IPC for database operations
     if (isElectronRenderer()) {
       const electronAPI = (window as any).electronAPI;
       if (electronAPI?.database?.findOne) {
+        console.log(`🔗 [ELECTRON_IPC] findOne via IPC: ${this.collectionName}`);
         return electronAPI.database.findOne(this.collectionName, filter);
       }
     }
 
-    // Direct database access
+    // Direct database access for web or Electron main process
+    console.log(`🔗 [DIRECT_DB] findOne direct access: ${this.collectionName}`);
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
     const collection = db.collection(this.collectionName);
     return collection.findOne(filter, options);
@@ -282,15 +415,17 @@ export class UniversalCollection<T = any> {
    * Universal insertOne operation
    */
   async insertOne(document: any): Promise<any> {
-    // In Electron renderer, use IPC
+    // In Electron renderer, use IPC for database operations
     if (isElectronRenderer()) {
       const electronAPI = (window as any).electronAPI;
       if (electronAPI?.database?.insertOne) {
+        console.log(`🔗 [ELECTRON_IPC] insertOne via IPC: ${this.collectionName}`);
         return electronAPI.database.insertOne(this.collectionName, document);
       }
     }
 
-    // Direct database access
+    // Direct database access for web or Electron main process
+    console.log(`🔗 [DIRECT_DB] insertOne direct access: ${this.collectionName}`);
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
     const collection = db.collection(this.collectionName);
     return collection.insertOne(document);
@@ -300,15 +435,17 @@ export class UniversalCollection<T = any> {
    * Universal updateOne operation
    */
   async updateOne(filter: any, update: any, options: any = {}): Promise<any> {
-    // In Electron renderer, use IPC
+    // In Electron renderer, use IPC for database operations
     if (isElectronRenderer()) {
       const electronAPI = (window as any).electronAPI;
       if (electronAPI?.database?.updateOne) {
+        console.log(`🔗 [ELECTRON_IPC] updateOne via IPC: ${this.collectionName}`);
         return electronAPI.database.updateOne(this.collectionName, filter, update, options);
       }
     }
 
-    // Direct database access
+    // Direct database access for web or Electron main process
+    console.log(`🔗 [DIRECT_DB] updateOne direct access: ${this.collectionName}`);
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
     const collection = db.collection(this.collectionName);
     return collection.updateOne(filter, update, options);
@@ -318,15 +455,17 @@ export class UniversalCollection<T = any> {
    * Universal deleteOne operation
    */
   async deleteOne(filter: any): Promise<any> {
-    // In Electron renderer, use IPC
+    // In Electron renderer, use IPC for database operations
     if (isElectronRenderer()) {
       const electronAPI = (window as any).electronAPI;
       if (electronAPI?.database?.deleteOne) {
+        console.log(`🔗 [ELECTRON_IPC] deleteOne via IPC: ${this.collectionName}`);
         return electronAPI.database.deleteOne(this.collectionName, filter);
       }
     }
 
-    // Direct database access
+    // Direct database access for web or Electron main process
+    console.log(`🔗 [DIRECT_DB] deleteOne direct access: ${this.collectionName}`);
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
     const collection = db.collection(this.collectionName);
     return collection.deleteOne(filter);
@@ -336,18 +475,22 @@ export class UniversalCollection<T = any> {
    * Universal insertMany operation
    */
   async insertMany(documents: any[]): Promise<any> {
-    // In Electron renderer, could implement bulk IPC
+    // In Electron renderer, use individual insertOne calls or bulk IPC
     if (isElectronRenderer()) {
-      // For now, fall back to insertOne for each document
-      const results = [];
-      for (const doc of documents) {
-        const result = await this.insertOne(doc);
-        results.push(result);
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI?.database?.insertOne) {
+        console.log(`🔗 [ELECTRON_IPC] insertMany via multiple IPC calls: ${this.collectionName}`);
+        const results = [];
+        for (const doc of documents) {
+          const result = await electronAPI.database.insertOne(this.collectionName, doc);
+          results.push(result);
+        }
+        return { insertedIds: results.map(r => r.insertedId) };
       }
-      return { insertedIds: results.map(r => r.insertedId) };
     }
 
-    // Direct database access
+    // Direct database access for web or Electron main process
+    console.log(`🔗 [DIRECT_DB] insertMany direct access: ${this.collectionName}`);
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
     const collection = db.collection(this.collectionName);
     return collection.insertMany(documents);
@@ -376,7 +519,17 @@ export class UniversalCollection<T = any> {
    * Universal aggregate operation
    */
   async aggregate(pipeline: any[]): Promise<any[]> {
-    // Direct database access (complex for IPC)
+    // In Electron renderer, use IPC for database operations
+    if (isElectronRenderer()) {
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI?.database && 'aggregate' in electronAPI.database) {
+        console.log(`🔗 [ELECTRON_IPC] aggregate via IPC: ${this.collectionName}`);
+        return (electronAPI.database as any).aggregate(this.collectionName, pipeline);
+      }
+    }
+
+    // Direct database access for web or Electron main process (complex for IPC)
+    console.log(`🔗 [DIRECT_DB] aggregate direct access: ${this.collectionName}`);
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
     const collection = db.collection(this.collectionName);
     return collection.aggregate(pipeline).toArray();
@@ -417,6 +570,17 @@ export class UniversalCollection<T = any> {
    * Universal countDocuments operation
    */
   async countDocuments(filter: any = {}): Promise<number> {
+    // In Electron renderer, use IPC for database operations
+    if (isElectronRenderer()) {
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI?.database && 'countDocuments' in electronAPI.database) {
+        console.log(`🔗 [ELECTRON_IPC] countDocuments via IPC: ${this.collectionName}`);
+        return (electronAPI.database as any).countDocuments(this.collectionName, filter);
+      }
+    }
+
+    // Direct database access for web or Electron main process
+    console.log(`🔗 [DIRECT_DB] countDocuments direct access: ${this.collectionName}`);
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
     const collection = db.collection(this.collectionName);
     return collection.countDocuments(filter);

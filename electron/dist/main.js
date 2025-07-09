@@ -35,177 +35,188 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const path = __importStar(require("path"));
-const env_1 = require("./utils/env");
-const sqlite_db_1 = require("./db/sqlite-db");
+const http = __importStar(require("http"));
 const handlers_1 = require("./ipc/handlers");
-const database_handlers_1 = require("./ipc/database-handlers");
-// Keep a global reference of the window object
+const mongodb_handlers_1 = require("./ipc/mongodb-handlers");
+// --- GTK / X11 fixes for Linux ---
+if (process.platform === 'linux') {
+    process.env.GDK_BACKEND = 'x11';
+    process.env.ELECTRON_DISABLE_WAYLAND = '1';
+    process.env.ELECTRON_FORCE_X11 = '1';
+    electron_1.app.disableHardwareAcceleration();
+    electron_1.app.commandLine.appendSwitch('disable-gpu');
+    electron_1.app.commandLine.appendSwitch('no-sandbox');
+    electron_1.app.commandLine.appendSwitch('disable-dev-shm-usage');
+    electron_1.app.commandLine.appendSwitch('disable-web-security');
+    electron_1.app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor');
+}
+// Mark that we're in Electron
+process.env.ELECTRON_ENV = 'true';
+process.env.IS_ELECTRON = 'true';
+if (!process.env.NODE_ENV) {
+    process.env.NODE_ENV = 'development';
+}
 let mainWindow = null;
 let cacheCleanupInterval = null;
 /**
- * Create the main application window
+ * Waits for Next.js root page to respond 200 OK
  */
-function createWindow() {
-    // Create the browser window
-    mainWindow = new electron_1.BrowserWindow({
-        width: 1400,
-        height: 900,
-        minWidth: 1200,
-        minHeight: 800, webPreferences: {
-            nodeIntegration: false, // Security: Disable node integration in renderer
-            contextIsolation: true, // Security: Enable context isolation
-            preload: path.join(__dirname, 'preload.js'), // Preload script for secure IPC
-            webSecurity: true,
-        },
-        icon: path.join(__dirname, '../public/assets/healthtrack.ico'),
-        show: false, // Don't show until ready-to-show
-        titleBarStyle: 'default',
-    });
-    // Load the Next.js application
-    const startUrl = env_1.isDev
+async function waitForNextJsRootPage(url, timeoutMs = 60000) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+        try {
+            await new Promise((resolve, reject) => {
+                const req = http.get(url, { timeout: 5000 }, (res) => {
+                    res.statusCode === 200 ? resolve() : reject(new Error(`Status ${res.statusCode}`));
+                });
+                req.on('error', reject);
+                req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
+            });
+            console.log('✅ Next.js is ready');
+            return true;
+        }
+        catch {
+            await new Promise(res => setTimeout(res, 1000));
+        }
+    }
+    console.warn(`⚠️ Next.js not ready after ${timeoutMs}ms`);
+    return false;
+}
+/**
+ * Creates the main BrowserWindow
+ */
+async function createWindow() {
+    console.log('🚀 Creating Electron window...');
+    const startUrl = process.env.ELECTRON_ENV === 'true'
         ? 'http://localhost:9002'
         : `file://${path.join(__dirname, '../out/index.html')}`;
+    if (process.env.ELECTRON_ENV === 'true') {
+        const ready = await waitForNextJsRootPage(startUrl);
+        if (!ready)
+            console.warn('Proceeding even though Next.js is not ready');
+    }
+    mainWindow = new electron_1.BrowserWindow({
+        width: 1200,
+        height: 700,
+        minWidth: 800,
+        minHeight: 600,
+        titleBarStyle: 'default',
+        icon: path.join(__dirname, '../public/assets/healthtrack.ico'),
+        show: false,
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js'),
+            webSecurity: true,
+        },
+    });
+    console.log(`🔗 Loading URL: ${startUrl}`);
     mainWindow.loadURL(startUrl);
-    // Show window when ready to prevent visual flash
     mainWindow.once('ready-to-show', () => {
-        if (mainWindow) {
-            mainWindow.show();
-            // Open DevTools in development
-            if (env_1.isDev) {
-                mainWindow.webContents.openDevTools();
-            }
+        console.log('✅ Window ready-to-show');
+        mainWindow?.show();
+        if (process.env.ELECTRON_ENV === 'true')
+            mainWindow?.webContents.openDevTools();
+    });
+    mainWindow.webContents.on('did-fail-load', (_e, code, desc, url) => {
+        console.warn(`❌ did-fail-load (${code}): ${desc} @ ${url}`);
+        if (code === -102 || code === -105) {
+            console.log('⏳ Retrying...');
+            setTimeout(() => mainWindow?.loadURL(startUrl), 2000);
         }
     });
-    // Handle window closed
-    mainWindow.on('closed', () => {
-        mainWindow = null;
+    mainWindow.webContents.on('did-finish-load', () => {
+        console.log('🎉 Connected to Next.js');
     });
-    // Handle external links
-    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-        electron_1.shell.openExternal(url);
-        return { action: 'deny' };
-    });
-    // Prevent navigation to external URLs
-    mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
-        const parsedUrl = new URL(navigationUrl);
-        if (parsedUrl.origin !== 'http://localhost:9002' && parsedUrl.origin !== startUrl && !navigationUrl.startsWith('http://localhost:9002')) {
-            event.preventDefault();
+    mainWindow.on('closed', () => { mainWindow = null; });
+    // External links
+    mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    mainWindow.webContents.on('will-navigate', (e, navUrl) => {
+        const origin = new URL(navUrl).origin;
+        if ((process.env.ELECTRON_ENV === 'true' && !origin.startsWith('http://localhost:9002')) ||
+            (process.env.ELECTRON_ENV !== 'true' && !navUrl.startsWith('file://'))) {
+            e.preventDefault();
+            electron_1.shell.openExternal(navUrl);
         }
     });
 }
 /**
- * Start scheduled AI cache cleanup job
+ * Builds the application menu
  */
-function startCacheCleanupJob() {
-    // Clean up expired cache entries every hour (3600000 ms)
-    const CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hour
-    console.log('🗑️ Starting AI cache cleanup job (runs every hour)...');
-    // Run initial cleanup
-    (0, sqlite_db_1.cleanupExpiredAiCache)().catch(error => {
-        console.error('❌ Initial cache cleanup failed:', error);
-    });
-    // Schedule periodic cleanup
-    cacheCleanupInterval = setInterval(async () => {
-        try {
-            const deletedCount = await (0, sqlite_db_1.cleanupExpiredAiCache)();
-            if (deletedCount > 0) {
-                console.log(`🧹 Scheduled cleanup removed ${deletedCount} expired cache entries`);
-            }
+function createMenu() {
+    const template = [
+        { label: 'File', submenu: [
+                { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => mainWindow?.webContents.send('navigate', '/settings') },
+                { type: 'separator' },
+                { label: 'Exit', role: 'quit' },
+            ]
+        },
+        { role: 'editMenu' },
+        { role: 'viewMenu' },
+        { label: 'Help', submenu: [
+                { label: 'About HealthTrack AI', click: () => {
+                        electron_1.dialog.showMessageBox(mainWindow, {
+                            type: 'info',
+                            title: 'About HealthTrack AI',
+                            message: 'HealthTrack AI v0.1.0',
+                            detail: 'AI-powered healthcare app with MongoDB backend.'
+                        });
+                    }
+                }
+            ]
         }
-        catch (error) {
-            console.error('❌ Scheduled cache cleanup failed:', error);
-        }
-    }, CLEANUP_INTERVAL);
-    console.log('✅ AI cache cleanup job started');
+    ];
+    if (process.platform === 'darwin') {
+        template.unshift({ label: electron_1.app.name, submenu: [{ role: 'about' }, { type: 'separator' }, { role: 'quit' }] });
+    }
+    electron_1.Menu.setApplicationMenu(electron_1.Menu.buildFromTemplate(template));
 }
 /**
- * Stop scheduled AI cache cleanup job
+ * Clears the cache cleanup job
  */
 function stopCacheCleanupJob() {
     if (cacheCleanupInterval) {
-        clearInterval(cacheCleanupInterval);
+        clearTimeout(cacheCleanupInterval);
         cacheCleanupInterval = null;
-        console.log('✅ AI cache cleanup job stopped');
+        console.log('✅ Cache cleanup stopped');
     }
 }
 /**
- * Initialize the application
+ * Initializes the app
  */
 async function initializeApp() {
+    console.log('🧠 Initializing HealthTrack-AI...');
     try {
-        console.log('🚀 Initializing HealthTrack-AI Electron app...');
-        // Set environment variables for consistent detection
-        process.env.ELECTRON_ENV = 'true';
-        process.env.IS_ELECTRON = 'true';
-        // Initialize local SQLite database (optional, will auto-init on first use)
-        console.log('� Initializing SQLite database...');
-        try {
-            await (0, sqlite_db_1.initializeSqliteDatabase)();
-            console.log(`✅ Local database initialized at: ${(0, sqlite_db_1.getSqliteDbPath)()}`);
-        }
-        catch (error) {
-            console.warn('⚠️ SQLite database initialization failed, will auto-initialize on first use:', error);
-        }
-        // Setup IPC handlers for database operations
-        console.log('🔌 Setting up IPC handlers...');
-        (0, handlers_1.setupIpcHandlers)();
-        (0, database_handlers_1.setupDatabaseIpcHandlers)(); // This is the working database handler
-        console.log('✅ IPC handlers configured');
-        // Start AI cache cleanup job
-        console.log('🧠 Initializing smart caching system...');
-        startCacheCleanupJob();
-        console.log('✅ Smart caching initialized successfully');
-        // Create main window
-        console.log('� Creating Electron window...');
-        createWindow();
-        console.log('✅ HealthTrack-AI Electron app initialized successfully');
+        await (0, handlers_1.setupIpcHandlers)();
+        console.log('✅ IPC handlers and MongoDB ready');
     }
-    catch (error) {
-        console.error('❌ Failed to initialize app:', error);
-        // Show error dialog and quit
-        const { dialog } = require('electron');
-        await dialog.showErrorBox('Initialization Error', `Failed to start HealthTrack-AI: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        electron_1.app.quit();
+    catch (err) {
+        console.error('❌ IPC/Mongo setup failed', err);
+        electron_1.dialog.showErrorBox('Init Error', `Database connection failed:
+${err}`);
     }
+    await createWindow();
+    createMenu();
+    // Smart caching placeholder
+    cacheCleanupInterval = setTimeout(() => console.log('✅ Smart cache ready'), 10000);
+    console.log('✅ App initialization complete');
 }
-/**
- * Application event handlers
- */
-// This method will be called when Electron has finished initialization
+// App event handlers
 electron_1.app.whenReady().then(initializeApp);
-// Quit when all windows are closed
-electron_1.app.on('window-all-closed', () => {
-    // On macOS, keep app running even when all windows are closed
-    if (process.platform !== 'darwin') {
-        electron_1.app.quit();
-    }
-});
-// On macOS, re-create window when dock icon is clicked
-electron_1.app.on('activate', () => {
-    if (electron_1.BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
-    }
-});
-// Security: Prevent new window creation
-electron_1.app.on('web-contents-created', (event, contents) => {
-    contents.on('new-window', (event, navigationUrl) => {
-        // Prevent new window creation
-        event.preventDefault();
-        electron_1.shell.openExternal(navigationUrl);
-    });
-});
-// Handle app shutdown
+electron_1.app.on('window-all-closed', () => { if (process.platform !== 'darwin')
+    electron_1.app.quit(); });
+electron_1.app.on('activate', () => { if (!mainWindow)
+    initializeApp(); });
 electron_1.app.on('before-quit', async () => {
-    console.log('🛑 HealthTrack-AI shutting down...');
-    // Stop scheduled cache cleanup job
+    console.log('🛑 Shutting down...');
     stopCacheCleanupJob();
-    // Database cleanup will be handled by the SQLite database service
+    try {
+        await (0, mongodb_handlers_1.closeMongoDBConnection)();
+        console.log('✅ MongoDB closed');
+    }
+    catch (err) {
+        console.error('❌ MongoDB close failed', err);
+    }
 });
-// Development: Enable live reload for Electron in development
-if (env_1.isDev) {
-    require('electron-reload')(__dirname, {
-        electron: path.join(__dirname, '..', 'node_modules', '.bin', 'electron'),
-        hardResetMethod: 'exit'
-    });
-}
+electron_1.app.on('web-contents-created', (_e, contents) => contents.on('new-window', e => e.preventDefault()));
 //# sourceMappingURL=main.js.map

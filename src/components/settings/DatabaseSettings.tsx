@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { 
   Database, 
   Download, 
@@ -15,7 +17,12 @@ import {
   CloudIcon,
   RefreshCw,
   Info,
-  Settings
+  Settings,
+  Edit3,
+  Save,
+  X,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
@@ -45,6 +52,9 @@ interface DatabaseInfo {
     database: string;
   };
   lastBackup?: string;
+  // Error state when database connection fails
+  connectionError?: boolean;
+  errorMessage?: string;
 }
 
 export default function DatabaseSettings() {
@@ -52,11 +62,142 @@ export default function DatabaseSettings() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [healthStatus, setHealthStatus] = useState<any>(null);
+  
+  // MongoDB health check state
+  const [defaultHealth, setDefaultHealth] = useState<{ connected: boolean; error?: string; uri?: string } | null>(null);
+  const [userHealth, setUserHealth] = useState<{ connected: boolean; error?: string; uri?: string } | null>(null);
+  const [checkingHealth, setCheckingHealth] = useState(false);
+  
+  // MongoDB URI management state
+  const [editingUri, setEditingUri] = useState(false);
+  const [userMongoUri, setUserMongoUri] = useState<string>('');
+  const [editedUri, setEditedUri] = useState<string>('');
+  const [validatingUri, setValidatingUri] = useState(false);
+  const [savingUri, setSavingUri] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+  
   const { toast } = useToast();
 
   useEffect(() => {
     loadDatabaseInfo();
-  }, []);  const loadDatabaseInfo = async () => {
+    loadUserMongoUri();
+    performHealthCheck();
+  }, []);  const loadUserMongoUri = async () => {
+    try {
+      const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
+      
+      if (isElectron) {
+        const uri = await (window as any).electronAPI.database.getUserMongoUri();
+        setUserMongoUri(uri || '');
+        setEditedUri(uri || '');
+      }
+    } catch (error) {
+      console.error('❌ Failed to load user MongoDB URI:', error);
+    }
+  };
+
+  const handleEditUri = () => {
+    setEditingUri(true);
+    setEditedUri(userMongoUri);
+  };
+
+  const handleCancelEditUri = () => {
+    setEditingUri(false);
+    setEditedUri(userMongoUri);
+  };
+
+  const handleValidateUri = async () => {
+    if (!editedUri.trim()) {
+      toast({
+        title: "Invalid URI",
+        description: "Please enter a MongoDB URI",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setValidatingUri(true);
+      const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
+      
+      if (isElectron) {
+        const result = await (window as any).electronAPI.database.validateMongoUri(editedUri);
+        
+        if (result.valid) {
+          toast({
+            title: "URI Valid",
+            description: "MongoDB connection successful",
+          });
+        } else {
+          toast({
+            title: "URI Invalid",
+            description: result.error || "Failed to connect to MongoDB",
+            variant: "destructive"
+          });
+        }
+      }
+    } catch (error) {
+      console.error('❌ Failed to validate MongoDB URI:', error);
+      toast({
+        title: "Validation Error",
+        description: "Failed to validate MongoDB URI",
+        variant: "destructive"
+      });
+    } finally {
+      setValidatingUri(false);
+    }
+  };
+
+  const handleSaveUri = async () => {
+    if (!editedUri.trim()) {
+      toast({
+        title: "Invalid URI",
+        description: "Please enter a MongoDB URI",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setSavingUri(true);
+      const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
+      
+      if (isElectron) {
+        const result = await (window as any).electronAPI.database.setUserMongoUri(editedUri);
+        
+        if (result.success) {
+          setUserMongoUri(editedUri);
+          setEditingUri(false);
+          
+          toast({
+            title: "URI Updated",
+            description: "MongoDB URI updated successfully. Database reconnected.",
+          });
+          
+          // Reload database info to reflect changes
+          await loadDatabaseInfo();
+        } else {
+          toast({
+            title: "Save Failed",
+            description: result.error || "Failed to update MongoDB URI",
+            variant: "destructive"
+          });
+        }
+      }
+    } catch (error) {
+      console.error('❌ Failed to save MongoDB URI:', error);
+      toast({
+        title: "Save Error",
+        description: "Failed to save MongoDB URI",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingUri(false);
+    }
+  };
+
+  const loadDatabaseInfo = async () => {
     try {
       setLoading(true);
       console.log('🔄 Loading database info...');
@@ -66,32 +207,63 @@ export default function DatabaseSettings() {
       
       if (isElectron) {
         console.log('📱 Electron environment detected, getting database info...');
-        // Get database info from Electron
-        const info = await (window as any).electronAPI.database.getInfo();
-        console.log('📊 Database info received:', info);
         
-        // Validate the received data
-        if (!info || typeof info !== 'object') {
-          throw new Error('Invalid database info received');
+        try {
+          // Get database info from Electron
+          const info = await (window as any).electronAPI.database.getInfo();
+          console.log('📊 Database info received:', info);
+          
+          // Validate the received data
+          if (!info || typeof info !== 'object') {
+            throw new Error('Invalid database info received');
+          }
+          
+          setDatabaseInfo(info);
+          
+          toast({
+            title: "Database Info Updated",
+            description: `Found ${info.collections?.length || 0} collections with ${info.collections?.reduce((sum: number, col: any) => sum + (col.count || 0), 0) || 0} total documents`,
+          });
+        } catch (dbError) {
+          console.error('❌ Failed to get database info:', dbError);
+          
+          // Set error state with helpful message
+          setDatabaseInfo({
+            type: 'remote',
+            collections: [],
+            totalSize: 'Connection Error',
+            connectionError: true,
+            errorMessage: dbError instanceof Error ? dbError.message : 'Failed to connect to database',
+            remoteConnectionInfo: {
+              isConnected: false,
+              uri: 'Not connected',
+              host: 'Unknown',
+              database: 'healthtrack'
+            }
+          });
+          
+          toast({
+            title: "Database Connection Error",
+            description: "Failed to connect to MongoDB. Please check your connection settings and try again.",
+            variant: "destructive"
+          });
         }
-        
-        setDatabaseInfo(info);
-        
-        toast({
-          title: "Database Info Updated",
-          description: `Found ${info.collections?.length || 0} collections with ${info.collections?.reduce((sum: number, col: any) => sum + (col.count || 0), 0) || 0} total documents`,
-        });
       } else {
         console.log('🌐 Web environment detected');
-        // Web environment - remote only
+        // Web environment - show limited info
         setDatabaseInfo({
           type: 'remote',
           remoteHost: 'MongoDB Atlas',
           collections: [
-            { name: 'patients', count: 0, location: 'remote' },
-            { name: 'case_embeddings', count: 10000, location: 'remote' }
+            { name: 'case_embeddings', count: 0, location: 'remote' }
           ],
-          totalSize: 'N/A'
+          totalSize: 'N/A',
+          remoteConnectionInfo: {
+            isConnected: false,
+            uri: 'Web environment - connection status unknown',
+            host: 'MongoDB Atlas',
+            database: 'healthtrack'
+          }
         });
       }
     } catch (error) {
@@ -104,9 +276,11 @@ export default function DatabaseSettings() {
       
       // Set a fallback state so the UI doesn't break
       setDatabaseInfo({
-        type: 'local',
+        type: 'remote',
         collections: [],
-        totalSize: 'Error'
+        totalSize: 'Error',
+        connectionError: true,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
     } finally {
       setLoading(false);
@@ -224,8 +398,30 @@ export default function DatabaseSettings() {
   };
 
   const getConnectionStatus = () => {
-    if (!databaseInfo) return { status: 'unknown', color: 'gray' };
+    if (!databaseInfo) return { status: 'Unknown', color: 'gray' };
     
+    // Check for connection errors first
+    if ((databaseInfo as any).connectionError) {
+      return { status: 'Connection Error', color: 'red' };
+    }
+    
+    // Check health status if available
+    if (healthStatus) {
+      switch (healthStatus.overall) {
+        case 'healthy':
+          return { status: 'All Connections Active', color: 'green' };
+        case 'partial':
+          return { status: 'Partial Connection', color: 'yellow' };
+        case 'unhealthy':
+          return { status: 'Connection Issues', color: 'red' };
+        case 'error':
+          return { status: 'Health Check Failed', color: 'red' };
+        default:
+          return { status: 'Status Unknown', color: 'gray' };
+      }
+    }
+    
+    // Fallback to database type if no health info
     switch (databaseInfo.type) {
       case 'local':
         return { status: 'Local Only', color: 'blue' };
@@ -235,6 +431,84 @@ export default function DatabaseSettings() {
         return { status: 'Hybrid (Local + Remote)', color: 'purple' };
       default:
         return { status: 'Unknown', color: 'gray' };
+    }
+  };
+
+  const performHealthCheck = async () => {
+    const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
+    if (!isElectron) return;
+    
+    try {
+      setCheckingHealth(true);
+      
+      const [defaultResult, userResult] = await Promise.all([
+        (window as any).electronAPI.database.healthCheckDefault(),
+        (window as any).electronAPI.database.healthCheckUser()
+      ]);
+      
+      setDefaultHealth(defaultResult);
+      setUserHealth(userResult);
+      
+      const status = defaultResult.connected && userResult.connected ? 'healthy' : 'issues';
+      
+      toast({
+        title: "Health Check Complete",
+        description: `Database status: ${status}`,
+        variant: status === 'healthy' ? 'default' : 'destructive'
+      });
+    } catch (error) {
+      console.error('❌ Failed to perform health check:', error);
+      toast({
+        title: "Health Check Failed",
+        description: "Failed to check database connections",
+        variant: "destructive"
+      });
+    } finally {
+      setCheckingHealth(false);
+    }
+  };
+
+  const handleTestConnection = async (uri?: string) => {
+    const testUri = uri || editedUri || userMongoUri;
+    
+    if (!testUri.trim()) {
+      toast({
+        title: "No URI to Test",
+        description: "Please enter a MongoDB URI to test the connection",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setTestingConnection(true);
+      const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
+      
+      if (isElectron) {
+        const result = await (window as any).electronAPI.database.testConnection(testUri);
+        
+        if (result.success) {
+          toast({
+            title: "Connection Successful",
+            description: `Connected in ${result.details?.connectionTime}ms. Found ${result.details?.collections} collections.`,
+          });
+        } else {
+          toast({
+            title: "Connection Failed",
+            description: result.error || "Failed to connect to MongoDB",
+            variant: "destructive"
+          });
+        }
+      }
+    } catch (error) {
+      console.error('❌ Failed to test connection:', error);
+      toast({
+        title: "Test Error",
+        description: "Failed to test MongoDB connection",
+        variant: "destructive"
+      });
+    } finally {
+      setTestingConnection(false);
     }
   };
 
@@ -386,6 +660,154 @@ export default function DatabaseSettings() {
 
           <Separator />
 
+          {/* MongoDB URI Configuration */}
+          <div className="space-y-4">
+            <h4 className="font-medium flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              MongoDB URI Configuration
+            </h4>
+            
+            <div className="bg-blue-50 p-4 rounded-lg space-y-4">
+              {/* Health Status Display */}
+              {healthStatus && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <span className="text-sm font-medium text-muted-foreground">Default MongoDB (Embeddings)</span>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${
+                        healthStatus.defaultConnection?.status === 'connected' ? 'bg-green-500' : 'bg-red-500'
+                      }`} />
+                      <span className="text-sm">
+                        {healthStatus.defaultConnection?.status === 'connected' ? 'Connected' : 'Disconnected'}
+                      </span>
+                      {healthStatus.defaultConnection?.error && (
+                        <span className="text-xs text-red-600">({healthStatus.defaultConnection.error})</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {healthStatus.defaultConnection?.uri || 'Not configured'}
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <span className="text-sm font-medium text-muted-foreground">User MongoDB (Patient Data)</span>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${
+                        healthStatus.userConnection?.status === 'connected' ? 'bg-green-500' : 'bg-red-500'
+                      }`} />
+                      <span className="text-sm">
+                        {healthStatus.userConnection?.status === 'connected' ? 'Connected' : 'Disconnected'}
+                      </span>
+                      {healthStatus.userConnection?.error && (
+                        <span className="text-xs text-red-600">({healthStatus.userConnection.error})</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {healthStatus.userConnection?.uri || 'Not configured'}
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Current User MongoDB URI */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="user-mongo-uri" className="font-medium">
+                    Current User MongoDB URI:
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={performHealthCheck}
+                      disabled={checkingHealth}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1"
+                    >
+                      {checkingHealth ? (
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3 w-3" />
+                      )}
+                      Refresh Health
+                    </Button>
+                  </div>
+                </div>
+                
+                {!editingUri ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 p-2 bg-gray-100 rounded border text-sm font-mono">
+                      {userMongoUri ? userMongoUri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@') : 'No user URI configured - using default'}
+                    </div>
+                    <Button onClick={handleEditUri} variant="outline" size="sm">
+                      <Edit3 className="h-3 w-3 mr-1" />
+                      Configure
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="user-mongo-uri"
+                        type="text"
+                        value={editedUri}
+                        onChange={(e) => setEditedUri(e.target.value)}
+                        placeholder="mongodb+srv://username:password@cluster.mongodb.net/healthtrack"
+                        className="font-mono text-sm"
+                      />
+                      <Button
+                        onClick={() => handleTestConnection(editedUri)}
+                        disabled={testingConnection || !editedUri.trim()}
+                        variant="outline"
+                        size="sm"
+                      >
+                        {testingConnection ? (
+                          <RefreshCw className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <CheckCircle className="h-3 w-3" />
+                        )}
+                        Test
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={handleSaveUri}
+                        disabled={savingUri || !editedUri.trim()}
+                        size="sm"
+                      >
+                        {savingUri ? (
+                          <RefreshCw className="h-3 w-3 animate-spin mr-1" />
+                        ) : (
+                          <Save className="h-3 w-3 mr-1" />
+                        )}
+                        Save URI
+                      </Button>
+                      <Button
+                        onClick={handleCancelEditUri}
+                        disabled={savingUri}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="text-xs text-muted-foreground border-t pt-3">
+                <p><strong>Note:</strong></p>
+                <ul className="mt-1 space-y-1 ml-4">
+                  <li>• User data collections (patients, notes, cache) will use your configured URI</li>
+                  <li>• Vector embeddings always use the default environment URI for performance</li>
+                  <li>• Changes take effect immediately without restarting the app</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
           {/* Collections */}
           <div className="space-y-4">
             <h4 className="font-medium">Collections</h4>
@@ -410,6 +832,179 @@ export default function DatabaseSettings() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* MongoDB Dual-Database Architecture */}
+          <div className="space-y-4">
+            <h4 className="font-medium flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              MongoDB Dual-Database Architecture
+            </h4>
+            
+            {/* Default Database (Embeddings) */}
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <CloudIcon className="h-4 w-4 text-blue-600" />
+                  <span className="font-medium text-blue-900">Default Database (Vector Embeddings)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${
+                    defaultHealth?.connected ? 'bg-green-500' : 'bg-red-500'
+                  }`} />
+                  <span className="text-sm text-blue-700">
+                    {defaultHealth?.connected ? 'Connected' : 'Disconnected'}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="text-sm text-blue-800 space-y-2">
+                <p><strong>Purpose:</strong> Stores case embeddings for AI similarity matching</p>
+                <p><strong>Collections:</strong> case_embeddings</p>
+                <p><strong>URI:</strong> Environment configured (admin managed)</p>
+                {defaultHealth?.error && (
+                  <p className="text-red-600"><strong>Error:</strong> {defaultHealth.error}</p>
+                )}
+              </div>
+            </div>
+
+            {/* User Database */}
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <HardDrive className="h-4 w-4 text-green-600" />
+                  <span className="font-medium text-green-900">User Database (Patient Data)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${
+                    userHealth?.connected ? 'bg-green-500' : 'bg-red-500'
+                  }`} />
+                  <span className="text-sm text-green-700">
+                    {userHealth?.connected ? 'Connected' : 'Disconnected'}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="text-sm text-green-800 space-y-2">
+                <p><strong>Purpose:</strong> Stores all patient data, notes, and AI cache</p>
+                <p><strong>Collections:</strong> patients, ai_cache, notes, local_embeddings</p>
+                <p><strong>URI:</strong> {userMongoUri || 'Using default (fallback)'}</p>
+                {userHealth?.error && (
+                  <p className="text-red-600"><strong>Error:</strong> {userHealth.error}</p>
+                )}
+              </div>
+              
+              {/* User URI Configuration */}
+              <div className="mt-4 pt-4 border-t border-green-200">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-sm font-medium text-green-900">Configure User Database URI</Label>
+                  {!editingUri && (
+                    <Button
+                      onClick={handleEditUri}
+                      variant="outline"
+                      size="sm"
+                      className="text-green-700 border-green-300 hover:bg-green-100"
+                    >
+                      <Edit3 className="h-3 w-3 mr-1" />
+                      Configure
+                    </Button>
+                  )}
+                </div>
+                
+                {editingUri ? (
+                  <div className="space-y-3">
+                    <Input
+                      value={editedUri}
+                      onChange={(e) => setEditedUri(e.target.value)}
+                      placeholder="mongodb+srv://username:password@cluster.mongodb.net/database"
+                      className="text-sm font-mono"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleValidateUri}
+                        disabled={validatingUri}
+                        variant="outline"
+                        size="sm"
+                      >
+                        {validatingUri ? (
+                          <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                        )}
+                        Test Connection
+                      </Button>
+                      <Button
+                        onClick={handleSaveUri}
+                        disabled={savingUri}
+                        size="sm"
+                      >
+                        {savingUri ? (
+                          <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <Save className="h-3 w-3 mr-1" />
+                        )}
+                        Save
+                      </Button>
+                      <Button
+                        onClick={handleCancelEditUri}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-green-600 bg-green-100 p-2 rounded">
+                    {userMongoUri ? 
+                      `Custom URI configured: ${userMongoUri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@')}` :
+                      'No custom URI configured - using default environment URI'
+                    }
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Health Check Controls */}
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={performHealthCheck}
+                disabled={checkingHealth}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                {checkingHealth ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Refresh Health Status
+              </Button>
+              
+              <div className="text-xs text-muted-foreground">
+                Last checked: {defaultHealth || userHealth ? 'Just now' : 'Never'}
+              </div>
+            </div>
+            
+            {/* Important Notes */}
+            <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-yellow-800">
+                  <p className="font-medium mb-1">Important:</p>
+                  <ul className="space-y-1 text-xs">
+                    <li>• Vector embeddings always use the default environment URI for performance</li>
+                    <li>• Patient data uses your configured URI for data sovereignty</li>
+                    <li>• Changes take effect immediately without restarting the app</li>
+                    <li>• Ensure both databases are accessible for full functionality</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -536,6 +1131,126 @@ export default function DatabaseSettings() {
               </div>
             </>
           )}
+
+          {/* MongoDB URI Management */}
+          <div className="space-y-4">
+            <h4 className="font-medium flex items-center gap-2">
+              <Server className="h-4 w-4" />
+              MongoDB URI Configuration
+            </h4>
+            
+            <div className="bg-blue-50 p-4 rounded-lg space-y-3">
+              <div className="text-sm">
+                <span className="text-muted-foreground block mb-1">Current User MongoDB URI:</span>
+                {userMongoUri ? (
+                  <div className="flex items-center gap-2">
+                    <code className="text-xs bg-white p-2 rounded border flex-1 break-all">
+                      {userMongoUri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@')}
+                    </code>
+                    {!editingUri && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleEditUri}
+                        className="flex items-center gap-1"
+                      >
+                        <Edit3 className="h-3 w-3" />
+                        Edit
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground italic">No user URI configured - using default</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleEditUri}
+                      className="flex items-center gap-1"
+                    >
+                      <Edit3 className="h-3 w-3" />
+                      Configure
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {editingUri && (
+                <div className="space-y-3 border-t pt-3">
+                  <div>
+                    <Label htmlFor="mongoUri" className="text-sm font-medium">
+                      MongoDB Connection URI
+                    </Label>
+                    <Input
+                      id="mongoUri"
+                      type="text"
+                      value={editedUri}
+                      onChange={(e) => setEditedUri(e.target.value)}
+                      placeholder="mongodb+srv://username:password@cluster.mongodb.net/healthtrack"
+                      className="mt-1 font-mono text-xs"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Enter your MongoDB Atlas connection string. This will be used for all user data collections.
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={handleValidateUri}
+                      disabled={validatingUri || !editedUri.trim()}
+                      variant="outline"
+                      className="flex items-center gap-1"
+                    >
+                      {validatingUri ? (
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <CheckCircle className="h-3 w-3" />
+                      )}
+                      {validatingUri ? 'Validating...' : 'Test Connection'}
+                    </Button>
+                    
+                    <Button
+                      size="sm"
+                      onClick={handleSaveUri}
+                      disabled={savingUri || !editedUri.trim()}
+                      className="flex items-center gap-1"
+                    >
+                      {savingUri ? (
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Save className="h-3 w-3" />
+                      )}
+                      {savingUri ? 'Saving...' : 'Save & Apply'}
+                    </Button>
+                    
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleCancelEditUri}
+                      disabled={savingUri || validatingUri}
+                      className="flex items-center gap-1"
+                    >
+                      <X className="h-3 w-3" />
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
+              <div className="text-xs text-muted-foreground border-t pt-2">
+                <div className="flex items-center gap-1 mb-1">
+                  <Info className="h-3 w-3" />
+                  <strong>Note:</strong>
+                </div>
+                <ul className="space-y-1 ml-4 list-disc">
+                  <li>User data collections (patients, notes, cache) will use your configured URI</li>
+                  <li>Vector embeddings always use the default environment URI for performance</li>
+                  <li>Changes take effect immediately without restarting the app</li>
+                </ul>
+              </div>
+            </div>
+          </div>
 
           {databaseInfo?.lastBackup && (
             <>
