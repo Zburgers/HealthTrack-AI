@@ -32,7 +32,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     chooseStorageLocation: () => ipcRenderer.invoke('db-chooseStorageLocation'),
     getStorageSettings: () => ipcRenderer.invoke('db-getStorageSettings'),
     getStats: () => ipcRenderer.invoke('db-getStats'),
-    healthCheck: () => ipcRenderer.invoke('db-healthCheck')
+    healthCheck: () => ipcRenderer.invoke('db-healthCheck'),
+    
+    // MongoDB URI management and health check
+    health: () => ipcRenderer.invoke('db-health'),
+    getUserMongoUri: () => ipcRenderer.invoke('db-getUserMongoUri'),
+    setUserMongoUri: (uri) => ipcRenderer.invoke('db-setUserMongoUri', uri),
   },
   
   // Settings operations

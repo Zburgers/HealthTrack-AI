@@ -15,7 +15,7 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-14 items-center justify-center rounded-2xl bg-muted/30 p-2 text-muted-foreground shadow-lg backdrop-blur-sm border border-border/30", // Enhanced modern styling
+      "inline-flex h-14 items-center justify-center rounded-2xl bg-slate-100 p-2 text-muted-foreground shadow-inner", // Changed background to be solid
       className
     )}
     {...props}
@@ -30,7 +30,7 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "relative inline-flex items-center justify-center whitespace-nowrap rounded-xl px-6 py-3 text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-lg hover:text-foreground/90 data-[state=active]:backdrop-blur-sm", // Enhanced modern styling
+      "relative inline-flex items-center justify-center whitespace-nowrap rounded-xl px-6 py-3 text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-lg text-slate-600 hover:text-slate-800 data-[state=inactive]:bg-transparent",
       className
     )}
     {...props}
@@ -38,12 +38,12 @@ const TabsTrigger = React.forwardRef<
   >
     <motion.button
       whileHover={{ 
-        scale: 1.03,
+        scale: 1.02,
         y: -1,
         transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] }
       }}
       whileTap={{ 
-        scale: 0.97,
+        scale: 0.98,
         transition: { duration: 0.1 }
       }}
       layout

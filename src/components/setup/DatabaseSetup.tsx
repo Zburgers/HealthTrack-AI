@@ -76,29 +76,39 @@ export default function DatabaseSetup({ onConnectionSuccess }: DatabaseSetupProp
     setErrorMessage('');
 
     try {
+      console.log('🔗 [DB-SETUP] Testing database connection...');
       const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
       if (!isElectron) {
         throw new Error('This feature is only available in the desktop app');
       }
 
+      console.log('💾 [DB-SETUP] Saving MongoDB URI...');
       // Save and test the URI
-      await (window as any).electronAPI.database.setUserMongoUri(testUri);
+      const saveResult = await (window as any).electronAPI.database.setUserMongoUri(testUri);
+      if (!saveResult) {
+        throw new Error('Failed to save and validate MongoDB URI. Please check your connection string and network connectivity.');
+      }
       
+      console.log('🏥 [DB-SETUP] Performing health check...');
       // Test the connection
       const health = await (window as any).electronAPI.database.health();
+      console.log('🏥 [DB-SETUP] Health check response:', health);
       
       if (health.status === 'ok') {
+        console.log('✅ [DB-SETUP] Connection successful!');
         setConnectionStatus('success');
         setConnectionDetails(health);
         
         // Small delay to show success, then proceed
         setTimeout(() => {
+          console.log('➡️ [DB-SETUP] Proceeding to dashboard...');
           onConnectionSuccess();
         }, 1500);
       } else {
         throw new Error(health.error || 'Connection failed');
       }
     } catch (error: any) {
+      console.error('❌ [DB-SETUP] Connection failed:', error);
       setConnectionStatus('error');
       setErrorMessage(error.message || 'Failed to connect to database');
     } finally {
@@ -162,56 +172,57 @@ Thanks!
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-6">
-      <div className="max-w-2xl w-full space-y-8">
+      <div className="max-w-4xl w-full space-y-10">
         
         {/* Header */}
-        <div className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-            <Database className="h-8 w-8 text-white" />
+        <div className="text-center space-y-6">
+          <div className="mx-auto w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl flex items-center justify-center shadow-xl">
+            <Database className="h-10 w-10 text-white" />
           </div>
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-slate-900">Database Setup</h1>
-            <p className="text-slate-600 max-w-md mx-auto">
-              Connect your MongoDB database to start managing patient data securely
+          <div className="space-y-3">
+            <h1 className="text-4xl font-bold text-slate-900">Welcome to HealthTrack AI</h1>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+              Let's get you connected to your database so you can start managing patient data securely and efficiently
             </p>
           </div>
         </div>
 
         {/* Main Setup Card */}
-        <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl text-slate-900 text-center">Choose Your Database</CardTitle>
+        <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-sm">
+          <CardHeader className="pb-6 pt-8">
+            <CardTitle className="text-2xl text-slate-900 text-center">Choose Your Database</CardTitle>
+            <p className="text-slate-600 text-center mt-2">Select how you'd like to store and access your data</p>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="px-8 pb-8">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="remote" className="flex items-center space-x-2">
-                  <Cloud className="h-4 w-4" />
+              <TabsList className="grid w-full grid-cols-2 mb-8 h-16">
+                <TabsTrigger value="remote" className="flex items-center space-x-3 h-14 text-base">
+                  <Cloud className="h-5 w-5" />
                   <span>Remote (MongoDB)</span>
                 </TabsTrigger>
-                <TabsTrigger value="local" className="flex items-center space-x-2">
-                  <HardDrive className="h-4 w-4" />
+                <TabsTrigger value="local" className="flex items-center space-x-3 h-14 text-base">
+                  <HardDrive className="h-5 w-5" />
                   <span>Local Storage</span>
                 </TabsTrigger>
               </TabsList>
 
               {/* Remote Database Tab */}
-              <TabsContent value="remote" className="space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="flex items-center space-x-2 bg-blue-50 px-3 py-1.5 rounded-full">
+              <TabsContent value="remote" className="space-y-8">
+                <div className="space-y-6">
+                  <div className="flex items-center justify-center space-x-4 mb-6">
+                    <div className="flex items-center space-x-2 bg-blue-50 px-4 py-2 rounded-full">
                       <Globe className="h-4 w-4 text-blue-600" />
                       <span className="text-sm font-medium text-blue-700">Cloud Database</span>
                     </div>
-                    <div className="flex items-center space-x-2 bg-green-50 px-3 py-1.5 rounded-full">
+                    <div className="flex items-center space-x-2 bg-green-50 px-4 py-2 rounded-full">
                       <Zap className="h-4 w-4 text-green-600" />
                       <span className="text-sm font-medium text-green-700">High Performance</span>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <Label htmlFor="mongoUri" className="text-sm font-medium text-slate-700">
+                  <div className="space-y-4">
+                    <Label htmlFor="mongoUri" className="text-base font-medium text-slate-700">
                       MongoDB Connection String
                     </Label>
                     <div className="relative">
@@ -221,8 +232,9 @@ Thanks!
                         value={mongoUri}
                         onChange={(e) => setMongoUri(e.target.value)}
                         placeholder="mongodb+srv://username:password@cluster.mongodb.net/database"
-                        className="pr-10 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                        className="pr-10 bg-white border-slate-200 focus:border-blue-500 focus:ring-blue-500 text-slate-900 placeholder:text-slate-400 h-12 text-base"
                         disabled={isConnecting || connectionStatus === 'success'}
+                        autoComplete="off"
                       />
                       <Button
                         type="button"
@@ -238,7 +250,7 @@ Thanks!
                         )}
                       </Button>
                     </div>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-sm text-slate-500">
                       Get this from your MongoDB Atlas dashboard or your database administrator
                     </p>
                   </div>
@@ -322,16 +334,16 @@ Thanks!
                     <Button 
                       onClick={handleConnect}
                       disabled={!mongoUri.trim() || isConnecting}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 text-base font-medium"
                     >
                       {isConnecting ? (
                         <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                           Testing Connection...
                         </>
                       ) : (
                         <>
-                          <Database className="h-4 w-4 mr-2" />
+                          <Database className="h-5 w-5 mr-2" />
                           Connect to Database
                         </>
                       )}
@@ -341,38 +353,38 @@ Thanks!
               </TabsContent>
 
               {/* Local Storage Tab */}
-              <TabsContent value="local" className="space-y-6">
-                <div className="text-center space-y-6 py-8">
-                  <div className="mx-auto w-20 h-20 bg-gradient-to-br from-slate-200 to-slate-300 rounded-2xl flex items-center justify-center">
-                    <HardDrive className="h-10 w-10 text-slate-500" />
+              <TabsContent value="local" className="space-y-8">
+                <div className="text-center space-y-8 py-12">
+                  <div className="mx-auto w-24 h-24 bg-gradient-to-br from-slate-200 to-slate-300 rounded-3xl flex items-center justify-center">
+                    <HardDrive className="h-12 w-12 text-slate-500" />
                   </div>
                   
-                  <div className="space-y-3">
-                    <h3 className="text-xl font-semibold text-slate-900">Local Storage</h3>
-                    <p className="text-slate-600 max-w-md mx-auto">
+                  <div className="space-y-4">
+                    <h3 className="text-2xl font-semibold text-slate-900">Local Storage</h3>
+                    <p className="text-lg text-slate-600 max-w-lg mx-auto">
                       Store your data locally on your device for maximum privacy and offline access.
                     </p>
                   </div>
 
-                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-6">
-                    <div className="flex items-center justify-center space-x-2 mb-3">
-                      <Sparkles className="h-5 w-5 text-purple-600" />
-                      <span className="font-medium text-purple-900">Coming Soon</span>
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-2xl p-8">
+                    <div className="flex items-center justify-center space-x-2 mb-4">
+                      <Sparkles className="h-6 w-6 text-purple-600" />
+                      <span className="text-lg font-medium text-purple-800">Coming Soon</span>
                     </div>
-                    <p className="text-sm text-purple-700 mb-4">
+                    <p className="text-purple-700 mb-6">
                       We're working on local storage capabilities that will give you complete control over your data.
                     </p>
-                    <div className="space-y-2 text-xs text-purple-600">
-                      <div className="flex items-center space-x-2">
-                        <CheckCircle className="h-3 w-3" />
+                    <div className="space-y-3 text-sm text-purple-600">
+                      <div className="flex items-center justify-center space-x-2">
+                        <CheckCircle className="h-4 w-4" />
                         <span>Offline-first architecture</span>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <CheckCircle className="h-3 w-3" />
+                      <div className="flex items-center justify-center space-x-2">
+                        <CheckCircle className="h-4 w-4" />
                         <span>Zero network dependencies</span>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <CheckCircle className="h-3 w-3" />
+                      <div className="flex items-center justify-center space-x-2">
+                        <CheckCircle className="h-4 w-4" />
                         <span>Enhanced privacy & security</span>
                       </div>
                     </div>
@@ -381,9 +393,9 @@ Thanks!
                   <Button 
                     onClick={() => setActiveTab('remote')}
                     variant="outline"
-                    className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                    className="border-blue-200 text-blue-700 hover:bg-blue-50 h-12 text-base px-6"
                   >
-                    <Cloud className="h-4 w-4 mr-2" />
+                    <Cloud className="h-5 w-5 mr-2" />
                     Use Remote Database Instead
                   </Button>
                 </div>

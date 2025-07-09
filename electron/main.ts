@@ -4,6 +4,7 @@ import * as http from 'http';
 import { isDev } from './utils/env';
 import { startLocalDatabase, stopLocalDatabase } from './lib/local-db';
 import { setupDatabaseIPCHandlers } from './ipc/database-handlers';
+import { setupMongoDBIpcHandlers } from './ipc/mongodb-handlers';
 
 // --- GTK / X11 fixes for Linux ---
 if (process.platform === 'linux') {
@@ -184,13 +185,14 @@ async function initializeApp(): Promise<void> {
 app.whenReady().then(async () => {
   console.log('🚀 [HEALTHTRACK] Starting HealthTrack AI...');
   try {
-    console.log('📊 [DATABASE] Initializing local database...');
-    await startLocalDatabase();
-    console.log('✅ [DATABASE] Local database ready');
+    console.log('📊 [DATABASE] Skipping local database initialization (using remote only)...');
+    // await startLocalDatabase(); // Disabled for remote-only mode
+    console.log('✅ [DATABASE] Database setup ready');
     
     console.log('🔌 [IPC] Setting up database handlers...');
     setupDatabaseIPCHandlers();
-    console.log('✅ [IPC] Database handlers ready');
+    setupMongoDBIpcHandlers();
+    console.log('✅ [IPC] All database handlers ready');
     
     console.log('🖼️ [WINDOW] Creating application window...');
     createWindow();

@@ -36,7 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const path = __importStar(require("path"));
 const http = __importStar(require("http"));
-const handlers_1 = require("./ipc/handlers");
+const local_db_1 = require("./lib/local-db");
+const database_handlers_1 = require("./ipc/database-handlers");
 const mongodb_handlers_1 = require("./ipc/mongodb-handlers");
 // --- GTK / X11 fixes for Linux ---
 if (process.platform === 'linux') {
@@ -86,14 +87,14 @@ async function waitForNextJsRootPage(url, timeoutMs = 60000) {
  * Creates the main BrowserWindow
  */
 async function createWindow() {
-    console.log('🚀 Creating Electron window...');
     const startUrl = process.env.ELECTRON_ENV === 'true'
         ? 'http://localhost:9002'
         : `file://${path.join(__dirname, '../out/index.html')}`;
     if (process.env.ELECTRON_ENV === 'true') {
+        console.log('⏳ [NEXT] Waiting for Next.js server...');
         const ready = await waitForNextJsRootPage(startUrl);
         if (!ready)
-            console.warn('Proceeding even though Next.js is not ready');
+            console.warn('⚠️ [NEXT] Proceeding without Next.js confirmation');
     }
     mainWindow = new electron_1.BrowserWindow({
         width: 1200,
@@ -110,23 +111,25 @@ async function createWindow() {
             webSecurity: true,
         },
     });
-    console.log(`🔗 Loading URL: ${startUrl}`);
+    console.log(`🔗 [WINDOW] Loading: ${startUrl}`);
     mainWindow.loadURL(startUrl);
     mainWindow.once('ready-to-show', () => {
-        console.log('✅ Window ready-to-show');
+        console.log('✅ [WINDOW] Application window ready');
         mainWindow?.show();
-        if (process.env.ELECTRON_ENV === 'true')
+        if (process.env.ELECTRON_ENV === 'true') {
+            console.log('🔧 [DEV] Opening DevTools for development');
             mainWindow?.webContents.openDevTools();
+        }
     });
     mainWindow.webContents.on('did-fail-load', (_e, code, desc, url) => {
-        console.warn(`❌ did-fail-load (${code}): ${desc} @ ${url}`);
+        console.warn(`❌ [WINDOW] Failed to load (${code}): ${desc}`);
         if (code === -102 || code === -105) {
-            console.log('⏳ Retrying...');
+            console.log('⏳ [WINDOW] Retrying in 2 seconds...');
             setTimeout(() => mainWindow?.loadURL(startUrl), 2000);
         }
     });
     mainWindow.webContents.on('did-finish-load', () => {
-        console.log('🎉 Connected to Next.js');
+        console.log('✅ [WINDOW] Content loaded successfully');
     });
     mainWindow.on('closed', () => { mainWindow = null; });
     // External links
@@ -141,9 +144,9 @@ async function createWindow() {
     });
 }
 /**
- * Builds the application menu
+ * Sets up the main application menu
  */
-function createMenu() {
+function setupAppMenu() {
     const template = [
         { label: 'File', submenu: [
                 { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => mainWindow?.webContents.send('navigate', '/settings') },
@@ -186,37 +189,50 @@ function stopCacheCleanupJob() {
  */
 async function initializeApp() {
     console.log('🧠 Initializing HealthTrack-AI...');
-    try {
-        await (0, handlers_1.setupIpcHandlers)();
-        console.log('✅ IPC handlers and MongoDB ready');
-    }
-    catch (err) {
-        console.error('❌ IPC/Mongo setup failed', err);
-        electron_1.dialog.showErrorBox('Init Error', `Database connection failed:
-${err}`);
-    }
     await createWindow();
-    createMenu();
+    setupAppMenu();
     // Smart caching placeholder
     cacheCleanupInterval = setTimeout(() => console.log('✅ Smart cache ready'), 10000);
     console.log('✅ App initialization complete');
 }
 // App event handlers
-electron_1.app.whenReady().then(initializeApp);
-electron_1.app.on('window-all-closed', () => { if (process.platform !== 'darwin')
-    electron_1.app.quit(); });
-electron_1.app.on('activate', () => { if (!mainWindow)
-    initializeApp(); });
-electron_1.app.on('before-quit', async () => {
-    console.log('🛑 Shutting down...');
-    stopCacheCleanupJob();
+electron_1.app.whenReady().then(async () => {
+    console.log('🚀 [HEALTHTRACK] Starting HealthTrack AI...');
     try {
-        await (0, mongodb_handlers_1.closeMongoDBConnection)();
-        console.log('✅ MongoDB closed');
+        console.log('📊 [DATABASE] Skipping local database initialization (using remote only)...');
+        // await startLocalDatabase(); // Disabled for remote-only mode
+        console.log('✅ [DATABASE] Database setup ready');
+        console.log('🔌 [IPC] Setting up database handlers...');
+        (0, database_handlers_1.setupDatabaseIPCHandlers)();
+        (0, mongodb_handlers_1.setupMongoDBIpcHandlers)();
+        console.log('✅ [IPC] All database handlers ready');
+        console.log('🖼️ [WINDOW] Creating application window...');
+        createWindow();
+        setupAppMenu();
+        console.log('✅ [HEALTHTRACK] Application ready!');
     }
-    catch (err) {
-        console.error('❌ MongoDB close failed', err);
+    catch (error) {
+        console.error('❌ [HEALTHTRACK] Failed to initialize:', error);
+        electron_1.dialog.showErrorBox('Initialization Error', 'Failed to start HealthTrack AI. Please check the logs and try again.');
+        electron_1.app.quit();
     }
 });
-electron_1.app.on('web-contents-created', (_e, contents) => contents.on('new-window', e => e.preventDefault()));
+electron_1.app.on('activate', () => {
+    if (electron_1.BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+    }
+});
+electron_1.app.on('will-quit', async () => {
+    console.log('👋 [HEALTHTRACK] Shutting down...');
+    await (0, local_db_1.stopLocalDatabase)();
+    if (cacheCleanupInterval) {
+        clearInterval(cacheCleanupInterval);
+    }
+    console.log('✅ [HEALTHTRACK] Shutdown complete');
+});
+electron_1.app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+        electron_1.app.quit();
+    }
+});
 //# sourceMappingURL=main.js.map

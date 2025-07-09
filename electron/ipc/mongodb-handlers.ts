@@ -399,7 +399,14 @@ export function setupMongoDBIpcHandlers(): void {
   // URI Management handlers
   ipcMain.handle('db-getUserMongoUri', async (): Promise<string | null> => {
     try {
-      return loadUserMongoUri();
+      console.log('🔍 [MONGODB_IPC] Getting user MongoDB URI...');
+      const uri = loadUserMongoUri();
+      if (uri) {
+        console.log('✅ [MONGODB_IPC] User MongoDB URI found');
+      } else {
+        console.log('ℹ️ [MONGODB_IPC] No user MongoDB URI configured');
+      }
+      return uri;
     } catch (error) {
       console.error('❌ [MONGODB_IPC] Failed to get user MongoDB URI:', error);
       return null;
@@ -408,6 +415,8 @@ export function setupMongoDBIpcHandlers(): void {
 
   ipcMain.handle('db-setUserMongoUri', async (event, uri: string): Promise<boolean> => {
     try {
+      console.log('🔧 [MONGODB_IPC] Setting user MongoDB URI...');
+      
       // Validate URI format
       const url = new URL(uri);
       if (!url.protocol.startsWith('mongodb')) {
@@ -422,31 +431,57 @@ export function setupMongoDBIpcHandlers(): void {
           strict: false,
           deprecationErrors: true,
         },
-        serverSelectionTimeoutMS: 8000,
-        connectTimeoutMS: 8000,
+        serverSelectionTimeoutMS: 5000,  // Reduced timeout
+        connectTimeoutMS: 5000,          // Reduced timeout
+        socketTimeoutMS: 5000,           // Added socket timeout
+        maxPoolSize: 1,                  // Minimal pool for testing
       });
 
       try {
-        await testClient.connect();
-        await testClient.db('admin').command({ ping: 1 });
+        console.log('🔗 [MONGODB_IPC] Attempting test connection...');
+        await Promise.race([
+          testClient.connect(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Connection timeout after 5 seconds')), 5000)
+          )
+        ]);
+        
+        console.log('🏓 [MONGODB_IPC] Performing ping test...');
+        await Promise.race([
+          testClient.db('admin').command({ ping: 1 }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Ping timeout after 3 seconds')), 3000)
+          )
+        ]);
+        
+        console.log('🔒 [MONGODB_IPC] Closing test connection...');
         await testClient.close();
+        console.log('✅ [MONGODB_IPC] Test connection successful');
+        
       } catch (testError) {
-        await testClient.close();
+        console.error('❌ [MONGODB_IPC] Connection test failed:', testError);
+        try {
+          await testClient.close();
+        } catch (closeError) {
+          console.warn('⚠️ [MONGODB_IPC] Error closing test client:', closeError);
+        }
         throw new Error(`Connection test failed: ${testError instanceof Error ? testError.message : 'Unknown error'}`);
       }
 
       // Save the URI and reinitialize connection
+      console.log('💾 [MONGODB_IPC] Saving MongoDB URI to persistent storage...');
       saveUserMongoUri(uri);
       userMongoUri = uri;
       
       // Reset the user connection to force reinitialization
       if (userMongoClient) {
+        console.log('🔄 [MONGODB_IPC] Resetting existing connection...');
         await userMongoClient.close();
         userMongoClient = null;
         userMongoDb = null;
       }
 
-      console.log('✅ [MONGODB_IPC] MongoDB URI saved and validated');
+      console.log('✅ [MONGODB_IPC] MongoDB URI saved and validated successfully');
       return true;
     } catch (error) {
       console.error('❌ [MONGODB_IPC] Failed to set user MongoDB URI:', error);
