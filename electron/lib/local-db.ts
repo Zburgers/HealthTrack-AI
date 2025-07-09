@@ -6,7 +6,7 @@
  */
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { MongoClient, Db } from 'mongodb';
-import { DATABASE_NAMES, MONGODB_CONFIG } from '../../src/lib/mongodb/config';
+import { DATABASE_NAMES, MONGODB_CONFIG } from '../config/constants';
 
 let mongod: MongoMemoryServer | null = null;
 let localClient: MongoClient | null = null;
@@ -17,19 +17,22 @@ let localDb: Db | null = null;
  */
 export async function startLocalDatabase(): Promise<void> {
   if (mongod) {
-    console.log('Local database is already running.');
+    console.log('📊 [LOCAL-DB] Database already running');
     return;
   }
   try {
-    console.log('Starting local MongoDB server...');
+    console.log('📊 [LOCAL-DB] Starting MongoDB memory server...');
     mongod = await MongoMemoryServer.create({ instance: { port: MONGODB_CONFIG.LOCAL_PORT } });
     const uri = mongod.getUri();
+    
+    console.log('📊 [LOCAL-DB] Connecting to database...');
     localClient = new MongoClient(uri, MONGODB_CONFIG.LOCAL_OPTIONS);
     await localClient.connect();
     localDb = localClient.db(DATABASE_NAMES.LOCAL);
-    console.log(`✅ Local MongoDB server started at ${uri}`);
+    
+    console.log(`✅ [LOCAL-DB] Database ready at ${uri}`);
   } catch (error) {
-    console.error('❌ Failed to start local database:', error);
+    console.error('❌ [LOCAL-DB] Failed to start database:', error);
     await stopLocalDatabase();
     throw error;
   }

@@ -78,6 +78,59 @@
   }
 }
 
+/* Fix for dropdown/select transparency issues */
+@layer components {
+  .select-content,
+  [data-radix-select-content] {
+    background-color: hsl(var(--popover)) !important;
+    border: 1px solid hsl(var(--border));
+    @apply shadow-lg;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  
+  .select-item,
+  [data-radix-select-item] {
+    @apply bg-transparent cursor-pointer px-2 py-1.5 text-sm outline-none;
+    color: hsl(var(--popover-foreground));
+  }
+  
+  .select-item:hover,
+  [data-radix-select-item]:hover {
+    background-color: hsl(var(--accent)) !important;
+    color: hsl(var(--accent-foreground)) !important;
+  }
+  
+  .select-item[data-state="checked"],
+  [data-radix-select-item][data-state="checked"] {
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+  }
+  
+  /* Ensure dropdown menus are fully opaque */
+  .dropdown-content,
+  [data-radix-dropdown-content],
+  [data-radix-popover-content] {
+    background-color: hsl(var(--popover)) !important;
+    border: 1px solid hsl(var(--border));
+    @apply shadow-lg;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  
+  /* Fix filter dropdowns specifically */
+  .filter-select {
+    background-color: hsl(var(--background));
+    border: 1px solid hsl(var(--border));
+    color: hsl(var(--foreground));
+  }
+  
+  .filter-select:focus {
+    @apply ring-2 ring-offset-2;
+    ring-color: hsl(var(--ring));
+  }
+}
+
 @layer utilities {
   /* Shimmer animation for progress indicators */
   @keyframes shimmer {

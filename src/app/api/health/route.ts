@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { isElectronEnvironment } from '@/lib/db';
+import { isElectronEnvironment } from '@/lib/mongodb/config';
 
 /**
  * Health check endpoint

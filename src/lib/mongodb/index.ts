@@ -36,9 +36,12 @@ import {
   createPatientViaIPC,
   updatePatientViaIPC,
   deletePatientViaIPC,
-  getAICacheViaIPC,
-  setAICacheViaIPC
 } from './electron';
+
+// To be implemented: IPC handlers for AI cache
+export const getAICacheViaIPC = (key: string) => { throw new Error("Not implemented"); };
+export const setAICacheViaIPC = (key: string, value: any) => { throw new Error("Not implemented"); };
+
 
 /**
  * Get the appropriate database for a collection
@@ -52,11 +55,33 @@ export async function getDatabase(collection: CollectionName): Promise<Db> {
 
   const target = getDatabaseTarget(collection);
 
-  // In Electron renderer process, local collections are handled via IPC,
-  // so we should only be getting the remote database here.
-  if (target === 'local') {
-    throw new Error(`Collection ${collection} should use IPC operations in Electron renderer`);
+  // This check is no longer needed here. The renderer will be routed to IPC calls, 
+  // and the main process will need a different way to get the local DB.
+  // For web context, target will be 'remote' anyway.
+  if (target === 'local' && !isElectronEnvironment()) {
+      throw new Error(`Local collection ${collection} cannot be accessed from the web environment.`);
   }
+
+  if (target === 'remote') {
+    if (!isRemoteDatabaseConnected()) {
+      await connectToRemoteDatabase();
+    }
+    return getRemoteDatabase();
+  }
+
+  // This part should now only be reached in the main process for local DB
+  // We need a way to get the local DB instance here.
+  // This will be addressed in a subsequent step.
+  // For now, let's prevent it from breaking.
+  // In the future, this should return the local Db instance for the main process.
+  // For now, we'll fall through and it will likely fail, which is expected
+  // until the main process direct access is implemented.
+  if (isElectronEnvironment()) {
+    // This is a placeholder. The main process should get the DB directly.
+    // The renderer process uses IPC and won't hit this.
+    console.warn("Attempting to get local DB from non-IPC path in main process.");
+  }
+
 
   if (!isRemoteDatabaseConnected()) {
     await connectToRemoteDatabase();

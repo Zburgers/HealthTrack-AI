@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, isElectronEnvironment } from '@/lib/db';
+import { PatientOperations } from '@/lib/mongodb';
 import { PatientDocument, NewCaseFormValues, Patient } from '@/types';
 import { analyzePatientSymptoms, AnalyzePatientSymptomsInput } from '@/vertex-ai';
 import { format } from 'date-fns';
@@ -12,45 +12,7 @@ import { ObjectId } from 'mongodb';
  */
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const includeArchived = searchParams.get('includeArchived') === 'true';
-    const archivedOnly = searchParams.get('archivedOnly') === 'true';
-    
-    let db;
-    try {
-      db = await getDb('patients');
-    } catch (dbError) {
-      console.error('❌ Database connection failed:', dbError);
-      return NextResponse.json({ 
-        error: 'Database connection failed', 
-        details: 'Please check your MongoDB configuration in the database settings.',
-        dbError: dbError instanceof Error ? dbError.message : 'Unknown database error'
-      }, { status: 503 });
-    }
-    
-    const patientsCollection = db.collection('patients');
-    
-    let queryFilter: any = {};
-    if (isElectronEnvironment()) {
-      if (archivedOnly) {
-        queryFilter.is_deleted = true;
-      } else if (!includeArchived) {
-        queryFilter.is_deleted = { $ne: true };
-      }
-    } else {
-      if (archivedOnly) {
-        queryFilter.isDeleted = true;
-      } else if (!includeArchived) {
-        queryFilter.$or = [
-          { isDeleted: { $exists: false } },
-          { isDeleted: false }
-        ];
-      }
-    }
-
-    const patients = await patientsCollection.find(queryFilter, { 
-      sort: { last_updated: -1 } 
-    });
+    const patients = await PatientOperations.getPatients(); 
 
     const formattedPatients: Patient[] = patients.map((p: any) => {
       const lastVisitDate = p.last_updated && !isNaN(new Date(p.last_updated).getTime())
@@ -94,75 +56,41 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const formData: NewCaseFormValues = await request.json();
-    const db = await getDb('patients');
-    const patientsCollection = db.collection('patients');
+    const newPatient = await PatientOperations.createPatient(formData);
+    const result = { insertedId: newPatient._id };
 
-    const newPatientDocument = {
-      id: isElectronEnvironment() ? require('crypto').randomUUID() : new ObjectId().toHexString(),
-      name: formData.patientName,
-      age: Number(formData.age),
-      sex: formData.gender,
-      created_at: new Date().toISOString(),
-      last_updated: formData.visitDate ? new Date(formData.visitDate).toISOString() : new Date().toISOString(),
-      vitals: JSON.stringify({
-        temp: Number(formData.temp) || null,
-        bp: formData.bp,
-        hr: Number(formData.hr) || null,
-        spo2: Number(formData.spo2) || null,
-        rr: Number(formData.rr) || null,
-      }),
-      symptoms: JSON.stringify(formData.primaryComplaint.split(',').map(s => s.trim())),
-      observations: formData.observations || '',
-      primary_complaint: formData.primaryComplaint,
-      previous_conditions: JSON.stringify(
-        formData.previousConditions ? 
-        formData.previousConditions.split(',').map(s => s.trim()).filter(Boolean) : []
-      ),
-      allergies: JSON.stringify(
-        formData.allergies ? 
-        formData.allergies.split(',').map(s => s.trim()).filter(Boolean) : []
-      ),
-      current_medications: JSON.stringify(
-        formData.medications ? 
-        formData.medications.split(',').map(s => s.trim()).filter(Boolean) : []
-      ),
-      icd_tags: JSON.stringify([]),
-      icd_tag_summary: JSON.stringify(
-        formData.previousConditions ? formData.previousConditions.split(',').map(s => s.trim()) : []
-      ),
-      risk_predictions: JSON.stringify([]),
-      risk_score: 0,
-      soap_note: JSON.stringify({
-        subjective: `Patient is a ${formData.age}-year-old ${formData.gender.toLowerCase()} presenting with ${formData.primaryComplaint}.`,
-        objective: '',
-        assessment: '',
-        plan: ''
-      }),
-      matched_cases: JSON.stringify([]),
-      ai_metadata: JSON.stringify({}),
-      status: 'analyzing',
-      owner_uid: 'firebase-auth-uid-placeholder',
-      is_deleted: false,
-    };
+    // Asynchronously trigger the AI analysis
+    if (process.env.VERTEX_AI_ENABLED === 'true') {
+      (async () => {
+        try {
+          console.log(`🧠 Triggering AI analysis for patient: ${newPatient._id}`);
 
-    const result = await patientsCollection.insertOne(newPatientDocument);
+          const analysisInput: AnalyzePatientSymptomsInput = {
+            // Map the patient data to the analysis input format
+            age: newPatient.age,
+            gender: newPatient.sex,
+            symptoms: newPatient.symptoms, // Assuming symptoms are part of the patient data
+            // Add other necessary fields...
+          };
 
-    if (!result.insertedId) {
-      throw new Error('Failed to insert the new patient document.');
+          const analysisResult = await analyzePatientSymptoms(analysisInput);
+          
+          // Update the patient record with the analysis
+          const updates = { 
+            icd_codes: analysisResult.icd_codes,
+            icd_tag_summary: analysisResult.icd_tag_summary,
+            summary: analysisResult.summary,
+            risk_score: analysisResult.risk_score,
+            status: 'processed'
+          };
+          await PatientOperations.updatePatient(newPatient._id.toString(), updates);
+          console.log(`✅ AI analysis complete for patient: ${newPatient._id}`);
+        } catch (aiError) {
+          console.error('AI analysis failed for patient:', result.insertedId, aiError);
+          await PatientOperations.updatePatient(result.insertedId.toString(), { status: 'analysis_failed' });
+        }
+      })();
     }
-
-    // Asynchronously trigger AI analysis
-    (async () => {
-      try {
-        // ... (AI analysis logic remains the same)
-      } catch (aiError) {
-        console.error('AI analysis failed for patient:', result.insertedId, aiError);
-        await patientsCollection.updateOne(
-          { id: result.insertedId },
-          { $set: { status: 'analysis_failed' } }
-        );
-      }
-    })();
     
     return NextResponse.json({ 
       message: 'Patient created successfully and analysis has started.', 

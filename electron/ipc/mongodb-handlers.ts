@@ -91,7 +91,7 @@ async function initializeUserMongoDBConnection(): Promise<void> {
     userMongoUri = loadUserMongoUri() || process.env.MONGODB_URI || null;
     
     if (!userMongoUri) {
-      throw new Error('No MongoDB URI available for user data');
+      throw new Error('No MongoDB URI available for user data. Please configure your database connection.');
     }
 
     console.log('🔗 [MONGODB_IPC] Initializing user MongoDB connection...');
@@ -108,15 +108,32 @@ async function initializeUserMongoDBConnection(): Promise<void> {
         deprecationErrors: true,
       },
       maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 8000, // Increased timeout for better UX
+      connectTimeoutMS: 8000,
     });
 
     await userMongoClient.connect();
+    
+    // Test the connection with a ping
+    await userMongoClient.db('admin').command({ ping: 1 });
+    
     userMongoDb = userMongoClient.db('healthtrack');
     
-    console.log('✅ [MONGODB_IPC] User MongoDB connected');
+    console.log('✅ [MONGODB_IPC] User MongoDB connected successfully');
   } catch (error) {
     console.error('❌ [MONGODB_IPC] Failed to connect to user MongoDB:', error);
+    
+    // Clean up failed connection
+    if (userMongoClient) {
+      try {
+        await userMongoClient.close();
+      } catch (closeError) {
+        console.error('Error closing failed connection:', closeError);
+      }
+      userMongoClient = null;
+      userMongoDb = null;
+    }
+    
     throw error;
   }
 }
@@ -145,18 +162,32 @@ function getMongoDatabase(collection?: string): Db {
 export function setupMongoDBIpcHandlers(): void {
   console.log('🔌 [MONGODB_IPC] Setting up MongoDB IPC handlers...');
 
-  // Initialize MongoDB connections on startup
-  Promise.all([
-    initializeDefaultMongoDBConnection(),
-    initializeUserMongoDBConnection()
-  ]).catch((error: any) => {
-    console.error('❌ [MONGODB_IPC] Failed to initialize MongoDB connections:', error);
-  });
+  // Initialize default MongoDB connection for embeddings (lazy loading)
+  let defaultInitialized = false;
+  const ensureDefaultConnection = async () => {
+    if (!defaultInitialized) {
+      await initializeDefaultMongoDBConnection();
+      defaultInitialized = true;
+    }
+  };
 
-  // Database health check
+  // Initialize user MongoDB connection (lazy loading)
+  let userInitialized = false;
+  const ensureUserConnection = async () => {
+    if (!userInitialized) {
+      await initializeUserMongoDBConnection();
+      userInitialized = true;
+    }
+  };
+
+  // Database health check with lazy loading
   ipcMain.handle('db-health', async (): Promise<any> => {
     try {
       console.log('🏥 [MONGODB_IPC] Checking MongoDB health...');
+      
+      // Ensure user connection is initialized
+      await ensureUserConnection();
+      
       const db = getMongoDatabase();
       await db.admin().ping();
       
@@ -164,7 +195,11 @@ export function setupMongoDBIpcHandlers(): void {
         status: 'ok',
         timestamp: new Date().toISOString(),
         type: 'mongodb',
-        details: 'MongoDB is responding to queries'
+        details: 'MongoDB is responding to queries',
+        connectionInfo: {
+          uri: userMongoUri?.replace(/\/\/[^:]+:[^@]+@/, '//***:***@') || 'Not configured',
+          database: 'healthtrack'
+        }
       };
       console.log('✅ [MONGODB_IPC] MongoDB health: ok');
       return result;
@@ -175,6 +210,7 @@ export function setupMongoDBIpcHandlers(): void {
         timestamp: new Date().toISOString(),
         type: 'mongodb',
         error: error instanceof Error ? error.message : 'Unknown error',
+        details: 'Failed to connect to MongoDB. Please check your connection string and ensure your IP is whitelisted.'
       };
     }
   });
@@ -363,349 +399,58 @@ export function setupMongoDBIpcHandlers(): void {
   // URI Management handlers
   ipcMain.handle('db-getUserMongoUri', async (): Promise<string | null> => {
     try {
-      console.log('🔍 [MONGODB_IPC] Getting user MongoDB URI...');
-      return userMongoUri;
+      return loadUserMongoUri();
     } catch (error) {
       console.error('❌ [MONGODB_IPC] Failed to get user MongoDB URI:', error);
-      throw error;
+      return null;
     }
   });
 
-  ipcMain.handle('db-setUserMongoUri', async (event, uri: string): Promise<{ success: boolean; error?: string }> => {
+  ipcMain.handle('db-setUserMongoUri', async (event, uri: string): Promise<boolean> => {
     try {
-      console.log('🔧 [MONGODB_IPC] Setting user MongoDB URI...');
-      
-      // Validate the URI by attempting to connect
+      // Validate URI format
+      const url = new URL(uri);
+      if (!url.protocol.startsWith('mongodb')) {
+        throw new Error('Invalid MongoDB URI: must start with mongodb:// or mongodb+srv://');
+      }
+
+      // Test the connection before saving
+      console.log('🧪 [MONGODB_IPC] Testing new MongoDB URI...');
       const testClient = new MongoClient(uri, {
         serverApi: {
           version: ServerApiVersion.v1,
           strict: false,
           deprecationErrors: true,
         },
-        maxPoolSize: 10,
-        serverSelectionTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 8000,
+        connectTimeoutMS: 8000,
       });
 
-      await testClient.connect();
-      await testClient.db('healthtrack').admin().ping();
-      await testClient.close();
+      try {
+        await testClient.connect();
+        await testClient.db('admin').command({ ping: 1 });
+        await testClient.close();
+      } catch (testError) {
+        await testClient.close();
+        throw new Error(`Connection test failed: ${testError instanceof Error ? testError.message : 'Unknown error'}`);
+      }
 
-      // Save the URI and reconnect
+      // Save the URI and reinitialize connection
       saveUserMongoUri(uri);
-      await initializeUserMongoDBConnection();
+      userMongoUri = uri;
       
-      console.log('✅ [MONGODB_IPC] User MongoDB URI updated successfully');
-      return { success: true };
+      // Reset the user connection to force reinitialization
+      if (userMongoClient) {
+        await userMongoClient.close();
+        userMongoClient = null;
+        userMongoDb = null;
+      }
+
+      console.log('✅ [MONGODB_IPC] MongoDB URI saved and validated');
+      return true;
     } catch (error) {
       console.error('❌ [MONGODB_IPC] Failed to set user MongoDB URI:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      };
-    }
-  });
-
-  ipcMain.handle('db-validateMongoUri', async (event, uri: string): Promise<{ valid: boolean; error?: string }> => {
-    try {
-      console.log('🔍 [MONGODB_IPC] Validating MongoDB URI...');
-      
-      const testClient = new MongoClient(uri, {
-        serverApi: {
-          version: ServerApiVersion.v1,
-          strict: false,
-          deprecationErrors: true,
-        },
-        maxPoolSize: 10,
-        serverSelectionTimeoutMS: 5000,
-      });
-
-      await testClient.connect();
-      await testClient.db('healthtrack').admin().ping();
-      await testClient.close();
-      
-      console.log('✅ [MONGODB_IPC] MongoDB URI validation successful');
-      return { valid: true };
-    } catch (error) {
-      console.error('❌ [MONGODB_IPC] MongoDB URI validation failed:', error);
-      return { 
-        valid: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      };
-    }
-  });
-
-  // Specific collection handlers for better abstraction
-
-  // Patient operations
-  ipcMain.handle('db-getPatients', async () => {
-    try {
-      console.log('🔍 [MONGODB_IPC] Getting all patients...');
-      const db = getMongoDatabase('patients');
-      const result = await db.collection('patients').find({}).sort({ last_updated: -1 }).toArray();
-      console.log(`✅ [MONGODB_IPC] Found ${result.length} patients`);
-      return result;
-    } catch (error) {
-      console.error('❌ [MONGODB_IPC] Failed to get patients:', error);
       throw error;
-    }
-  });
-
-  ipcMain.handle('db-getPatient', async (event, id: string) => {
-    try {
-      console.log(`🔍 [MONGODB_IPC] Getting patient with ID: ${id}`);
-      const db = getMongoDatabase('patients');
-      const result = await db.collection('patients').findOne({ id });
-      console.log(`✅ [MONGODB_IPC] Patient found: ${result ? 'yes' : 'no'}`);
-      return result;
-    } catch (error) {
-      console.error('❌ [MONGODB_IPC] Failed to get patient:', error);
-      throw error;
-    }
-  });
-
-  ipcMain.handle('db-createPatient', async (event, patient: any) => {
-    try {
-      console.log('➕ [MONGODB_IPC] Creating new patient...');
-      
-      // Generate ID if not present and add timestamps
-      const patientWithId = {
-        ...patient,
-        id: patient.id || Date.now().toString(),
-        created_at: patient.created_at || new Date().toISOString(),
-        last_updated: new Date().toISOString()
-      };
-      
-      const db = getMongoDatabase('patients');
-      const result = await db.collection('patients').insertOne(patientWithId);
-      console.log(`✅ [MONGODB_IPC] Patient created with ID: ${patientWithId.id}`);
-      return { insertedId: result.insertedId, acknowledged: result.acknowledged };
-    } catch (error) {
-      console.error('❌ [MONGODB_IPC] Failed to create patient:', error);
-      throw error;
-    }
-  });
-
-  ipcMain.handle('db-updatePatient', async (event, id: string, updates: any) => {
-    try {
-      console.log(`✏️ [MONGODB_IPC] Updating patient with ID: ${id}`);
-      
-      // Add last_updated timestamp
-      const updateData = {
-        ...updates,
-        last_updated: new Date().toISOString()
-      };
-      
-      const db = getMongoDatabase('patients');
-      const result = await db.collection('patients').updateOne({ id }, { $set: updateData });
-      console.log(`✅ [MONGODB_IPC] Patient updated: ${result.modifiedCount} modified`);
-      return result;
-    } catch (error) {
-      console.error('❌ [MONGODB_IPC] Failed to update patient:', error);
-      throw error;
-    }
-  });
-
-  ipcMain.handle('db-deletePatient', async (event, id: string) => {
-    try {
-      console.log(`❌ [MONGODB_IPC] Deleting patient with ID: ${id}`);
-      const db = getMongoDatabase('patients');
-      const result = await db.collection('patients').deleteOne({ id });
-      console.log(`✅ [MONGODB_IPC] Patient deleted: ${result.deletedCount} deleted`);
-      return result.deletedCount > 0;
-    } catch (error) {
-      console.error('❌ [MONGODB_IPC] Failed to delete patient:', error);
-      throw error;
-    }
-  });
-
-  // AI Cache operations
-  ipcMain.handle('db-getAICache', async (event, key: string) => {
-    try {
-      console.log(`🧠 [MONGODB_IPC] Getting AI cache for key: ${key}`);
-      const db = getMongoDatabase('ai_cache');
-      const result = await db.collection('ai_cache').findOne({ key });
-      
-      // Check if expired
-      if (result && result.expires_at && new Date(result.expires_at) < new Date()) {
-        console.log(`⏰ [MONGODB_IPC] AI cache expired for key: ${key}, removing...`);
-        await db.collection('ai_cache').deleteOne({ key });
-        return null;
-      }
-      
-      console.log(`✅ [MONGODB_IPC] AI cache found: ${result ? 'yes' : 'no'}`);
-      return result;
-    } catch (error) {
-      console.error('❌ [MONGODB_IPC] Failed to get AI cache:', error);
-      throw error;
-    }
-  });
-
-  ipcMain.handle('db-setAICache', async (event, key: string, workflow: string, input: any, output: any, expiryMs?: number) => {
-    try {
-      const expiryTime = expiryMs ? new Date(Date.now() + expiryMs).toISOString() : null;
-      console.log(`🧠 [MONGODB_IPC] Setting AI cache for key: ${key}, workflow: ${workflow}`);
-      
-      const cacheDocument = {
-        key,
-        workflow,
-        input: JSON.stringify(input),
-        output: JSON.stringify(output),
-        created_at: new Date().toISOString(),
-        expires_at: expiryTime
-      };
-      
-      const db = getMongoDatabase('ai_cache');
-      const result = await db.collection('ai_cache').replaceOne(
-        { key },
-        cacheDocument,
-        { upsert: true }
-      );
-      
-      console.log(`✅ [MONGODB_IPC] AI cache set for key: ${key}`);
-      return { insertedId: key, ...result };
-    } catch (error) {
-      console.error('❌ [MONGODB_IPC] Failed to set AI cache:', error);
-      throw error;
-    }
-  });
-
-  // Database export handler
-  ipcMain.handle('db-exportData', async (): Promise<any> => {
-    try {
-      console.log('📤 [MONGODB_IPC] Starting database export...');
-      
-      const { dialog } = require('electron');
-      
-      // Show save dialog
-      const result = await dialog.showSaveDialog({
-        title: 'Export MongoDB Database',
-        defaultPath: `healthtrack-mongodb-export-${new Date().toISOString().split('T')[0]}.json`,
-        filters: [
-          { name: 'JSON Files', extensions: ['json'] },
-          { name: 'All Files', extensions: ['*'] }
-        ]
-      });
-      
-      if (result.canceled || !result.filePath) {
-        return { success: false, cancelled: true };
-      }
-      
-      const exportData = {
-        metadata: {
-          exportType: 'MongoDB',
-          appVersion: process.env.npm_package_version || 'unknown',
-          exportDate: new Date().toISOString(),
-          databases: {
-            default: process.env.MONGODB_URI?.replace(/\/\/[^:]+:[^@]+@/, '//***:***@') || 'Not configured',
-            user: userMongoUri?.replace(/\/\/[^:]+:[^@]+@/, '//***:***@') || 'Using default URI'
-          }
-        },
-        collections: {} as Record<string, any[]>
-      };
-      
-      let totalDocuments = 0;
-      let collectionsExported = 0;
-      
-      // Export user data collections
-      const userDataCollections = ['patients', 'ai_cache', 'notes', 'local_embeddings', 'db_metadata'];
-      for (const collectionName of userDataCollections) {
-        try {
-          const db = getMongoDatabase(collectionName);
-          const documents = await db.collection(collectionName).find({}).toArray();
-          exportData.collections[collectionName] = documents;
-          totalDocuments += documents.length;
-          collectionsExported++;
-          console.log(`✅ [MONGODB_IPC] Exported ${documents.length} documents from ${collectionName}`);
-        } catch (error) {
-          console.warn(`⚠️ [MONGODB_IPC] Failed to export collection ${collectionName}:`, error);
-          exportData.collections[collectionName] = [];
-        }
-      }
-      
-      // Write to file
-      const fs = require('fs').promises;
-      await fs.writeFile(result.filePath, JSON.stringify(exportData, null, 2), 'utf8');
-      
-      console.log(`✅ [MONGODB_IPC] Database export completed: ${collectionsExported} collections, ${totalDocuments} documents`);
-      
-      return {
-        success: true,
-        filePath: result.filePath,
-        collectionsExported,
-        totalDocuments
-      };
-    } catch (error) {
-      console.error('❌ [MONGODB_IPC] Database export failed:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
-    }
-  });
-
-  // Storage settings handlers (placeholder for compatibility)
-  ipcMain.handle('db-getStorageSettings', async (): Promise<any> => {
-    return {
-      type: 'mongodb',
-      defaultUri: process.env.MONGODB_URI?.replace(/\/\/[^:]+:[^@]+@/, '//***:***@') || 'Not configured',
-      userUri: userMongoUri?.replace(/\/\/[^:]+:[^@]+@/, '//***:***@') || 'Using default URI',
-      lastUpdated: new Date().toISOString()
-    };
-  });
-
-  ipcMain.handle('db-chooseStorageLocation', async (): Promise<any> => {
-    return {
-      success: false,
-      message: 'Storage location is managed via MongoDB URI configuration'
-    };
-  });
-
-  // Health check handlers
-  ipcMain.handle('db-healthCheck', async (): Promise<any> => {
-    try {
-      console.log('🏥 [MONGODB_IPC] Performing comprehensive health check...');
-      
-      const defaultHealth = await checkDefaultMongoHealth();
-      const userHealth = await checkUserMongoHealth();
-      
-      const overallStatus = defaultHealth.connected && userHealth.connected ? 'healthy' : 'issues';
-      
-      return {
-        status: overallStatus,
-        timestamp: new Date().toISOString(),
-        type: 'mongodb',
-        details: {
-          default: defaultHealth,
-          user: userHealth
-        }
-      };
-    } catch (error) {
-      console.error('❌ [MONGODB_IPC] Health check failed:', error);
-      return {
-        status: 'error',
-        timestamp: new Date().toISOString(),
-        type: 'mongodb',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
-  });
-
-  // Separate health checks for each database
-  ipcMain.handle('db-healthCheckDefault', async (): Promise<any> => {
-    try {
-      return await checkDefaultMongoHealth();
-    } catch (error) {
-      console.error('❌ [MONGODB_IPC] Default health check failed:', error);
-      return { connected: false, error: error instanceof Error ? error.message : 'Unknown error' };
-    }
-  });
-
-  ipcMain.handle('db-healthCheckUser', async (): Promise<any> => {
-    try {
-      return await checkUserMongoHealth();
-    } catch (error) {
-      console.error('❌ [MONGODB_IPC] User health check failed:', error);
-      return { connected: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   });
 

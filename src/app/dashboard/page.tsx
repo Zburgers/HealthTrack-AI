@@ -44,6 +44,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { parseISO, compareDesc, compareAsc, format, isToday, isYesterday, startOfWeek, endOfWeek } from 'date-fns';
+import DatabaseSetup from '@/components/setup/DatabaseSetup';
 
 // Helper function to get correct risk score (0-100)
 const getNormalizedRiskScore = (score: number): number => {
@@ -216,6 +217,7 @@ export default function DashboardPage() {  const [patients, setPatients] = useSt
   const [archivedCount, setArchivedCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dbStatus, setDbStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
@@ -225,65 +227,63 @@ export default function DashboardPage() {  const [patients, setPatients] = useSt
     gender: 'all',
   });
   const [sortBy, setSortBy] = useState('lastVisitDesc');
-  useEffect(() => {
-    const fetchPatients = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        // Check if we're in Electron environment
-        const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
-        
-        if (isElectron) {
-          console.log('[DASHBOARD] Electron environment detected - using IPC');
-          
-          // First, test if IPC is working at all
-          try {
-            const testResult = await (window as any).electronAPI.database.findOne('patients', {});
-            console.log('[DASHBOARD] IPC test successful:', testResult);
-          } catch (testError: any) {
-            console.error('[DASHBOARD] IPC test failed:', testError);
-            throw new Error(`IPC communication failed: ${testError.message}`);
-          }
-          
-          // Use IPC to get patients directly from SQLite
-          const activePatients = await (window as any).electronAPI.database.find('patients', { 
-            is_deleted: { $ne: true } 
-          });
-          setPatients(activePatients || []);
-
-          // Get archived patients count
-          const archivedPatients = await (window as any).electronAPI.database.find('patients', { 
-            is_deleted: true 
-          });
-          setArchivedCount((archivedPatients || []).length);
-          
-          console.log(`[DASHBOARD] Loaded ${activePatients?.length || 0} active patients via IPC`);
-        } else {
-          console.log('[DASHBOARD] Web environment detected - using API');
-          
-          // Fetch active patients via API
-          const response = await fetch('/api/patients');
-          if (!response.ok) {
-            throw new Error('Failed to fetch patient data.');
-          }
-          const data = await response.json();
-          setPatients(data);
-
-          // Fetch archived patients count
-          const archivedResponse = await fetch('/api/patients?archivedOnly=true');
-          if (archivedResponse.ok) {
-            const archivedData = await archivedResponse.json();
-            setArchivedCount(archivedData.length);
-          }
-        }
-      } catch (e) {
-        console.error('[DASHBOARD] Error fetching patients:', e);
-        setError((e as Error).message);
-      } finally {
-        setIsLoading(false);
+  
+  const checkDbStatus = async () => {
+    const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
+    if (!isElectron) {
+      setDbStatus('connected'); // Assume web API is always available
+      return true;
+    }
+    try {
+      const status = await (window as any).electronAPI.database.checkStatus();
+      if (status === 'ready') {
+        setDbStatus('connected');
+        return true;
       }
-    };
+    } catch (e) {
+      // Will fall through to return false
+    }
+    setDbStatus('error');
+    setError('Could not connect to the local database. Please ensure it is running correctly.');
+    return false;
+  };
 
+  const fetchPatients = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    const isReady = await checkDbStatus();
+    if (!isReady) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
+      
+      if (isElectron) {
+        console.log('📊 [DASHBOARD] Loading patients from local database...');
+        const activePatients = await (window as any).electronAPI.database.getPatients();
+        setPatients(activePatients || []);
+        console.log(`✅ [DASHBOARD] Loaded ${activePatients?.length || 0} patients`);
+      } else {
+        console.log('🌐 [DASHBOARD] Loading patients from API...');
+        const response = await fetch('/api/patients');
+        if (!response.ok) throw new Error('Failed to fetch patient data.');
+        const data = await response.json();
+        setPatients(data);
+        console.log(`✅ [DASHBOARD] Loaded ${data?.length || 0} patients from API`);
+      }
+    } catch (e) {
+      console.error('❌ [DASHBOARD] Error fetching patients:', e);
+      setError((e as Error).message);
+      setDbStatus('error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchPatients();
   }, []);
 
@@ -588,6 +588,31 @@ export default function DashboardPage() {  const [patients, setPatients] = useSt
       </motion.div>
     );
   };
+  if (dbStatus === 'connecting') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">
+        <div className="text-center space-y-6">
+          <div className="bg-primary/10 p-6 rounded-full mx-auto w-24 h-24 flex items-center justify-center">
+            <Loader2 className="w-12 h-12 animate-spin text-primary" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-semibold text-foreground">Connecting to Database</h1>
+            <p className="text-muted-foreground">Setting up your secure local database...</p>
+          </div>
+          <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
+            <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+            <span>This usually takes just a moment</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (dbStatus === 'error') {
+    return <DatabaseSetup onConnectionSuccess={fetchPatients} />;
+  }
+
+
   return (
     <MainLayout>
       <TooltipProvider>
