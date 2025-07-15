@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDatabase } from '@/lib/db'; // Updated import
 
 /**
  * GET /api/local-embeddings/[id]
@@ -19,11 +19,12 @@ export async function GET(
       );
     }
 
-    // Get unified database connection
-    const db = await getDb('local_embeddings');
+    // Get database instance for local_embeddings collection
+    const db = await getDatabase('local_embeddings');
+    const embeddingsCollection = db.collection('local_embeddings');
 
     // Retrieve the specific embedding
-    const embedding = await db.collection('local_embeddings').findOne({ id });
+    const embedding = await embeddingsCollection.findOne({ id });
 
     if (!embedding) {
       return NextResponse.json(
@@ -61,11 +62,12 @@ export async function DELETE(
       );
     }
 
-    // Get unified database connection
-    const db = await getDb('local_embeddings');
+    // Get database instance for local_embeddings collection
+    const db = await getDatabase('local_embeddings');
+    const embeddingsCollection = db.collection('local_embeddings');
 
     // Delete the embedding
-    const result = await db.collection('local_embeddings').deleteOne({ id });
+    const result = await embeddingsCollection.deleteOne({ id });
 
     if (result.deletedCount === 0) {
       return NextResponse.json(

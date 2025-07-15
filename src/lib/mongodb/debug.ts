@@ -18,43 +18,41 @@ let isMonitoring = false;
 let mainLastChecked: Date | null = null;
 let embeddingsLastChecked: Date | null = null;
 
-// Add connection logging to the connection helper
-export const connectToDatabase = async (uri?: string): Promise<MongoClient> => {
-  console.log('📊 [CONNECTION] Attempting main database connection...');
-  try {
-    const client = await originalConnectToDatabase(uri);
-    console.log('✅ [CONNECTION] Main database connection successful');
-    return client;
-  } catch (error) {
-    console.error('❌ [CONNECTION] Main database connection failed:', error);
-    throw error;
-  }
-};
+// Decorator for logging database connection attempts
+export function withConnectionLogging<T extends (...args: any[]) => Promise<MongoClient>>(fn: T, name: string): T {
+  return (async (...args: any[]) => {
+    console.log(`📊 [CONNECTION] Attempting ${name} database connection...`);
+    try {
+      const client = await fn(...args);
+      console.log(`✅ [CONNECTION] ${name} database connection successful`);
+      return client;
+    } catch (error) {
+      console.error(`❌ [CONNECTION] ${name} database connection failed:`, error);
+      throw error;
+    }
+  }) as T;
+}
 
-// Add connection logging to the case embeddings connection helper
-export const connectToCaseEmbeddingsDatabase = async (): Promise<MongoClient> => {
-  console.log('📊 [CONNECTION] Attempting case embeddings database connection...');
-  try {
-    const client = await originalConnectToCaseEmbeddingsDatabase();
-    console.log('✅ [CONNECTION] Case embeddings database connection successful');
-    return client;
-  } catch (error) {
-    console.error('❌ [CONNECTION] Case embeddings database connection failed:', error);
-    throw error;
-  }
-};
+// Usage example (not exported by default):
+export const connectToDatabaseWithLogging = withConnectionLogging(originalConnectToDatabase, 'main');
+export const connectToCaseEmbeddingsDatabaseWithLogging = withConnectionLogging(originalConnectToCaseEmbeddingsDatabase, 'case embeddings');
 
-// Add status debugging to getConnectionStatus
-export const getConnectionStatus = () => {
-  const status = originalGetConnectionStatus();
-  console.log('🔍 [STATUS] Database connection status:', {
-    mainConnected: status.connected,
-    mainUri: status.uri,
-    caseEmbeddingsConnected: status.caseEmbeddingsConnected,
-    caseEmbeddingsUri: status.caseEmbeddingsUri
-  });
-  return status;
-};
+// Decorator for logging connection status
+export function withStatusLogging<T extends (...args: any[]) => any>(fn: T): T {
+  return ((...args: any[]) => {
+    const status = fn(...args);
+    console.log('🔍 [STATUS] Database connection status:', {
+      mainConnected: status.connected,
+      mainUri: status.uri,
+      caseEmbeddingsConnected: status.caseEmbeddingsConnected,
+      caseEmbeddingsUri: status.caseEmbeddingsUri
+    });
+    return status;
+  }) as T;
+}
+
+// Usage example (not exported by default):
+export const getConnectionStatusWithLogging = withStatusLogging(originalGetConnectionStatus);
 
 /**
  * Checks if a MongoDB client is connected and operational.

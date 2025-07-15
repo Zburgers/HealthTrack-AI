@@ -93,7 +93,7 @@ export function startPeriodicConnectionChecks(intervalMs = 5 * 60 * 1000): void 
     clearInterval(connectionCheckInterval);
   }
   
-  console.log(`📊 [DATABASE] Setting up periodic connection checks (every ${intervalMs/1000} seconds)`);
+  console.log(`📊 [DATABASE] Setting up periodic connection checks (every ${Math.floor(intervalMs/1000)} seconds)`);
   
   connectionCheckInterval = setInterval(async () => {
     console.log('📊 [DATABASE] Running scheduled connection check');

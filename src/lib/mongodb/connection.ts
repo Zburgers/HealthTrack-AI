@@ -274,7 +274,7 @@ export const initializeAllDatabaseConnections = async (): Promise<void> => {
       console.log('ℹ️ [DATABASE] No case embeddings URI found in environment. Skipping connection.');
     }
   } catch (error) {
-    console.error('❌ [DATABASE] Failed to initialize case embeddings database connection:', error);
+    console.error(`❌ [DATABASE] Failed to initialize case embeddings database connection [${error?.name ?? 'UnknownError'}]: ${error?.message ?? error}`);
   }
   
   // Log overall status

@@ -306,6 +306,16 @@ export class PatientOperations {
  * AI Cache operations
  */
 export class AICacheOperations {
+  /**
+   * Retrieves the cached output for a given key if it exists and is not expired.
+   * 
+   * @param key - The cache key to look up.
+   * @returns The cached output if found and valid, or `null` if not found or an error occurs.
+   * 
+   * @remarks
+   * This method returns `null` instead of throwing errors if cache retrieval fails.
+   * Callers should handle the possibility of a `null` return value.
+   */
   static async getCache(key: string): Promise<any> {
     console.log(`📊 [MONGODB] AICacheOperations.getCache(): Looking up cache for key: ${key}`);
     try {
