@@ -98,12 +98,11 @@ export default function DatabaseSetup({ onConnectionSuccess }: DatabaseSetupProp
         console.log('✅ [DB-SETUP] Connection successful!');
         setConnectionStatus('success');
         setConnectionDetails(health);
-        
-        // Small delay to show success, then proceed
-        setTimeout(() => {
-          console.log('➡️ [DB-SETUP] Proceeding to dashboard...');
-          onConnectionSuccess();
-        }, 1500);
+        // Remove auto-redirect, let user click Proceed to Dashboard
+        // setTimeout(() => {
+        //   console.log('➡️ [DB-SETUP] Proceeding to dashboard...');
+        //   onConnectionSuccess();
+        // }, 1500);
       } else {
         throw new Error(health.error || 'Connection failed');
       }
@@ -269,15 +268,25 @@ Thanks!
                   )}
 
                   {connectionStatus === 'success' && (
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                      <div className="flex items-center space-x-3">
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                        <div>
-                          <h3 className="font-medium text-green-900">Connection Successful!</h3>
-                          <p className="text-sm text-green-700">Your database is connected and ready</p>
+                    <>
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                        <div className="flex items-center space-x-3">
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                          <div>
+                            <h3 className="font-medium text-green-900">Connection Successful!</h3>
+                            <p className="text-sm text-green-700">Your database is connected and ready</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                      <div className="mt-6 flex justify-center">
+                        <Button
+                          onClick={onConnectionSuccess}
+                          className="bg-blue-600 hover:bg-blue-700 text-white h-12 text-base font-medium px-8"
+                        >
+                          Proceed to Dashboard
+                        </Button>
+                      </div>
+                    </>
                   )}
 
                   {connectionStatus === 'error' && (

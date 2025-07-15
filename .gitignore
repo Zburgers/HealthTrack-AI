@@ -77,3 +77,7 @@ scripts/
 # Added by Task Master AI
 tasks.json
 tasks/ 
+
+/healthtrack-settings.json
+
+/HealthTrackAI_parsed_code.json

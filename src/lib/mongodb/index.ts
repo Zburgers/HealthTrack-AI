@@ -24,6 +24,24 @@ import {
   isRemoteDatabaseConnected 
 } from './remote';
 
+// Import connection/initializer modules
+import {
+  connectToDatabase,
+  connectToCaseEmbeddingsDatabase,
+  getConnectionStatus,
+} from './connection';
+
+// Import initializer functions
+import {
+  initializeDatabaseConnections,
+  startPeriodicConnectionChecks,
+  stopPeriodicConnectionChecks,
+} from './initializer';
+
+// Import debug utilities
+import { checkAllConnections } from './debug';
+
+// Import IPC modules for backward compatibility
 import { 
   isElectronIPCAvailable,
   findOneViaIPC,
@@ -182,58 +200,105 @@ export class DatabaseOperations {
  */
 export class PatientOperations {
   static async getPatients(): Promise<any[]> {
-    return DatabaseOperations.find(COLLECTIONS.PATIENTS, { isDeleted: { $ne: true } });
+    console.log('📊 [MONGODB] PatientOperations.getPatients(): Fetching all non-deleted patients');
+    try {
+      // Check connection status first
+      const status = getConnectionStatus();
+      if (!status.connected) {
+        console.error('❌ [MONGODB] Database not connected when fetching patients');
+        throw new Error('Database not connected. Please check your MongoDB connection.');
+      }
+      
+      const patients = await DatabaseOperations.find(COLLECTIONS.PATIENTS, { isDeleted: { $ne: true } });
+      console.log(`✅ [MONGODB] Successfully fetched ${patients.length} patients`);
+      return patients;
+    } catch (error) {
+      console.error('❌ [MONGODB] Error fetching patients:', error);
+      throw error;
+    }
   }
 
   static async getPatient(id: string): Promise<any> {
-    const { ObjectId } = require('mongodb');
-    return DatabaseOperations.findOne(COLLECTIONS.PATIENTS, { _id: new ObjectId(id) });
+    console.log(`📊 [MONGODB] PatientOperations.getPatient(): Fetching patient with ID ${id}`);
+    try {
+      const { ObjectId } = require('mongodb');
+      const patient = await DatabaseOperations.findOne(COLLECTIONS.PATIENTS, { _id: new ObjectId(id) });
+      console.log(`✅ [MONGODB] ${patient ? 'Found' : 'Did not find'} patient with ID ${id}`);
+      return patient;
+    } catch (error) {
+      console.error(`❌ [MONGODB] Error fetching patient with ID ${id}:`, error);
+      throw error;
+    }
   }
 
   static async createPatient(patient: any): Promise<any> {
-    const { ObjectId } = require('mongodb');
-    const newPatient = {
-      ...patient,
-      _id: new ObjectId(),
-      createdAt: new Date(),
-      last_updated: new Date(),
-      isDeleted: false
-    };
-    
-    await DatabaseOperations.insertOne(COLLECTIONS.PATIENTS, newPatient);
-    return newPatient;
+    console.log('📊 [MONGODB] PatientOperations.createPatient(): Creating new patient');
+    try {
+      const { ObjectId } = require('mongodb');
+      const newPatient = {
+        ...patient,
+        _id: new ObjectId(),
+        createdAt: new Date(),
+        last_updated: new Date(),
+        isDeleted: false
+      };
+      
+      await DatabaseOperations.insertOne(COLLECTIONS.PATIENTS, newPatient);
+      console.log(`✅ [MONGODB] Successfully created patient with ID ${newPatient._id}`);
+      return newPatient;
+    } catch (error) {
+      console.error('❌ [MONGODB] Error creating patient:', error);
+      throw error;
+    }
   }
 
   static async updatePatient(id: string, updates: any): Promise<any> {
-    const { ObjectId } = require('mongodb');
-    return DatabaseOperations.updateOne(
-      COLLECTIONS.PATIENTS,
-      { _id: new ObjectId(id) },
-      { $set: { ...updates, last_updated: new Date() } }
-    );
+    console.log(`📊 [MONGODB] PatientOperations.updatePatient(): Updating patient with ID ${id}`);
+    try {
+      const { ObjectId } = require('mongodb');
+      const result = await DatabaseOperations.updateOne(
+        COLLECTIONS.PATIENTS,
+        { _id: new ObjectId(id) },
+        { $set: { ...updates, last_updated: new Date() } }
+      );
+      console.log(`✅ [MONGODB] Updated patient with ID ${id}. Modified: ${result.modifiedCount || 0}`);
+      return result;
+    } catch (error) {
+      console.error(`❌ [MONGODB] Error updating patient with ID ${id}:`, error);
+      throw error;
+    }
   }
 
   static async deletePatient(id: string): Promise<boolean> {
-    // In Electron renderer, use IPC
-    if (isElectronEnvironment() && isElectronIPCAvailable()) {
-      return deletePatientViaIPC(id);
-    }
-
-    // Direct database access (soft delete)
-    const { ObjectId } = require('mongodb');
-    const result = await DatabaseOperations.updateOne(
-      COLLECTIONS.PATIENTS,
-      { _id: new ObjectId(id) },
-      { 
-        $set: { 
-          isDeleted: true, 
-          deletedAt: new Date(),
-          deletedBy: 'user'
-        } 
+    console.log(`📊 [MONGODB] PatientOperations.deletePatient(): Soft deleting patient with ID ${id}`);
+    try {
+      // In Electron renderer, use IPC
+      if (isElectronEnvironment() && isElectronIPCAvailable()) {
+        console.log(`📊 [MONGODB] Using IPC for patient deletion`);
+        return deletePatientViaIPC(id);
       }
-    );
-    
-    return result.modifiedCount > 0;
+  
+      // Direct database access (soft delete)
+      console.log(`📊 [MONGODB] Performing soft delete via direct database access`);
+      const { ObjectId } = require('mongodb');
+      const result = await DatabaseOperations.updateOne(
+        COLLECTIONS.PATIENTS,
+        { _id: new ObjectId(id) },
+        { 
+          $set: { 
+            isDeleted: true, 
+            deletedAt: new Date(),
+            deletedBy: 'user'
+          } 
+        }
+      );
+      
+      console.log(`✅ [MONGODB] Soft deleted patient with ID ${id}. Modified: ${result.modifiedCount || 0}`);
+      return result.modifiedCount > 0;
+    } catch (error) {
+      console.error(`❌ [MONGODB] Error deleting patient with ID ${id}:`, error);
+      throw error;
+    }
   }
 }
 
@@ -242,35 +307,61 @@ export class PatientOperations {
  */
 export class AICacheOperations {
   static async getCache(key: string): Promise<any> {
-    const now = new Date();
-    const entry = await DatabaseOperations.findOne(
-      COLLECTIONS.AI_CACHE,
-      { key, expiresAt: { $gt: now } }
-    );
-    
-    return entry?.output || null;
+    console.log(`📊 [MONGODB] AICacheOperations.getCache(): Looking up cache for key: ${key}`);
+    try {
+      const now = new Date();
+      const entry = await DatabaseOperations.findOne(
+        COLLECTIONS.AI_CACHE,
+        { key, expiresAt: { $gt: now } }
+      );
+      
+      console.log(`✅ [MONGODB] Cache ${entry ? 'hit' : 'miss'} for key: ${key}`);
+      return entry?.output || null;
+    } catch (error) {
+      console.error(`❌ [MONGODB] Error retrieving cache for key ${key}:`, error);
+      return null; // Return null instead of throwing on cache errors
+    }
   }
 
   static async setCache(key: string, workflow: string, input: any, output: any, expiryMs: number = 24 * 60 * 60 * 1000): Promise<void> {
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + expiryMs);
-    
-    await DatabaseOperations.updateOne(
-      COLLECTIONS.AI_CACHE,
-      { key },
-      {
-        $set: {
-          key,
-          workflow,
-          input,
-          output,
-          createdAt: now,
-          expiresAt,
+    console.log(`📊 [MONGODB] AICacheOperations.setCache(): Setting cache for key: ${key}`);
+    try {
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + expiryMs);
+      
+      await DatabaseOperations.updateOne(
+        COLLECTIONS.AI_CACHE,
+        { key },
+        {
+          $set: {
+            key,
+            workflow,
+            input,
+            output,
+            createdAt: now,
+            expiresAt,
+          },
         },
-      },
       { upsert: true }
-    );
+      );
+      console.log(`✅ [MONGODB] Successfully set cache for key: ${key}`);
+    } catch (error) {
+      console.error(`❌ [MONGODB] Error setting cache for key ${key}:`, error);
+      throw error;
+    }
   }
 }
+
+
+// Export connection and initialization functions
+export {
+  connectToDatabase,
+  connectToCaseEmbeddingsDatabase,
+  getConnectionStatus,
+  initializeDatabaseConnections,
+  startPeriodicConnectionChecks,
+  stopPeriodicConnectionChecks,
+  checkAllConnections
+};
 
 
