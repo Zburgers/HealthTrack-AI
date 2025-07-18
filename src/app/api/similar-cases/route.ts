@@ -1,3 +1,34 @@
+import { NextResponse } from 'next/server';
+
+/**
+ * API Route for Similar Cases - DEPRECATED
+ *
+ * This endpoint is disabled. In the HealthTrackAI Electron application, finding
+ * similar cases must be initiated via a client-side IPC call to the Electron
+ * main process. This ensures that all database and AI-related operations are
+ * handled securely in the main process.
+ */
+export async function POST() {
+  return NextResponse.json(
+    {
+      error: 'This API endpoint is deprecated.',
+      message: 'Finding similar cases must be initiated from the client application via IPC.',
+    },
+    { status: 403 }
+  );
+}
+
+export async function GET() {
+  return NextResponse.json(
+    {
+      error: 'This API endpoint is deprecated.',
+      message: 'This endpoint expects a POST request, but is disabled. Please use IPC.',
+    },
+    { status: 405 }
+  );
+}
+
+/*
 import { NextRequest, NextResponse } from 'next/server';
 import { getEmbeddings } from '@/lib/embedding'; // Uses Hugging Face BioBERT model
 import { findSimilarCases, SimilarCasesFilterSort } from '@/lib/vectorSearch';
@@ -165,3 +196,5 @@ export async function GET(request: NextRequest) {
   // Example: return a link to documentation or a test interface if desired
   return NextResponse.json({ message: 'This endpoint expects a POST request with case data to find similar cases. Please refer to API documentation.' }, { status: 405 });
 }
+
+*/

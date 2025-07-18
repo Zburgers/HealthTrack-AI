@@ -1,17 +1,17 @@
 {
-  "timestamp": "2025-07-09T22:49:59.497Z",
-  "version": "0.1.1",
+  "timestamp": "2025-07-18T05:59:25.198Z",
+  "version": "0.1.2m",
   "nodeVersion": "v22.17.0",
   "platform": "linux",
   "arch": "x64",
   "environment": {
-    "isElectron": false,
+    "isElectron": true,
     "isProduction": false,
     "isCI": false
   },
   "git": {
     "branch": "mongodb-development",
-    "commit": "4cea331b9dd4a1fc8ae852a894dc3003f69719a2",
-    "shortCommit": "4cea331"
+    "commit": "142667bf139c8ace17440beeaf971f34ecb4f667",
+    "shortCommit": "142667b"
   }
 }

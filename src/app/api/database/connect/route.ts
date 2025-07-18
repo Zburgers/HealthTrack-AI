@@ -1,3 +1,22 @@
+import { NextResponse } from 'next/server';
+
+/**
+ * API Route for Database Connection - DEPRECATED
+ *
+ * This endpoint is disabled. In the HealthTrackAI Electron application, database
+ * connection is managed exclusively by the Electron main process at startup.
+ * The connection status can be monitored via IPC events from the main process.
+ */
+export async function POST() {
+  return NextResponse.json(
+    {
+      error: 'This API endpoint is deprecated.',
+      message: 'Database connection is managed by the Electron main process.',
+    },
+    { status: 403 }
+  );
+}
+
 /**
  * @api {post} /api/database/connect
  * @description Explicitly connects to the MongoDB database using the provided URI
@@ -6,7 +25,7 @@
  * @returns {NextResponse} A Next.js response object with the connection result.
  *   - Success (200): { success: true, connected: true, uri: "..." }
  *   - Failed (500): { success: false, error: "..." }
- */
+ 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, getConnectionStatus, initializeDatabaseConnections } from '@/lib/mongodb';
 import { promises as fs } from 'fs';
@@ -81,3 +100,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+  
+*/

@@ -10,6 +10,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { Document, Filter, FindOptions, UpdateFilter, UpdateOptions, InsertOneResult, UpdateResult, DeleteResult } from 'mongodb';
 
 class ServerSQLiteAdapter {
   private db: Database.Database | null = null;
@@ -45,7 +46,7 @@ class ServerSQLiteAdapter {
   /**
    * Convert JavaScript values to SQLite-compatible values
    */
-  private convertValue(value: any): any {
+  private convertValue(value: unknown): unknown {
     if (typeof value === 'boolean') {
       return value ? 1 : 0; // Convert boolean to integer
     }
@@ -55,11 +56,11 @@ class ServerSQLiteAdapter {
   /**
    * Find multiple documents in a collection (table)
    */
-  async find(collection: string, filter: any = {}, options: any = {}): Promise<any[]> {
+  async find<T extends Document>(collection: string, filter: Filter<T> = {}, options: FindOptions<T> = {}): Promise<T[]> {
     const db = this.initializeDb();
     
     let query = `SELECT * FROM ${collection}`;
-    const params: any[] = [];
+    const params: unknown[] = [];
     
     // Build WHERE clause from filter
     if (filter && Object.keys(filter).length > 0) {
@@ -69,7 +70,7 @@ class ServerSQLiteAdapter {
         if (key === 'is_deleted' && typeof value === 'object' && value && '$ne' in value) {
           // Handle $ne operator
           whereConditions.push(`(${key} IS NULL OR ${key} != ?)`);
-          params.push(this.convertValue(value.$ne));
+          params.push(this.convertValue((value as {$ne: unknown}).$ne));
         } else {
           whereConditions.push(`${key} = ?`);
           params.push(this.convertValue(value));
@@ -106,7 +107,7 @@ class ServerSQLiteAdapter {
       const results = stmt.all(...params);
       
       console.log(`[SERVER_SQLITE] Found ${results.length} records`);
-      return results;
+      return results as T[];
     } catch (error) {
       console.error(`[SERVER_SQLITE] Query failed:`, error);
       throw error;
@@ -116,7 +117,7 @@ class ServerSQLiteAdapter {
   /**
    * Find a single document in a collection (table)
    */
-  async findOne(collection: string, filter: any = {}): Promise<any> {
+  async findOne<T extends Document>(collection: string, filter: Filter<T> = {}): Promise<T | null> {
     const results = await this.find(collection, filter, { limit: 1 });
     return results[0] || null;
   }
@@ -124,7 +125,7 @@ class ServerSQLiteAdapter {
   /**
    * Insert a single document into a collection (table)
    */
-  async insertOne(collection: string, document: any): Promise<{ insertedId: any; acknowledged: boolean }> {
+  async insertOne<T extends Document>(collection: string, document: T): Promise<InsertOneResult<T>> {
     const db = this.initializeDb();
     
     const keys = Object.keys(document);
@@ -140,7 +141,7 @@ class ServerSQLiteAdapter {
       const result = stmt.run(...values);
       
       return {
-        insertedId: document.id || result.lastInsertRowid,
+        insertedId: (document as any).id || result.lastInsertRowid,
         acknowledged: true
       };
     } catch (error) {
@@ -152,11 +153,11 @@ class ServerSQLiteAdapter {
   /**
    * Update a single document in a collection (table)
    */
-  async updateOne(collection: string, filter: any, update: any, options?: any): Promise<{ matchedCount: number; modifiedCount: number; acknowledged: boolean }> {
+  async updateOne<T extends Document>(collection: string, filter: Filter<T>, update: UpdateFilter<T>, options?: UpdateOptions): Promise<UpdateResult> {
     const db = this.initializeDb();
     
     // Handle MongoDB-style $set updates
-    const updateData = update.$set || update;
+    const updateData = (update as any).$set || update;
     
     const setClause = Object.keys(updateData).map(key => `${key} = ?`).join(', ');
     const setValues = Object.values(updateData);
@@ -180,7 +181,9 @@ class ServerSQLiteAdapter {
       return {
         matchedCount: result.changes > 0 ? 1 : 0,
         modifiedCount: result.changes,
-        acknowledged: true
+        acknowledged: true,
+        upsertedId: null,
+        upsertedCount: 0
       };
     } catch (error) {
       console.error(`[SERVER_SQLITE] Update failed:`, error);
@@ -191,11 +194,11 @@ class ServerSQLiteAdapter {
   /**
    * Delete a single document from a collection (table)
    */
-  async deleteOne(collection: string, filter: any): Promise<{ deletedCount: number; acknowledged: boolean }> {
+  async deleteOne<T extends Document>(collection: string, filter: Filter<T>): Promise<DeleteResult> {
     const db = this.initializeDb();
     
     let query = `DELETE FROM ${collection}`;
-    const params: any[] = [];
+    const params: unknown[] = [];
     
     if (filter && Object.keys(filter).length > 0) {
       const whereConditions = Object.keys(filter).map(key => `${key} = ?`);
@@ -222,11 +225,11 @@ class ServerSQLiteAdapter {
   /**
    * Count documents in a collection (table)
    */
-  async countDocuments(collection: string, filter: any = {}): Promise<number> {
+  async countDocuments<T extends Document>(collection: string, filter: Filter<T> = {}): Promise<number> {
     const db = this.initializeDb();
     
     let query = `SELECT COUNT(*) as count FROM ${collection}`;
-    const params: any[] = [];
+    const params: unknown[] = [];
     
     if (filter && Object.keys(filter).length > 0) {
       const whereConditions: string[] = [];
@@ -234,7 +237,7 @@ class ServerSQLiteAdapter {
       for (const [key, value] of Object.entries(filter)) {
         if (key === 'is_deleted' && typeof value === 'object' && value && '$ne' in value) {
           whereConditions.push(`(${key} IS NULL OR ${key} != ?)`);
-          params.push(value.$ne);
+          params.push((value as {$ne: unknown}).$ne);
         } else {
           whereConditions.push(`${key} = ?`);
           params.push(value);

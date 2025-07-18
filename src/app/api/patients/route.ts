@@ -1,15 +1,50 @@
-import { NextResponse } from 'next/server';
+/*
 import { PatientOperations } from '@/lib/mongodb';
 import { PatientDocument, NewCaseFormValues, Patient } from '@/types';
 import { analyzePatientSymptoms, AnalyzePatientSymptomsInput } from '@/vertex-ai';
 import { format } from 'date-fns';
 import { ObjectId } from 'mongodb';
 
+
+*/
+/**
+ * API Route for Patients - DEPRECATED
+ *
+ * This endpoint is disabled. In the HealthTrackAI Electron application, all patient
+ * data operations (fetching, creating, updating) must be performed via client-side
+ * IPC calls to the Electron main process. This ensures data integrity and security.
+ *
+ * - To fetch patients, use the `db.patients.find()` method from the frontend IPC bridge.
+ * - To create a patient, use the `db.patients.insertOne()` method.
+ */
+
+import { NextResponse } from 'next/server';
+
+export async function GET() {
+  return NextResponse.json(
+    {
+      error: 'This API endpoint is deprecated.',
+      message: 'Patient data must be fetched from the client application via IPC.',
+    },
+    { status: 403 }
+  );
+}
+
+export async function POST() {
+  return NextResponse.json(
+    {
+      error: 'This API endpoint is deprecated.',
+      message: 'New patients must be created from the client application via IPC.',
+    },
+    { status: 403 }
+  );
+}
+
 /**
  * GET /api/patients
  * 
  * Retrieves a list of patients with a limited set of fields suitable for the dashboard view.
- */
+ 
 export async function GET(request: Request) {
   try {
     const patients = await PatientOperations.getPatients(); 
@@ -47,12 +82,12 @@ export async function GET(request: Request) {
   }
 }
 
-/**
+**
  * POST /api/patients
  * 
  * Creates a new patient record, then asynchronously triggers the AI analysis flow
  * to update the record with AI-generated data.
- */
+ *
 export async function POST(request: Request) {
   try {
     const formData: NewCaseFormValues = await request.json();
@@ -105,3 +140,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Failed to create patient', error: (error as Error).message }, { status: 500 });
   }
 }
+
+*/

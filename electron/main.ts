@@ -1,10 +1,16 @@
 import { app, BrowserWindow, Menu, shell, dialog } from 'electron';
 import * as path from 'path';
 import * as http from 'http';
+import * as fs from 'fs';
 import { isDev } from './utils/env';
-import { startLocalDatabase, stopLocalDatabase } from './lib/local-db';
 import { setupDatabaseIPCHandlers } from './ipc/database-handlers';
+import './ipc/db-check-status'; // Register db:checkStatus IPC handler
 import { setupMongoDBIpcHandlers } from './ipc/mongodb-handlers';
+
+// 🎯 Clara's Switchboard Architecture - Central Data Source Management
+import { getDataSourceManager } from './lib/DataSourceManager';
+
+import { MongoDBAtlasDataSource } from './lib/datasources/MongoDBAtlasDataSource';
 
 // --- GTK / X11 fixes for Linux ---
 if (process.platform === 'linux') {
@@ -22,9 +28,7 @@ if (process.platform === 'linux') {
 // Mark that we're in Electron
 process.env.ELECTRON_ENV = 'true';
 process.env.IS_ELECTRON = 'true';
-if (!process.env.NODE_ENV) {
-  process.env.NODE_ENV = 'development';
-}
+
 
 let mainWindow: BrowserWindow | null = null;
 let cacheCleanupInterval: NodeJS.Timeout | null = null;
@@ -167,6 +171,100 @@ function stopCacheCleanupJob(): void {
 }
 
 /**
+ * 🎯 Initialize Clara's Switchboard Architecture
+ * Sets up the centralized data source management system
+ */
+async function initializeSwitchboard(): Promise<void> {
+  console.log('🎯 [SWITCHBOARD] Initializing Clara\'s Switchboard Architecture...');
+  
+  try {
+    // Get the singleton DataSourceManager
+    const dataSourceManager = getDataSourceManager();
+    
+
+    
+    // Register MongoDB Atlas data source (wraps existing Atlas connection)
+    const atlasDataSource = new MongoDBAtlasDataSource();
+    dataSourceManager.registerDataSource(atlasDataSource);
+    console.log('✅ [SWITCHBOARD] MongoDB Atlas data source registered');
+    
+    // Initialize the DataSourceManager
+    await dataSourceManager.initialize();
+    
+    console.log('🎯 [SWITCHBOARD] Switchboard Architecture initialized successfully!');
+    console.log('📡 [SWITCHBOARD] Available data sources:', 
+      dataSourceManager.getAvailableSources().map(s => `${s.id} (${s.name})`).join(', '));
+    
+    // 🎯 Auto-initialize case embeddings database if URI is available
+    await autoInitializeCaseEmbeddings(dataSourceManager);
+      
+  } catch (error) {
+    console.error('❌ [SWITCHBOARD] Failed to initialize Switchboard Architecture:', error);
+    throw error;
+  }
+}
+
+/**
+ * 🎯 Auto-initialize case embeddings database
+ * This should connect automatically if MONGODB_URI environment variable is set
+ * or if it's available in healthtrack-settings.json
+ */
+async function autoInitializeCaseEmbeddings(dataSourceManager: any): Promise<void> {
+  console.log('🔬 [CASE-EMBEDDINGS] Checking auto-initialization...');
+  
+  try {
+    // First check if we have a URI in the settings file
+    let caseEmbeddingsUri = process.env.MONGODB_URI;
+    const settingsFilePath = path.join(process.cwd(), 'healthtrack-settings.json');
+    
+    // Try to load from settings file if it exists
+    try {
+      if (fs.existsSync(settingsFilePath)) {
+        console.log('📄 [SETTINGS] Found settings file:', settingsFilePath);
+        const settings = JSON.parse(fs.readFileSync(settingsFilePath, 'utf8'));
+        
+        if (settings.mongoUri) {
+          console.log('✅ [SETTINGS] Found mongoUri in settings file');
+          caseEmbeddingsUri = settings.mongoUri;
+          
+          // Set it as environment variable for other parts of the app
+          process.env.MONGODB_URI = settings.mongoUri;
+        }
+      }
+    } catch (settingsError) {
+      console.error('❌ [SETTINGS] Error reading settings file:', settingsError);
+    }
+    
+    if (caseEmbeddingsUri) {
+      console.log('✅ [CASE-EMBEDDINGS] Found MongoDB URI');
+      console.log('🔌 [CASE-EMBEDDINGS] Auto-connecting to case embeddings database...');
+      
+      // Connect to Atlas with the case embeddings URI
+      await dataSourceManager.connectDataSource('mongodb-atlas', { 
+        uri: caseEmbeddingsUri,
+        autoConnect: true,
+        purpose: 'case-embeddings'
+      });
+      
+      // Also auto-connect for user data with the same URI
+      console.log('🔌 [USER-DATA] Auto-connecting user data database...');
+      await dataSourceManager.connectDataSource('mongodb-atlas', {
+        uri: caseEmbeddingsUri,
+        purpose: 'user-data',
+        autoConnect: false
+      });
+      
+      console.log('✅ [DATABASES] Databases auto-initialized successfully');
+    } else {
+      console.log('⚠️ [CASE-EMBEDDINGS] No MongoDB URI found. Databases will need manual setup.');
+    }
+  } catch (error) {
+    console.error('❌ [CASE-EMBEDDINGS] Failed to auto-initialize databases:', error);
+    // Don't throw - this is optional auto-initialization
+  }
+}
+
+/**
  * Initializes the app
  */
 async function initializeApp(): Promise<void> {
@@ -183,21 +281,24 @@ async function initializeApp(): Promise<void> {
 
 // App event handlers
 app.whenReady().then(async () => {
-  console.log('🚀 [HEALTHTRACK] Starting HealthTrack AI...');
+  console.log('🚀 [HEALTHTRACK] Starting HealthTrack AI with Switchboard Architecture...');
   try {
-    console.log('📊 [DATABASE] Skipping local database initialization (using remote only)...');
-    // await startLocalDatabase(); // Disabled for remote-only mode
-    console.log('✅ [DATABASE] Database setup ready');
+    // 🎯 Initialize Clara's Switchboard Architecture first
+    console.log('🎯 [SWITCHBOARD] Setting up centralized data source management...');
+    await initializeSwitchboard();
+    console.log('✅ [SWITCHBOARD] Switchboard Architecture ready!');
     
-    console.log('🔌 [IPC] Setting up database handlers...');
+
+    
+    // Keep existing IPC handlers for backward compatibility during transition
+    console.log('🔌 [IPC] Setting up legacy database handlers...');
     setupDatabaseIPCHandlers();
     setupMongoDBIpcHandlers();
     console.log('✅ [IPC] All database handlers ready');
     
     console.log('🖼️ [WINDOW] Creating application window...');
-    createWindow();
-    setupAppMenu();
-    console.log('✅ [HEALTHTRACK] Application ready!');
+    await initializeApp();
+    console.log('✅ [HEALTHTRACK] Application ready with Switchboard Architecture!');
   } catch (error) {
     console.error('❌ [HEALTHTRACK] Failed to initialize:', error);
     dialog.showErrorBox('Initialization Error', 'Failed to start HealthTrack AI. Please check the logs and try again.');
@@ -213,7 +314,7 @@ app.on('activate', () => {
 
 app.on('will-quit', async () => {
   console.log('👋 [HEALTHTRACK] Shutting down...');
-  await stopLocalDatabase();
+  
   if (cacheCleanupInterval) {
     clearInterval(cacheCleanupInterval);
   }

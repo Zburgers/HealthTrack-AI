@@ -1,6 +1,6 @@
 // API Request Cache to prevent duplicate calls
 class RequestCache {
-  private cache = new Map<string, Promise<any>>();
+  private cache = new Map<string, Promise<unknown>>();
   private timeouts = new Map<string, NodeJS.Timeout>();
   
   async fetchWithCache<T>(url: string, options?: RequestInit, ttl: number = 5000): Promise<T> {
@@ -8,7 +8,7 @@ class RequestCache {
     
     // Return existing promise if request is in flight
     if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey);
+      return this.cache.get(cacheKey) as Promise<T>;
     }
     
     // Create new request
@@ -23,7 +23,7 @@ class RequestCache {
         // Clear cache after request completes
         this.cache.delete(cacheKey);
         if (this.timeouts.has(cacheKey)) {
-          clearTimeout(this.timeouts.get(cacheKey));
+          clearTimeout(this.timeouts.get(cacheKey)!);
           this.timeouts.delete(cacheKey);
         }
       });

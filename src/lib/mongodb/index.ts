@@ -6,15 +6,13 @@
  * and collection configuration.
  */
 
-import { Db, Collection, Document } from 'mongodb';
+import { Db, Collection, Document, Filter, FindOptions, UpdateFilter, UpdateOptions, InsertOneResult, UpdateResult, DeleteResult, OptionalUnlessRequiredId } from 'mongodb';
 import { 
   COLLECTIONS, 
-  COLLECTION_DISTRIBUTION, 
   getDatabaseTarget, 
   isElectronEnvironment,
   isValidCollection,
   type CollectionName,
-  type DistributionType 
 } from './config';
 
 // Import connection modules
@@ -58,7 +56,7 @@ import {
 
 // To be implemented: IPC handlers for AI cache
 export const getAICacheViaIPC = (key: string) => { throw new Error("Not implemented"); };
-export const setAICacheViaIPC = (key: string, value: any) => { throw new Error("Not implemented"); };
+export const setAICacheViaIPC = (key: string, value: unknown) => { throw new Error("Not implemented"); };
 
 
 /**
@@ -122,75 +120,75 @@ export class DatabaseOperations {
   /**
    * Find one document
    */
-  static async findOne(collection: CollectionName, query: any): Promise<any> {
+  static async findOne<T extends Document>(collection: CollectionName, query: Filter<T>): Promise<T | null> {
     // In Electron renderer, use IPC for local collections
     if (isElectronEnvironment() && getDatabaseTarget(collection) === 'local') {
       return findOneViaIPC(collection, query);
     }
 
     // Direct database access (web or remote collections in Electron)
-    const col = await getCollection(collection);
-    return col.findOne(query);
+    const col = await getCollection<T>(collection);
+    return col.findOne(query) as unknown as T | null;
   }
 
   /**
    * Find multiple documents
    */
-  static async find(collection: CollectionName, query: any, options?: any): Promise<any[]> {
+  static async find<T extends Document>(collection: CollectionName, query: Filter<T>, options?: FindOptions<T>): Promise<T[]> {
     // In Electron renderer, use IPC for local collections
     if (isElectronEnvironment() && getDatabaseTarget(collection) === 'local') {
       return findViaIPC(collection, query, options);
     }
 
     // Direct database access (web or remote collections in Electron)
-    const col = await getCollection(collection);
+    const col = await getCollection<T>(collection);
     const cursor = col.find(query, options);
     
     if (options?.sort) cursor.sort(options.sort);
     if (options?.limit) cursor.limit(options.limit);
     
-    return cursor.toArray();
+    return (await cursor.toArray()) as unknown as T[];
   }
 
   /**
    * Insert one document
    */
-  static async insertOne(collection: CollectionName, document: any): Promise<any> {
+  static async insertOne<T extends Document>(collection: CollectionName, document: T): Promise<InsertOneResult<T>> {
     // In Electron renderer, use IPC for local collections
     if (isElectronEnvironment() && getDatabaseTarget(collection) === 'local') {
       return insertOneViaIPC(collection, document);
     }
 
     // Direct database access (web or remote collections in Electron)
-    const col = await getCollection(collection);
-    return col.insertOne(document);
+    const col = await getCollection<T>(collection);
+    return col.insertOne(document as OptionalUnlessRequiredId<T>);
   }
 
   /**
    * Update one document
    */
-  static async updateOne(collection: CollectionName, filter: any, update: any, options?: any): Promise<any> {
+  static async updateOne<T extends Document>(collection: CollectionName, filter: Filter<T>, update: UpdateFilter<T>, options?: UpdateOptions): Promise<UpdateResult> {
     // In Electron renderer, use IPC for local collections
     if (isElectronEnvironment() && getDatabaseTarget(collection) === 'local') {
       return updateOneViaIPC(collection, filter, update, options);
     }
 
     // Direct database access (web or remote collections in Electron)
-    const col = await getCollection(collection);
+    const col = await getCollection<T>(collection);
     return col.updateOne(filter, update, options);
   }
 
   /**
    * Delete one document
    */
-  static async deleteOne(collection: CollectionName, filter: any): Promise<any> {
+  static async deleteOne<T extends Document>(collection: CollectionName, filter: Filter<T>): Promise<DeleteResult> {
     // In Electron renderer, use IPC for local collections
     if (isElectronEnvironment() && getDatabaseTarget(collection) === 'local') {
       return deleteOneViaIPC(collection, filter);
     }
 
     // Direct database access (web or remote collections in Electron)
-    const col = await getCollection(collection);
+    const col = await getCollection<T>(collection);
     return col.deleteOne(filter);
   }
 }
@@ -199,7 +197,7 @@ export class DatabaseOperations {
  * High-level patient operations
  */
 export class PatientOperations {
-  static async getPatients(): Promise<any[]> {
+  static async getPatients(): Promise<Document[]> {
     console.log('📊 [MONGODB] PatientOperations.getPatients(): Fetching all non-deleted patients');
     try {
       // Check connection status first
@@ -218,7 +216,7 @@ export class PatientOperations {
     }
   }
 
-  static async getPatient(id: string): Promise<any> {
+  static async getPatient(id: string): Promise<Document | null> {
     console.log(`📊 [MONGODB] PatientOperations.getPatient(): Fetching patient with ID ${id}`);
     try {
       const { ObjectId } = require('mongodb');
@@ -231,7 +229,7 @@ export class PatientOperations {
     }
   }
 
-  static async createPatient(patient: any): Promise<any> {
+  static async createPatient(patient: Document): Promise<Document> {
     console.log('📊 [MONGODB] PatientOperations.createPatient(): Creating new patient');
     try {
       const { ObjectId } = require('mongodb');
@@ -252,7 +250,7 @@ export class PatientOperations {
     }
   }
 
-  static async updatePatient(id: string, updates: any): Promise<any> {
+  static async updatePatient(id: string, updates: Document): Promise<UpdateResult> {
     console.log(`📊 [MONGODB] PatientOperations.updatePatient(): Updating patient with ID ${id}`);
     try {
       const { ObjectId } = require('mongodb');
@@ -316,7 +314,7 @@ export class AICacheOperations {
    * This method returns `null` instead of throwing errors if cache retrieval fails.
    * Callers should handle the possibility of a `null` return value.
    */
-  static async getCache(key: string): Promise<any> {
+  static async getCache(key: string): Promise<unknown> {
     console.log(`📊 [MONGODB] AICacheOperations.getCache(): Looking up cache for key: ${key}`);
     try {
       const now = new Date();
@@ -333,7 +331,7 @@ export class AICacheOperations {
     }
   }
 
-  static async setCache(key: string, workflow: string, input: any, output: any, expiryMs: number = 24 * 60 * 60 * 1000): Promise<void> {
+  static async setCache(key: string, workflow: string, input: unknown, output: unknown, expiryMs: number = 24 * 60 * 60 * 1000): Promise<void> {
     console.log(`📊 [MONGODB] AICacheOperations.setCache(): Setting cache for key: ${key}`);
     try {
       const now = new Date();
@@ -373,5 +371,3 @@ export {
   stopPeriodicConnectionChecks,
   checkAllConnections
 };
-
-

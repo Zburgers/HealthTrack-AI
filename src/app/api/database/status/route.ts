@@ -1,3 +1,24 @@
+import { NextResponse } from 'next/server';
+
+/**
+ * API Route for Database Status - DEPRECATED
+ *
+ * This endpoint is disabled. In the HealthTrackAI Electron application, database
+ * status should be checked via an IPC call from the client to the Electron main process.
+ *
+ * Example IPC call: `window.ipcRenderer.invoke('db:get-status')`
+ */
+export async function GET() {
+  return NextResponse.json(
+    {
+      error: 'This API endpoint is deprecated.',
+      message: 'Database status must be checked from the client application via IPC.',
+    },
+    { status: 403 }
+  );
+}
+
+
 /**
  * @api {get} /api/database/status
  * @description Retrieves the current status of the MongoDB connection.
@@ -7,7 +28,7 @@
  *   - If connected (200): { connected: true, uri: "...", collections: [...], lastConnected: "..." }
  *   - If not connected (200): { connected: false }
  *   - On error (500): { error: "..." }
- */
+ 
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnectionStatus, getClient, connectToDatabase, connectToCaseEmbeddingsDatabase } from '@/lib/mongodb/connection';
 import '@/lib/mongodb/debug'; // Import enhanced debugging
@@ -108,3 +129,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+*/

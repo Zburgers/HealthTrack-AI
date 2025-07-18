@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { enhanceSoapNotes, EnhanceSoapNotesInputSchema } from '@/vertex-ai';
-import { makeAICacheKey, getAICache, setAICache } from '@/lib/aiCache';
+import { makeAICacheKey, getAICache, setAICache } from '@/../../electron/lib/shared/aiCache';
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
     // Persistent cache logic
     const cacheKey = makeAICacheKey('enhance-notes', validationResult.data);
-    const cached = await getAICache(cacheKey);
+    const cached = await getAICache(undefined, cacheKey);
     if (cached) {
       return NextResponse.json({
         ...cached,
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     const duration = Date.now() - startTime;
 
     // Store in persistent cache (24h expiry)
-    await setAICache(cacheKey, 'enhance-notes', validationResult.data, result, 24 * 60 * 60 * 1000);
+    await setAICache(undefined, cacheKey, 'enhance-notes', validationResult.data, result, 24 * 60 * 60 * 1000);
 
     // Log performance metrics
     console.log('[Vertex AI API] SOAP enhancement completed:', {

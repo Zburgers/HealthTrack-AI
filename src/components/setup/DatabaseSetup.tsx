@@ -53,15 +53,29 @@ export default function DatabaseSetup({ onConnectionSuccess }: DatabaseSetupProp
       const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
       if (!isElectron) return;
 
-      // Check if we have a saved URI
-      const savedUri = await (window as any).electronAPI.database.getUserMongoUri();
-      if (savedUri) {
-        setMongoUri(savedUri);
-        // Test the connection
-        await testConnection(savedUri, false);
+      // 🎯 Use Switchboard to check existing connections
+      console.log('🎯 [DB-SETUP] Checking existing connections via Switchboard...');
+      const status = await (window as any).electronAPI.dataSource.getActiveStatus();
+      
+      if (status && status.sourceId === 'mongodb-atlas' && status.status === 'connected') {
+        console.log('✅ [DB-SETUP] Found existing Atlas connection');
+        const connectionInfo = await (window as any).electronAPI.dataSource.getConnectionInfo(status.sourceId);
+        if (connectionInfo && connectionInfo.uri) {
+          const maskedUri = connectionInfo.uri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@');
+          setMongoUri(maskedUri);
+          setConnectionStatus('success');
+          setConnectionDetails({
+            status: 'ok',
+            type: 'mongodb',
+            uri: maskedUri,
+            connected: true
+          });
+        }
+      } else {
+        console.log('ℹ️ [DB-SETUP] No existing Atlas connection found');
       }
     } catch (error) {
-      console.log('No existing connection found');
+      console.log('ℹ️ [DB-SETUP] No existing connection found:', error);
     }
   };
 
@@ -76,35 +90,37 @@ export default function DatabaseSetup({ onConnectionSuccess }: DatabaseSetupProp
     setErrorMessage('');
 
     try {
-      console.log('🔗 [DB-SETUP] Testing database connection...');
+      console.log('🔗 [DB-SETUP] Testing database connection via Switchboard...');
       const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
       if (!isElectron) {
         throw new Error('This feature is only available in the desktop app');
       }
 
-      console.log('💾 [DB-SETUP] Saving MongoDB URI...');
-      // Save and test the URI
-      const saveResult = await (window as any).electronAPI.database.setUserMongoUri(testUri);
-      if (!saveResult) {
-        throw new Error('Failed to save and validate MongoDB URI. Please check your connection string and network connectivity.');
-      }
+      // 🎯 Use Switchboard to connect to MongoDB Atlas
+      console.log('🎯 [DB-SETUP] Connecting via Switchboard...');
+      await (window as any).electronAPI.dataSource.connect('mongodb-atlas', {
+        uri: testUri,
+        purpose: 'user-data'
+      });
       
       console.log('🏥 [DB-SETUP] Performing health check...');
-      // Test the connection
-      const health = await (window as any).electronAPI.database.health();
-      console.log('🏥 [DB-SETUP] Health check response:', health);
+      // Check the connection status
+      const status = await (window as any).electronAPI.dataSource.getActiveStatus();
+      console.log('🏥 [DB-SETUP] Health check response:', status);
       
-      if (health.status === 'ok') {
+      if (status && status.sourceId === 'mongodb-atlas' && status.status === 'connected') {
         console.log('✅ [DB-SETUP] Connection successful!');
         setConnectionStatus('success');
-        setConnectionDetails(health);
-        // Remove auto-redirect, let user click Proceed to Dashboard
-        // setTimeout(() => {
-        //   console.log('➡️ [DB-SETUP] Proceeding to dashboard...');
-        //   onConnectionSuccess();
-        // }, 1500);
+        setConnectionDetails({
+          status: 'ok',
+          type: 'mongodb',
+          uri: testUri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@'),
+          connected: true,
+          source: status.sourceId
+        });
+        // Let user manually proceed to dashboard
       } else {
-        throw new Error(health.error || 'Connection failed');
+        throw new Error(status?.error || 'Connection failed - no active Atlas connection found');
       }
     } catch (error: any) {
       console.error('❌ [DB-SETUP] Connection failed:', error);
@@ -280,7 +296,26 @@ Thanks!
                       </div>
                       <div className="mt-6 flex justify-center">
                         <Button
-                          onClick={onConnectionSuccess}
+                          onClick={() => {
+                            // Call the parent component's callback and explicitly navigate
+                            console.log('🏠 [DB-SETUP] Proceeding to dashboard');
+                            
+                            // Try to use the router if available (Next.js approach)
+                            try {
+                              if (typeof window !== 'undefined') {
+                                // Call the success handler first to load data
+                                onConnectionSuccess();
+                                
+                                // Then force redirect to dashboard
+                                console.log('📱 [DB-SETUP] Redirecting to dashboard via window.location');
+                                window.location.href = '/dashboard';
+                              }
+                            } catch (err) {
+                              console.error('❌ [DB-SETUP] Navigation error:', err);
+                              // Fallback - try to call the success handler at least
+                              onConnectionSuccess();
+                            }
+                          }}
                           className="bg-blue-600 hover:bg-blue-700 text-white h-12 text-base font-medium px-8"
                         >
                           Proceed to Dashboard

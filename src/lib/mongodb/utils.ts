@@ -1,17 +1,18 @@
 import { isElectronEnvironment } from './config';
+import { Document, Filter, FindOptions, UpdateFilter, UpdateOptions, InsertOneResult, UpdateResult, DeleteResult } from 'mongodb';
 
 // This interface should ideally be shared with preload.ts
 interface ElectronAPI {
   database: {
-    findOne: (collection: string, query: any) => Promise<any>;
-    find: (collection: string, query: any, options?: any) => Promise<any[]>;
-    insertOne: (collection: string, document: any) => Promise<any>;
-    updateOne: (collection: string, filter: any, update: any, options?: any) => Promise<any>;
-    deleteOne: (collection: string, filter: any) => Promise<any>;
-    getPatients: () => Promise<any[]>;
-    getPatient: (id: string) => Promise<any>;
-    createPatient: (patient: any) => Promise<any>;
-    updatePatient: (id: string, updates: any) => Promise<any>;
+    findOne: <T extends Document>(collection: string, query: Filter<T>) => Promise<T | null>;
+    find: <T extends Document>(collection: string, query: Filter<T>, options?: FindOptions<T>) => Promise<T[]>;
+    insertOne: <T extends Document>(collection: string, document: T) => Promise<InsertOneResult<T>>;
+    updateOne: <T extends Document>(collection: string, filter: Filter<T>, update: UpdateFilter<T>, options?: UpdateOptions) => Promise<UpdateResult>;
+    deleteOne: <T extends Document>(collection: string, filter: Filter<T>) => Promise<DeleteResult>;
+    getPatients: () => Promise<Document[]>;
+    getPatient: (id: string) => Promise<Document | null>;
+    createPatient: (patient: Document) => Promise<InsertOneResult<Document>>;
+    updatePatient: (id: string, updates: Document) => Promise<UpdateResult>;
     deletePatient: (id: string) => Promise<boolean>;
   };
 }

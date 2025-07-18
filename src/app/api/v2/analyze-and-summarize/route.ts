@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AnalyzeAndSummarizeInputSchema, analyzeAndSummarizePatient } from '@/ai/flows/analyze-and-summarize';
-import { makeAICacheKey, getAICache, setAICache } from '@/lib/aiCache';
+import { makeAICacheKey, getAICache, setAICache } from '@/../../electron/lib/shared/aiCache';
 import stringify from 'json-stable-stringify';
 
 export async function POST(req: NextRequest) {
@@ -12,13 +12,13 @@ export async function POST(req: NextRequest) {
     }
     const input = validation.data;
     const cacheKey = makeAICacheKey('analyze-and-summarize', stringify(input));
-    const cached = await getAICache(cacheKey);
+    const cached = await getAICache(undefined, cacheKey);
     if (cached) {
       console.log('[API AnalyzeAndSummarize] Cache hit:', cacheKey);
       return NextResponse.json(cached, { status: 200 });
     }
     const result = await analyzeAndSummarizePatient(input);
-    await setAICache(cacheKey, 'analyze-and-summarize', input, result, 24 * 60 * 60 * 1000);
+    await setAICache(undefined, cacheKey, 'analyze-and-summarize', input, result, 24 * 60 * 60 * 1000);
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
     console.error('[API AnalyzeAndSummarize] Error:', error);

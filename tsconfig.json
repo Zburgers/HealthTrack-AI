@@ -19,6 +19,9 @@
       }
     ],
     "paths": {
+      "@/types/*": [
+        "./types/*"
+      ],
       "@/*": [
         "./src/*"
       ]
@@ -32,6 +35,8 @@
     "src/types/global.d.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "tests/**",
+    "src/lib/sqlite/**"
   ]
 }

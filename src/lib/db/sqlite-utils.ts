@@ -4,7 +4,7 @@
 
 /**
  * Build WHERE clause for SQLite queries from MongoDB-like filter objects
- */
+ 
 export function buildWhereClause(filter: any): { whereClause: string; values: any[] } {
   if (!filter || Object.keys(filter).length === 0) {
     return { whereClause: '', values: [] };
@@ -19,7 +19,7 @@ export function buildWhereClause(filter: any): { whereClause: string; values: an
       const orConditions = value.map((orFilter: any) => {
         const { whereClause } = buildWhereClause(orFilter);
         // remove "WHERE" from sub-clause
-        return `(${whereClause.replace(/^WHERE\s*/, '')})`;
+        return `(${whereClause.replace(/^WHERE\s/, '')})`;
       }).join(' OR ');
       conditions.push(`(${orConditions})`);
     } else if (typeof value === 'object' && value !== null) {
@@ -48,3 +48,5 @@ export function buildWhereClause(filter: any): { whereClause: string; values: an
     values,
   };
 }
+
+*/

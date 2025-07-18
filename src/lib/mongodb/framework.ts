@@ -9,7 +9,7 @@
  * - User MongoDB (configurable URI): all other collections (patients, ai_cache, notes, etc.)
  */
 
-import { MongoClient, Db, ServerApiVersion, Collection } from 'mongodb';
+import { MongoClient, Db, ServerApiVersion, Collection, Filter, FindOptions, Sort, UpdateFilter, UpdateOptions, IndexSpecification, CreateIndexesOptions, DeleteResult, InsertOneResult, UpdateResult, Document, OptionalUnlessRequiredId } from 'mongodb';
 
 // Environment variables
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -297,7 +297,7 @@ export class UniversalDatabase {
   /**
    * Get a collection that automatically routes to the correct database
    */
-  collection<T = any>(name: string): UniversalCollection<T> {
+  collection<T extends Document>(name: string): UniversalCollection<T> {
     return new UniversalCollection<T>(name, this.db_name);
   }
 }
@@ -305,7 +305,7 @@ export class UniversalDatabase {
 /**
  * Universal collection that handles IPC in Electron or direct DB access
  */
-export class UniversalCollection<T = any> {
+export class UniversalCollection<T extends Document> {
   private collectionName: string;
   private requestedDbName: string;
 
@@ -316,15 +316,15 @@ export class UniversalCollection<T = any> {
   /**
    * Universal find operation
    */
-  find(filter: any = {}, options: any = {}): any {
+  find(filter: Filter<T> = {}, options: FindOptions<T> = {}): any {
     // In Electron renderer, use IPC for database operations
     if (isElectronRenderer()) {
       const electronAPI = (window as any).electronAPI;
       if (electronAPI?.database?.find) {
         console.log(`🔗 [ELECTRON_IPC] find via IPC: ${this.collectionName}`);
         return {
-          sort: (sortSpec: any) => ({
-            limit: (limitSpec: any) => ({
+          sort: (sortSpec: Sort) => ({
+            limit: (limitSpec: number) => ({
               toArray: async () => {
                 const findOptions = { ...options, sort: sortSpec, limit: limitSpec };
                 return electronAPI.database.find(this.collectionName, filter, findOptions);
@@ -335,8 +335,8 @@ export class UniversalCollection<T = any> {
               return electronAPI.database.find(this.collectionName, filter, findOptions);
             }
           }),
-          limit: (limitSpec: any) => ({
-            sort: (sortSpec: any) => ({
+          limit: (limitSpec: number) => ({
+            sort: (sortSpec: Sort) => ({
               toArray: async () => {
                 const findOptions = { ...options, limit: limitSpec, sort: sortSpec };
                 return electronAPI.database.find(this.collectionName, filter, findOptions);
@@ -357,44 +357,44 @@ export class UniversalCollection<T = any> {
     // Direct database access for web or Electron main process - return cursor-like object
     console.log(`🔗 [DIRECT_DB] find direct access: ${this.collectionName}`);
     return {
-      sort: (sortSpec: any) => ({
-        limit: (limitSpec: any) => ({
+      sort: (sortSpec: Sort) => ({
+        limit: (limitSpec: number) => ({
           toArray: async () => {
             const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
-            const collection = db.collection(this.collectionName);
-            return collection.find(filter, options).sort(sortSpec).limit(limitSpec).toArray();
+            const collection = db.collection<T>(this.collectionName);
+            return collection.find(filter, options as FindOptions<Document>).sort(sortSpec).limit(limitSpec).toArray();
           }
         }),
         toArray: async () => {
           const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
-          const collection = db.collection(this.collectionName);
-          return collection.find(filter, options).sort(sortSpec).toArray();
+          const collection = db.collection<T>(this.collectionName);
+          return collection.find(filter, options as FindOptions<Document>).sort(sortSpec).toArray();
         }
       }),
-      limit: (limitSpec: any) => ({
-        sort: (sortSpec: any) => ({
+      limit: (limitSpec: number) => ({
+        sort: (sortSpec: Sort) => ({
           toArray: async () => {
             const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
-            const collection = db.collection(this.collectionName);
-            return collection.find(filter, options).limit(limitSpec).sort(sortSpec).toArray();
+            const collection = db.collection<T>(this.collectionName);
+            return collection.find(filter, options as FindOptions<Document>).limit(limitSpec).sort(sortSpec).toArray();
           }
         }),
         toArray: async () => {
           const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
-          const collection = db.collection(this.collectionName);
-          return collection.find(filter, options).limit(limitSpec).toArray();
+          const collection = db.collection<T>(this.collectionName);
+          return collection.find(filter, options as FindOptions<Document>).limit(limitSpec).toArray();
         }
       }),      toArray: async () => {
         const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
-        const collection = db.collection(this.collectionName);
-        return collection.find(filter, options).toArray();
+        const collection = db.collection<T>(this.collectionName);
+        return collection.find(filter, options as FindOptions<Document>).toArray();
       }
     };
   }
   /**
    * Universal findOne operation
    */
-  async findOne(filter: any = {}, options: any = {}): Promise<any> {
+  async findOne(filter: Filter<T> = {}, options: FindOptions<T> = {}): Promise<T | null> {
     // In Electron renderer, use IPC for database operations
     if (isElectronRenderer()) {
       const electronAPI = (window as any).electronAPI;
@@ -407,14 +407,14 @@ export class UniversalCollection<T = any> {
     // Direct database access for web or Electron main process
     console.log(`🔗 [DIRECT_DB] findOne direct access: ${this.collectionName}`);
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
-    const collection = db.collection(this.collectionName);
-    return collection.findOne(filter, options);
+    const collection = db.collection<T>(this.collectionName);
+    return collection.findOne(filter, options as FindOptions<Document>) as Promise<T | null>;
   }
 
   /**
    * Universal insertOne operation
    */
-  async insertOne(document: any): Promise<any> {
+  async insertOne(document: T): Promise<InsertOneResult<T>> {
     // In Electron renderer, use IPC for database operations
     if (isElectronRenderer()) {
       const electronAPI = (window as any).electronAPI;
@@ -427,14 +427,14 @@ export class UniversalCollection<T = any> {
     // Direct database access for web or Electron main process
     console.log(`🔗 [DIRECT_DB] insertOne direct access: ${this.collectionName}`);
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
-    const collection = db.collection(this.collectionName);
-    return collection.insertOne(document);
+    const collection = db.collection<T>(this.collectionName);
+    return collection.insertOne(document as OptionalUnlessRequiredId<T>);
   }
 
   /**
    * Universal updateOne operation
    */
-  async updateOne(filter: any, update: any, options: any = {}): Promise<any> {
+  async updateOne(filter: Filter<T>, update: UpdateFilter<T>, options: UpdateOptions = {}): Promise<UpdateResult> {
     // In Electron renderer, use IPC for database operations
     if (isElectronRenderer()) {
       const electronAPI = (window as any).electronAPI;
@@ -447,14 +447,14 @@ export class UniversalCollection<T = any> {
     // Direct database access for web or Electron main process
     console.log(`🔗 [DIRECT_DB] updateOne direct access: ${this.collectionName}`);
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
-    const collection = db.collection(this.collectionName);
+    const collection = db.collection<T>(this.collectionName);
     return collection.updateOne(filter, update, options);
   }
 
   /**
    * Universal deleteOne operation
    */
-  async deleteOne(filter: any): Promise<any> {
+  async deleteOne(filter: Filter<T>): Promise<DeleteResult> {
     // In Electron renderer, use IPC for database operations
     if (isElectronRenderer()) {
       const electronAPI = (window as any).electronAPI;
@@ -467,14 +467,14 @@ export class UniversalCollection<T = any> {
     // Direct database access for web or Electron main process
     console.log(`🔗 [DIRECT_DB] deleteOne direct access: ${this.collectionName}`);
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
-    const collection = db.collection(this.collectionName);
+    const collection = db.collection<T>(this.collectionName);
     return collection.deleteOne(filter);
   }
 
   /**
    * Universal insertMany operation
    */
-  async insertMany(documents: any[]): Promise<any> {
+  async insertMany(documents: T[]): Promise<any> {
     // In Electron renderer, use individual insertOne calls or bulk IPC
     if (isElectronRenderer()) {
       const electronAPI = (window as any).electronAPI;
@@ -492,33 +492,33 @@ export class UniversalCollection<T = any> {
     // Direct database access for web or Electron main process
     console.log(`🔗 [DIRECT_DB] insertMany direct access: ${this.collectionName}`);
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
-    const collection = db.collection(this.collectionName);
-    return collection.insertMany(documents);
+    const collection = db.collection<T>(this.collectionName);
+    return collection.insertMany(documents.map(d => d as OptionalUnlessRequiredId<T>));
   }
 
   /**
    * Universal updateMany operation
    */
-  async updateMany(filter: any, update: any, options: any = {}): Promise<any> {
+  async updateMany(filter: Filter<T>, update: UpdateFilter<T>, options: UpdateOptions = {}): Promise<UpdateResult> {
     // Direct database access (IPC could be added later)
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
-    const collection = db.collection(this.collectionName);
+    const collection = db.collection<T>(this.collectionName);
     return collection.updateMany(filter, update, options);
   }
 
   /**
    * Universal deleteMany operation
    */
-  async deleteMany(filter: any): Promise<any> {
+  async deleteMany(filter: Filter<T>): Promise<DeleteResult> {
     // Direct database access (IPC could be added later)
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
-    const collection = db.collection(this.collectionName);
+    const collection = db.collection<T>(this.collectionName);
     return collection.deleteMany(filter);
   }
   /**
    * Universal aggregate operation
    */
-  async aggregate(pipeline: any[]): Promise<any[]> {
+  async aggregate(pipeline: Document[]): Promise<any[]> {
     // In Electron renderer, use IPC for database operations
     if (isElectronRenderer()) {
       const electronAPI = (window as any).electronAPI;
@@ -551,7 +551,7 @@ export class UniversalCollection<T = any> {
   /**
    * Universal createIndex operation
    */
-  async createIndex(indexSpec: any, options: any = {}): Promise<any> {
+  async createIndex(indexSpec: IndexSpecification, options: CreateIndexesOptions = {}): Promise<string> {
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
     const collection = db.collection(this.collectionName);
     return collection.createIndex(indexSpec, options);
@@ -560,7 +560,7 @@ export class UniversalCollection<T = any> {
   /**
    * Universal dropIndex operation
    */
-  async dropIndex(indexName: string): Promise<any> {
+  async dropIndex(indexName: string): Promise<Document> {
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
     const collection = db.collection(this.collectionName);
     return collection.dropIndex(indexName);
@@ -569,7 +569,7 @@ export class UniversalCollection<T = any> {
   /**
    * Universal countDocuments operation
    */
-  async countDocuments(filter: any = {}): Promise<number> {
+  async countDocuments(filter: Filter<T> = {}): Promise<number> {
     // In Electron renderer, use IPC for database operations
     if (isElectronRenderer()) {
       const electronAPI = (window as any).electronAPI;
@@ -582,16 +582,16 @@ export class UniversalCollection<T = any> {
     // Direct database access for web or Electron main process
     console.log(`🔗 [DIRECT_DB] countDocuments direct access: ${this.collectionName}`);
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
-    const collection = db.collection(this.collectionName);
+    const collection = db.collection<T>(this.collectionName);
     return collection.countDocuments(filter);
   }
 
   /**
    * Universal distinct operation
    */
-  async distinct(key: string, filter: any = {}): Promise<any[]> {
+  async distinct(key: string, filter: Filter<T> = {}): Promise<any[]> {
     const db = await getDatabaseForCollection(this.collectionName, this.requestedDbName);
-    const collection = db.collection(this.collectionName);
+    const collection = db.collection<T>(this.collectionName);
     return collection.distinct(key, filter);
   }
 }

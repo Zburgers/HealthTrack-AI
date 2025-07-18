@@ -19,8 +19,8 @@ let mainLastChecked: Date | null = null;
 let embeddingsLastChecked: Date | null = null;
 
 // Decorator for logging database connection attempts
-export function withConnectionLogging<T extends (...args: any[]) => Promise<MongoClient>>(fn: T, name: string): T {
-  return (async (...args: any[]) => {
+export function withConnectionLogging<T extends (...args: unknown[]) => Promise<MongoClient>>(fn: T, name: string): T {
+  return (async (...args: unknown[]) => {
     console.log(`📊 [CONNECTION] Attempting ${name} database connection...`);
     try {
       const client = await fn(...args);
@@ -34,13 +34,19 @@ export function withConnectionLogging<T extends (...args: any[]) => Promise<Mong
 }
 
 // Usage example (not exported by default):
-export const connectToDatabaseWithLogging = withConnectionLogging(originalConnectToDatabase, 'main');
-export const connectToCaseEmbeddingsDatabaseWithLogging = withConnectionLogging(originalConnectToCaseEmbeddingsDatabase, 'case embeddings');
+export const connectToDatabaseWithLogging = withConnectionLogging(
+  originalConnectToDatabase as unknown as (...args: unknown[]) => Promise<MongoClient>,
+  'main'
+);
+export const connectToCaseEmbeddingsDatabaseWithLogging = withConnectionLogging(
+  originalConnectToCaseEmbeddingsDatabase as unknown as (...args: unknown[]) => Promise<MongoClient>,
+  'case embeddings'
+);
 
 // Decorator for logging connection status
-export function withStatusLogging<T extends (...args: any[]) => any>(fn: T): T {
-  return ((...args: any[]) => {
-    const status = fn(...args);
+export function withStatusLogging<T extends (...args: unknown[]) => unknown>(fn: T): T {
+  return ((...args: unknown[]) => {
+    const status = fn(...args) as { connected: boolean; uri: string | null; caseEmbeddingsConnected: boolean; caseEmbeddingsUri: string | null };
     console.log('🔍 [STATUS] Database connection status:', {
       mainConnected: status.connected,
       mainUri: status.uri,
@@ -88,8 +94,8 @@ export async function checkAllConnections(): Promise<{
   console.log('📊 [MONGODB_DEBUG] Checking all MongoDB connections...');
   
   // Try to get clients without throwing errors
-  let mainClient = null;
-  let embeddingsClient = null;
+  let mainClient: MongoClient | null = null;
+  let embeddingsClient: MongoClient | null = null;
   
   try {
     mainClient = getClient();

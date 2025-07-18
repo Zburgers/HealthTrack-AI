@@ -6,6 +6,7 @@
  */
 
 import { connectToDatabase } from '@/lib/mongodb';
+import { IndexDescription } from 'mongodb';
 
 export async function createSoftDeleteIndexes() {
   try {
@@ -38,7 +39,7 @@ export async function createSoftDeleteIndexes() {
     // Verify indexes were created
     const indexes = await patientsCollection.listIndexes().toArray();
     console.log('📋 Current indexes on patients collection:');
-    indexes.forEach((index: any) => {
+    indexes.forEach((index: IndexDescription) => {
       console.log(`  - ${index.name}: ${JSON.stringify(index.key)}`);
     });
 

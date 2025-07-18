@@ -9,9 +9,9 @@
  * - Intelligent cache invalidation
  */
 
-import { getAICache, setAICache, makeAICacheKey } from './aiCache';
+import { getAICache, setAICache, makeAICacheKey } from '@/../../electron/lib/shared/aiCache';
 
-interface CacheEntry<T = any> {
+interface CacheEntry<T = unknown> {
   data: T;
   timestamp: number;
   hitCount: number;
@@ -70,7 +70,7 @@ class SmartCacheManager {
   /**
    * Get cached data with multi-tier lookup
    */
-  async get<T = any>(workflow: string, input: any): Promise<T | null> {
+  async get<T = unknown>(workflow: string, input: unknown): Promise<T | null> {
     const key = makeAICacheKey(workflow, input);
     
     try {
@@ -87,7 +87,7 @@ class SmartCacheManager {
       }
 
       // Tier 2: Check database cache
-      const dbResult = await getAICache(key);
+      const dbResult = await getAICache(undefined, key);
       if (dbResult) {
         // Store in memory cache for future access
         this.setMemoryCache(key, dbResult, workflow);
@@ -112,9 +112,9 @@ class SmartCacheManager {
   /**
    * Set cached data in both memory and database
    */
-  async set<T = any>(
+  async set<T = unknown>(
     workflow: string, 
-    input: any, 
+    input: unknown, 
     output: T, 
     expiryMs?: number
   ): Promise<void> {
@@ -122,7 +122,7 @@ class SmartCacheManager {
     
     try {
       // Store in database (persistent)
-      await setAICache(key, workflow, input, output, expiryMs);
+      await setAICache(undefined, key, workflow, input, output, expiryMs);
       
       // Store in memory cache if it's a frequent workflow
       if (this.frequentWorkflows.has(workflow)) {
@@ -138,7 +138,7 @@ class SmartCacheManager {
   /**
    * Warm cache with commonly used data
    */
-  async warmCache(workflows: string[], commonInputs: any[]): Promise<void> {
+  async warmCache(workflows: string[], commonInputs: unknown[]): Promise<void> {
     console.log('🔥 Starting cache warming...');
     
     const warmingPromises = [];
@@ -275,7 +275,7 @@ class SmartCacheManager {
     return true;
   }
 
-  private estimateSize(data: any): number {
+  private estimateSize(data: unknown): number {
     try {
       return JSON.stringify(data).length * 2; // Rough estimate (UTF-16)
     } catch {
@@ -308,16 +308,16 @@ export const SmartCache = {
   /**
    * Get data with smart caching
    */
-  async get<T = any>(workflow: string, input: any): Promise<T | null> {
+  async get<T = unknown>(workflow: string, input: unknown): Promise<T | null> {
     return smartCache.get<T>(workflow, input);
   },
 
   /**
    * Set data with smart caching
    */
-  async set<T = any>(
+  async set<T = unknown>(
     workflow: string, 
-    input: any, 
+    input: unknown, 
     output: T, 
     expiryMs?: number
   ): Promise<void> {
@@ -327,9 +327,9 @@ export const SmartCache = {
   /**
    * Get or compute data with caching
    */
-  async getOrCompute<T = any>(
+  async getOrCompute<T = unknown>(
     workflow: string,
-    input: any,
+    input: unknown,
     computeFn: () => Promise<T>,
     expiryMs?: number
   ): Promise<T> {
@@ -360,7 +360,7 @@ export const SmartCache = {
       'icd-classification'
     ];
 
-    const commonInputs = [
+    const commonInputs: unknown[] = [
       { type: 'routine-checkup' },
       { specialty: 'internal-medicine' },
       { urgency: 'normal' }

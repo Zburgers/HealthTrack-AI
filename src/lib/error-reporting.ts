@@ -28,7 +28,7 @@ export class ErrorReporting {
     console.log('🔍 Error reporting initialized:', this.isEnabled ? 'enabled' : 'disabled');
   }
 
-  reportError(error: Error, context?: any) {
+  reportError(error: Error, context?: Record<string, unknown>) {
     if (!this.isEnabled) return;
     
     const report: ErrorReport = {
@@ -43,7 +43,7 @@ export class ErrorReporting {
     console.error('🚨 Error reported:', report, context);
   }
 
-  reportEvent(event: string, data?: any) {
+  reportEvent(event: string, data?: Record<string, unknown>) {
     if (!this.isEnabled) return;
     console.log('📊 Event reported:', event, data);
   }
@@ -61,11 +61,11 @@ export class ErrorReporting {
   }
 
   // Static methods for API client compatibility
-  static captureAPIError(error: any, context?: any) {
+  static captureAPIError(error: Error, context?: Record<string, unknown>) {
     ErrorReporting.getInstance().reportError(error, context);
   }
 
-  static captureUserActionError(error: any, context?: any) {
+  static captureUserActionError(error: Error, context?: Record<string, unknown>) {
     ErrorReporting.getInstance().reportError(error, context);
   }
 }

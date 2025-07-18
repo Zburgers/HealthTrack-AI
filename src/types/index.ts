@@ -2,7 +2,7 @@ import type { LucideProps } from "lucide-react";
 import React from "react";
 import type { NewCaseFormValues } from "@/components/new-case/NewCaseForm";
 import { ObjectId } from "mongodb";
-import type { SimilarCaseOutput } from "./similar-cases";
+import type { SimilarCaseOutput } from '@/types/similar-cases';
 
 // Represents the data structure in the MongoDB 'patients' collection
 export interface PatientDocument {
@@ -49,7 +49,8 @@ export interface PatientDocument {
     allergy_warnings?: string[];
     medication_interactions?: string[];
     previous_conditions_impact?: string[];
-  };  ai_metadata: any;
+  };  
+  ai_metadata: any;
   status: 'draft' | 'analyzing' | 'complete' | 'exported' | 'analysis_failed';
   owner_uid: string;
   ai_soap_notes?: string; // Add AI SOAP notes field

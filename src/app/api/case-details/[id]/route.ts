@@ -1,3 +1,26 @@
+import { NextResponse } from 'next/server';
+
+/**
+ * API Route for Case Details - DEPRECATED
+ *
+ * This endpoint is disabled. In the HealthTrackAI Electron application, all case
+ * details must be fetched via client-side IPC calls to the Electron main process.
+ * This ensures data integrity and security.
+ *
+ * To fetch case details, use the `db.collection('case_embeddings').findOne({ id })`
+ * method from the frontend IPC bridge.
+ */
+export async function GET() {
+  return NextResponse.json(
+    {
+      error: 'This API endpoint is deprecated.',
+      message: 'Case details must be fetched from the client application via IPC.',
+    },
+    { status: 403 }
+  );
+}
+
+/**
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
@@ -5,11 +28,11 @@ import { CaseEmbeddingDocument } from '@/types/similar-cases';
 
 export const dynamic = 'force-dynamic';
 
-/**
+
  * GET /api/case-details/[id]
  * Fetches a full case document from the case_embeddings collection by ObjectId.
  * Returns 200 with the case, 404 if not found, 400 if invalid ObjectId.
- */
+ 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!id || typeof id !== 'string' || !ObjectId.isValid(id)) {
@@ -38,3 +61,5 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ message: 'Failed to fetch case details', error: (error as Error).message }, { status: 500 });
   }
 } 
+
+*/

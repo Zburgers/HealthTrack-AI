@@ -54,7 +54,7 @@ export function isElectronEnvironment(): boolean {
   }
   
   // Tertiary detection: Electron API in renderer process
-  if (typeof window !== 'undefined' && (window as any).electronAPI) {
+  if (typeof window !== 'undefined' && (window as { electronAPI?: unknown }).electronAPI) {
     return true;  
   }
   

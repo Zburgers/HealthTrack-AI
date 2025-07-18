@@ -11,10 +11,10 @@ export interface APIErrorReportingOptions {
   reportErrors?: boolean;
   component?: string;
   userAction?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
-export interface APIResponse<T = any> {
+export interface APIResponse<T = unknown> {
   data: T;
   status: number;
   statusText: string;
@@ -26,7 +26,7 @@ export class APIError extends Error {
     message: string,
     public status: number,
     public statusText: string,
-    public response?: any,
+    public response?: unknown,
     public endpoint?: string,
     public method?: string
   ) {
@@ -38,7 +38,7 @@ export class APIError extends Error {
 /**
  * Enhanced fetch wrapper with automatic error reporting
  */
-export async function apiClient<T = any>(
+export async function apiClient<T = unknown>(
   endpoint: string,
   options: RequestInit & APIErrorReportingOptions = {}
 ): Promise<APIResponse<T>> {
@@ -63,12 +63,20 @@ export async function apiClient<T = any>(
     }
 
     if (!response.ok) {
-      let errorData: any = null;
+      let errorData: unknown = null;
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
 
       try {
         errorData = await response.json();
-        errorMessage = errorData.message || errorData.error || errorMessage;
+        if (typeof errorData === 'object' && errorData !== null) {
+          if ('message' in errorData && typeof (errorData as { message: unknown }).message === 'string') {
+            errorMessage = (errorData as { message: string }).message;
+          } else if ('error' in errorData && typeof (errorData as { error: unknown }).error === 'string') {
+            errorMessage = (errorData as { error: string }).error;
+          }
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        }
       } catch {
         // If response is not JSON, use status text
         errorMessage = response.statusText || `HTTP ${response.status}`;
@@ -116,7 +124,7 @@ export async function apiClient<T = any>(
     if (contentType && contentType.includes('application/json')) {
       data = await response.json();
     } else {
-      data = (await response.text()) as any;
+      data = (await response.text()) as T;
     }
 
     return {
@@ -175,10 +183,10 @@ export async function apiClient<T = any>(
  * Convenience methods for different HTTP verbs
  */
 export const api = {
-  get: <T = any>(endpoint: string, options?: RequestInit & APIErrorReportingOptions) =>
+  get: <T = unknown>(endpoint: string, options?: RequestInit & APIErrorReportingOptions) =>
     apiClient<T>(endpoint, { ...options, method: 'GET' }),
 
-  post: <T = any>(endpoint: string, data?: any, options?: RequestInit & APIErrorReportingOptions) =>
+  post: <T = unknown>(endpoint: string, data?: unknown, options?: RequestInit & APIErrorReportingOptions) =>
     apiClient<T>(endpoint, {
       ...options,
       method: 'POST',
@@ -189,7 +197,7 @@ export const api = {
       body: data ? JSON.stringify(data) : undefined,
     }),
 
-  patch: <T = any>(endpoint: string, data?: any, options?: RequestInit & APIErrorReportingOptions) =>
+  patch: <T = unknown>(endpoint: string, data?: unknown, options?: RequestInit & APIErrorReportingOptions) =>
     apiClient<T>(endpoint, {
       ...options,
       method: 'PATCH',
@@ -200,7 +208,7 @@ export const api = {
       body: data ? JSON.stringify(data) : undefined,
     }),
 
-  put: <T = any>(endpoint: string, data?: any, options?: RequestInit & APIErrorReportingOptions) =>
+  put: <T = unknown>(endpoint: string, data?: unknown, options?: RequestInit & APIErrorReportingOptions) =>
     apiClient<T>(endpoint, {
       ...options,
       method: 'PUT',
@@ -211,7 +219,7 @@ export const api = {
       body: data ? JSON.stringify(data) : undefined,
     }),
 
-  delete: <T = any>(endpoint: string, options?: RequestInit & APIErrorReportingOptions) =>
+  delete: <T = unknown>(endpoint: string, options?: RequestInit & APIErrorReportingOptions) =>
     apiClient<T>(endpoint, { ...options, method: 'DELETE' }),
 };
 

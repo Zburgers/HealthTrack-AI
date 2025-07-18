@@ -13,6 +13,8 @@ import { Label } from '@/components/ui/label';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import DatabaseSettings from '@/components/settings/DatabaseSettings';
+import DataSourceManager from '@/components/settings/DataSourceManager';
+import SwitchboardDemo from '@/components/settings/SwitchboardDemo';
 
 const cardAnimationProps = (delay: number = 0) => ({
   initial: { opacity: 0, y: 20 },
@@ -150,8 +152,18 @@ export default function SettingsPage() {
             </Card>
           </motion.div>
 
-          {/* Database Settings */}
-          <motion.div {...cardAnimationProps(0.4)}>
+          {/* 🎯 Clara's Switchboard Architecture */}
+          <motion.div {...cardAnimationProps(0.5)}>
+            <DataSourceManager />
+          </motion.div>
+
+          {/* Switchboard API Demo */}
+          <motion.div {...cardAnimationProps(0.6)}>
+            <SwitchboardDemo />
+          </motion.div>
+
+          {/* Legacy Database Settings (preserved for transition) */}
+          <motion.div {...cardAnimationProps(0.7)}>
             <DatabaseSettings />
           </motion.div>
         </div>

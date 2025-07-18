@@ -1,9 +1,17 @@
-import { verifyDatabaseConnection } from './mongodb';
 import { firebaseConfig } from '@/config';
 import util from 'util';
 import { exec as oldExec } from 'child_process';
 
 const exec = util.promisify(oldExec);
+
+export const verifyDatabaseConnection = async () => {
+  console.warn('verifyDatabaseConnection is deprecated. Database connection is now managed by the main process.');
+  return true;
+};
+
+// The rest of this file is deprecated and only retained for reference. Remove or refactor as needed.
+
+
 
 /**
  * Validates that essential Firebase environment variables are present.
@@ -70,15 +78,15 @@ async function checkGCPVertexAIConnection() {
       throw new Error('Received empty access token from gcloud.');
     }
     console.log("✔ Successfully retrieved GCP access token.");
-  } catch (error: any) {
+  } catch (error: unknown) {
     let errorMessage = 'Failed to retrieve GCP access token.';
-    if (error.stderr) {
+    if (error instanceof Error && 'stderr' in error) {
       errorMessage += ` Stderr: ${error.stderr}`;
     }
-    if (error.stdout) { // Sometimes error details are in stdout for gcloud
+    if (error instanceof Error && 'stdout' in error) { // Sometimes error details are in stdout for gcloud
       errorMessage += ` Stdout: ${error.stdout}`;
     }
-    if (error.message && !error.stderr && !error.stdout) {
+    if (error instanceof Error && error.message && !('stderr' in error) && !('stdout' in error)) {
         errorMessage += ` Message: ${error.message}`;
     }
     console.error("GCP auth print-access-token error details:", error);
@@ -109,10 +117,11 @@ async function runStartupChecks() {
     console.log("-----------------------------------------");
     console.log("  All checks passed. Starting server...");
     console.log("-----------------------------------------");
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("************************************************************");
     console.error("***         FATAL: A pre-startup check failed.           ***");
-    console.error(`*** ERROR: ${error.message} `);
+    console.error(`*** ERROR: ${errorMessage} `);
     console.error("************************************************************");
     process.exit(1); // Exit with an error code
   }

@@ -8,8 +8,9 @@
  */
 
 import type { ipcMain as ElectronIpcMain } from 'electron';
+import { Document, Filter, FindOptions, InsertOneResult, UpdateResult, DeleteResult, UpdateFilter } from 'mongodb';
 
-export interface IPCDatabaseResult<T = any> {
+export interface IPCDatabaseResult<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -38,7 +39,7 @@ class ServerIPCClient {
   /**
    * Execute an IPC handler directly
    */
-  private async executeHandler(channel: string, ...args: any[]): Promise<any> {
+  private async executeHandler<T>(channel: string, ...args: unknown[]): Promise<T> {
     if (!this.ipcMain) {
       throw new Error(
         'ServerIPCClient can only be used inside Electron main process'
@@ -57,24 +58,24 @@ class ServerIPCClient {
     return handler(mockEvent, ...args);
   }
 
-  async findOne(collection: string, query: any): Promise<any> {
+  async findOne<T extends Document>(collection: string, query: Filter<T>): Promise<T | null> {
     console.log(`[SERVER_IPC] findOne on ${collection}:`, query);
     return this.executeHandler('db-findOne', collection, query);
   }
 
-  async find(
+  async find<T extends Document>(
     collection: string,
-    query: any = {},
-    options: any = {}
-  ): Promise<any[]> {
+    query: Filter<T> = {},
+    options: FindOptions<T> = {}
+  ): Promise<T[]> {
     console.log(`[SERVER_IPC] find on ${collection}:`, query, options);
     return this.executeHandler('db-find', collection, query, options);
   }
 
-  async insertOne(
+  async insertOne<T extends Document>(
     collection: string,
-    document: any
-  ): Promise<IPCDatabaseResult> {
+    document: T
+  ): Promise<InsertOneResult<T>> {
     console.log(
       `[SERVER_IPC] insertOne on ${collection}:`,
       { ...document, _preview: 'truncated' }
@@ -82,44 +83,44 @@ class ServerIPCClient {
     return this.executeHandler('db-insertOne', collection, document);
   }
 
-  async updateOne(
+  async updateOne<T extends Document>(
     collection: string,
-    filter: any,
-    update: any
-  ): Promise<IPCDatabaseResult> {
+    filter: Filter<T>,
+    update: UpdateFilter<T>
+  ): Promise<UpdateResult> {
     console.log(`[SERVER_IPC] updateOne on ${collection}:`, filter, update);
     return this.executeHandler('db-updateOne', collection, filter, update);
   }
 
-  async deleteOne(
+  async deleteOne<T extends Document>(
     collection: string,
-    filter: any
-  ): Promise<IPCDatabaseResult> {
+    filter: Filter<T>
+  ): Promise<DeleteResult> {
     console.log(`[SERVER_IPC] deleteOne on ${collection}:`, filter);
     return this.executeHandler('db-deleteOne', collection, filter);
   }
 
-  async countDocuments(
+  async countDocuments<T extends Document>(
     collection: string,
-    filter: any = {}
+    filter: Filter<T> = {}
   ): Promise<number> {
     console.log(`[SERVER_IPC] countDocuments on ${collection}:`, filter);
     return this.executeHandler('db-countDocuments', collection, filter);
   }
 
-  async getPatients(): Promise<any[]> {
+  async getPatients(): Promise<Document[]> {
     console.log('[SERVER_IPC] getPatients');
     return this.executeHandler('db-getPatients');
   }
 
-  async getPatient(id: string): Promise<any> {
+  async getPatient(id: string): Promise<Document | null> {
     console.log('[SERVER_IPC] getPatient:', id);
     return this.executeHandler('db-getPatient', id);
   }
 
   async createPatient(
-    patient: any
-  ): Promise<IPCDatabaseResult> {
+    patient: Document
+  ): Promise<InsertOneResult<Document>> {
     console.log(
       '[SERVER_IPC] createPatient:',
       { ...patient, _preview: 'truncated' }
@@ -129,15 +130,15 @@ class ServerIPCClient {
 
   async updatePatient(
     id: string,
-    updates: any
-  ): Promise<IPCDatabaseResult> {
+    updates: Document
+  ): Promise<UpdateResult> {
     console.log('[SERVER_IPC] updatePatient:', id, updates);
     return this.executeHandler('db-updatePatient', id, updates);
   }
 
   async deletePatient(
     id: string
-  ): Promise<IPCDatabaseResult> {
+  ): Promise<DeleteResult> {
     console.log('[SERVER_IPC] deletePatient:', id);
     return this.executeHandler('db-deletePatient', id);
   }

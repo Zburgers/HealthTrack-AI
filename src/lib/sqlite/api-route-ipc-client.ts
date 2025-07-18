@@ -6,6 +6,7 @@
  */
 
 import { BrowserWindow } from 'electron';
+import { Document, Filter, FindOptions, UpdateFilter, UpdateOptions, InsertOneResult, UpdateResult, DeleteResult } from 'mongodb';
 
 export class APIRouteIPCClient {
   private static instance: APIRouteIPCClient | null = null;
@@ -22,7 +23,7 @@ export class APIRouteIPCClient {
     return windows.length > 0 ? windows[0] : null;
   }
 
-  async find(collection: string, filter: any = {}, options: any = {}): Promise<any[]> {
+  async find<T extends Document>(collection: string, filter: Filter<T> = {}, options: FindOptions<T> = {}): Promise<T[]> {
     const mainWindow = this.getMainWindow();
     if (!mainWindow) {
       throw new Error('No Electron window available for IPC communication');
@@ -44,7 +45,7 @@ export class APIRouteIPCClient {
     }
   }
 
-  async findOne(collection: string, filter: any = {}): Promise<any> {
+  async findOne<T extends Document>(collection: string, filter: Filter<T> = {}): Promise<T | null> {
     const mainWindow = this.getMainWindow();
     if (!mainWindow) {
       throw new Error('No Electron window available for IPC communication');
@@ -65,7 +66,7 @@ export class APIRouteIPCClient {
     }
   }
 
-  async insertOne(collection: string, document: any): Promise<any> {
+  async insertOne<T extends Document>(collection: string, document: T): Promise<InsertOneResult<T>> {
     const mainWindow = this.getMainWindow();
     if (!mainWindow) {
       throw new Error('No Electron window available for IPC communication');
@@ -86,7 +87,7 @@ export class APIRouteIPCClient {
     }
   }
 
-  async updateOne(collection: string, filter: any, update: any, options: any = {}): Promise<any> {
+  async updateOne<T extends Document>(collection: string, filter: Filter<T>, update: UpdateFilter<T>, options: UpdateOptions = {}): Promise<UpdateResult> {
     const mainWindow = this.getMainWindow();
     if (!mainWindow) {
       throw new Error('No Electron window available for IPC communication');
@@ -107,7 +108,7 @@ export class APIRouteIPCClient {
     }
   }
 
-  async deleteOne(collection: string, filter: any): Promise<any> {
+  async deleteOne<T extends Document>(collection: string, filter: Filter<T>): Promise<DeleteResult> {
     const mainWindow = this.getMainWindow();
     if (!mainWindow) {
       throw new Error('No Electron window available for IPC communication');
@@ -128,7 +129,7 @@ export class APIRouteIPCClient {
     }
   }
 
-  async countDocuments(collection: string, filter: any = {}): Promise<number> {
+  async countDocuments<T extends Document>(collection: string, filter: Filter<T> = {}): Promise<number> {
     const mainWindow = this.getMainWindow();
     if (!mainWindow) {
       throw new Error('No Electron window available for IPC communication');

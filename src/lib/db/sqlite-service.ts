@@ -4,7 +4,16 @@
  * This service provides a single point of access to the SQLite database
  * and handles initialization across both Electron main process and Next.js server process.
  */
-import { initializeSqliteDatabase, getSqliteDatabase } from '../../../electron/db/sqlite-db';
+// import { initializeSqliteDatabase, getSqliteDatabase } from '../../../electron/db/sqlite-db';
+// SQLite is deprecated and replaced by MongoDB Atlas. This file is now a stub.
+export const initializeSqliteDatabase = async () => {
+  console.warn('SQLite database is deprecated. Using MongoDB Atlas instead.');
+  return true;
+};
+
+export const getSqliteDatabase = () => {
+  throw new Error('SQLite database is deprecated. Use MongoDB Atlas instead.');
+};
 
 class SQLiteService {
   private initialized = false;

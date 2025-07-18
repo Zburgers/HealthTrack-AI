@@ -15,7 +15,7 @@ interface CacheWarmingConfig {
     background: boolean;
   };
   frequentWorkflows: string[];
-  commonInputPatterns: any[];
+  commonInputPatterns: unknown[];
 }
 
 class CacheWarmingManager {
@@ -178,7 +178,7 @@ class CacheWarmingManager {
       entries: metrics.entryCount
     });
 
-    // If hit rate is low, clear cache and warm with better patterns
+    // If hit rate is low, clear cache and re-warm with better patterns
     if (metrics.hitRate < 30) {
       console.log('📉 Low hit rate detected, clearing and re-warming cache...');
       SmartCache.clear();
@@ -208,7 +208,7 @@ class CacheWarmingManager {
   /**
    * Private methods
    */
-  private async performWarmup(strategy: string, context?: any): Promise<void> {
+  private async performWarmup(strategy: string, context?: Record<string, unknown>): Promise<void> {
     if (this.warmingInProgress) {
       console.log('⏳ Cache warming already in progress, skipping...');
       return;
