@@ -1,38 +1,36 @@
 "use strict";
 /**
- * MongoDBAtlasDataSource - MongoDB Atlas Cloud Implementation
+ * MongoDBMemoryDataSource - MongoDB Memory Server Implementation
  *
- * This data source wraps the existing, working MongoDB Atlas connection implementation
- * from src/lib/mongodb/connection.ts and makes it conform to the IDataSource interface.
+ * This data source wraps the existing, working MongoDB Memory Server implementation
+ * from local-db.ts and makes it conform to the IDataSource interface.
  *
  * This preserves all existing functionality while enabling it to work
  * within Clara's Switchboard architecture.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MongoDBAtlasDataSource = void 0;
-const mongodb_atlas_bridge_1 = require("../mongodb-atlas-bridge");
-class MongoDBAtlasDataSource {
+exports.MongoDBMemoryDataSource = void 0;
+const local_db_1 = require("../local-db");
+class MongoDBMemoryDataSource {
     constructor() {
         // IDataSource implementation
-        this.id = 'mongodb-atlas';
-        this.name = 'MongoDB Atlas Cloud';
-        this.description = 'Cloud-hosted MongoDB database for production use and remote access';
+        this.id = 'mongodb-memory';
+        this.name = 'Local MongoDB Memory Server';
+        this.description = 'In-memory MongoDB server for local development and offline usage';
         // State Management
         this.status = 'disconnected';
         this.error = null;
         this.db = null;
-        this.client = null;
-        this.connectionUri = null;
     }
     /**
-     * Initialize the MongoDB Atlas data source
+     * Initialize the MongoDB Memory Server data source
      */
     async initialize() {
-        console.log(`🔧 [${this.id}] Initializing MongoDB Atlas data source...`);
+        console.log(`🔧 [${this.id}] Initializing MongoDB Memory Server data source...`);
         this.status = 'initializing_source';
         try {
-            // No special initialization needed for MongoDB Atlas
-            // The actual connection happens in connect()
+            // No special initialization needed for MongoDB Memory Server
+            // The actual server start happens in connect()
             console.log(`✅ [${this.id}] Data source initialized successfully`);
         }
         catch (error) {
@@ -43,27 +41,20 @@ class MongoDBAtlasDataSource {
         }
     }
     /**
-     * Connect to MongoDB Atlas
+     * Connect to MongoDB Memory Server
      */
     async connect(config) {
-        console.log(`🔌 [${this.id}] Connecting to MongoDB Atlas...`);
+        console.log(`🔌 [${this.id}] Connecting to MongoDB Memory Server...`);
         this.status = 'connecting';
         this.error = null;
         this.config = config; // Store configuration
         try {
-            this.status = 'validating_config';
-            // Extract connection URI from config
-            const uri = config.uri || config.mongoUri;
-            if (!uri) {
-                throw new Error('MongoDB Atlas URI is required in config');
-            }
-            this.status = 'authenticating';
-            // Use the bridge functions for Atlas connection
-            this.client = await (0, mongodb_atlas_bridge_1.connectToAtlas)(uri);
-            this.db = (0, mongodb_atlas_bridge_1.getAtlasDb)();
-            this.connectionUri = uri;
+            // Use the existing working startLocalDatabase function
+            await (0, local_db_1.startLocalDatabase)();
+            // Get the database instance
+            this.db = (0, local_db_1.getLocalDb)();
             this.status = 'connected';
-            console.log(`✅ [${this.id}] Successfully connected to MongoDB Atlas`);
+            console.log(`✅ [${this.id}] Successfully connected to MongoDB Memory Server`);
         }
         catch (error) {
             this.status = 'connection_failed';
@@ -73,17 +64,14 @@ class MongoDBAtlasDataSource {
         }
     }
     /**
-     * Disconnect from MongoDB Atlas
+     * Disconnect from MongoDB Memory Server
      */
     async disconnect() {
-        console.log(`🔌 [${this.id}] Disconnecting from MongoDB Atlas...`);
+        console.log(`🔌 [${this.id}] Disconnecting from MongoDB Memory Server...`);
         try {
-            if (this.client) {
-                await (0, mongodb_atlas_bridge_1.disconnectFromAtlas)();
-            }
-            this.client = null;
+            // Use the existing working stopLocalDatabase function
+            await (0, local_db_1.stopLocalDatabase)();
             this.db = null;
-            this.connectionUri = null;
             this.status = 'disconnected';
             this.error = null;
             console.log(`✅ [${this.id}] Disconnected successfully`);
@@ -118,10 +106,6 @@ class MongoDBAtlasDataSource {
      */
     async routeQuery(query) {
         const { type, params, rawQuery } = query;
-        // Ensure we have a database connection
-        if (!this.db) {
-            throw new Error(`${this.id}: Database connection is null`);
-        }
         // Handle raw queries (escape hatch for complex operations)
         if (type === 'raw' && rawQuery) {
             console.log(`🔧 [${this.id}] Executing raw query`);
@@ -133,7 +117,7 @@ class MongoDBAtlasDataSource {
             throw new Error(`Invalid query type format: ${type}. Expected format: 'collection.operation'`);
         }
         // Get the MongoDB collection
-        const mongoCollection = this.db.collection(collection);
+        const mongoCollection = await (0, local_db_1.getLocalCollection)(collection);
         // Route to specific operations
         switch (operation) {
             case 'getById':
@@ -155,21 +139,6 @@ class MongoDBAtlasDataSource {
                 return deleteResult;
             case 'count':
                 return mongoCollection.countDocuments(params.filter || {});
-            case 'aggregate':
-                return mongoCollection.aggregate(params.pipeline || []).toArray();
-            case 'vectorSearch':
-                // Special handling for vector search operations
-                return mongoCollection.aggregate([
-                    {
-                        $vectorSearch: {
-                            index: params.index || 'vector_index',
-                            path: params.path || 'embedding',
-                            queryVector: params.queryVector,
-                            numCandidates: params.numCandidates || 100,
-                            limit: params.limit || 10
-                        }
-                    }
-                ]).toArray();
             default:
                 throw new Error(`Unsupported operation: ${operation} on collection: ${collection}`);
         }
@@ -206,18 +175,15 @@ class MongoDBAtlasDataSource {
             // Get collections list
             const collections = await this.db.listCollections().toArray();
             const collectionNames = collections.map(col => col.name);
-            // Get server info
-            const serverInfo = await this.db.admin().serverStatus();
             return {
                 isConnected: this.status === 'connected',
-                uri: this.sanitizeUri(this.connectionUri),
+                uri: 'mongodb://localhost:27018', // MongoDB Memory Server default
                 database: this.db.databaseName,
                 collections: collectionNames,
                 lastConnected: new Date(),
                 serverInfo: {
-                    type: 'MongoDB Atlas',
-                    version: serverInfo.version,
-                    host: serverInfo.host
+                    type: 'MongoDB Memory Server',
+                    version: 'In-Memory'
                 }
             };
         }
@@ -229,14 +195,6 @@ class MongoDBAtlasDataSource {
         }
     }
     /**
-     * Sanitize URI for display (hide credentials)
-     */
-    sanitizeUri(uri) {
-        if (!uri)
-            return undefined;
-        return uri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@');
-    }
-    /**
      * Get configuration capabilities (for dynamic UI generation)
      */
     getCapabilities() {
@@ -244,19 +202,13 @@ class MongoDBAtlasDataSource {
             configSchema: {
                 type: 'object',
                 properties: {
-                    uri: {
-                        type: 'string',
-                        description: 'MongoDB Atlas connection string',
-                        pattern: '^mongodb(\\+srv)?://.*',
-                        title: 'MongoDB URI'
-                    },
-                    database: {
-                        type: 'string',
-                        description: 'Database name (optional, can be in URI)',
-                        title: 'Database Name'
+                    // MongoDB Memory Server doesn't need configuration
+                    autoStart: {
+                        type: 'boolean',
+                        description: 'Automatically start the memory server',
+                        default: true
                     }
-                },
-                required: ['uri']
+                }
             },
             supportedOperations: [
                 'patient.getById',
@@ -264,7 +216,6 @@ class MongoDBAtlasDataSource {
                 'patient.create',
                 'patient.update',
                 'patient.delete',
-                'patient.aggregate',
                 'notes.getById',
                 'notes.search',
                 'notes.create',
@@ -273,21 +224,16 @@ class MongoDBAtlasDataSource {
                 'ai_cache.getById',
                 'ai_cache.create',
                 'ai_cache.update',
-                'case_embeddings.vectorSearch',
-                'case_embeddings.search',
                 'raw'
             ],
             features: [
-                'cloud-hosted',
-                'vector-search',
-                'full-text-search',
-                'aggregation-pipeline',
-                'atlas-search',
-                'production-ready',
-                'scalable'
+                'local-storage',
+                'offline-capable',
+                'in-memory',
+                'development-ready'
             ]
         };
     }
 }
-exports.MongoDBAtlasDataSource = MongoDBAtlasDataSource;
-//# sourceMappingURL=MongoDBAtlasDataSource.js.map
+exports.MongoDBMemoryDataSource = MongoDBMemoryDataSource;
+//# sourceMappingURL=MongoDBMemoryDataSource.js.map

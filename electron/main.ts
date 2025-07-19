@@ -4,12 +4,11 @@ import * as http from 'http';
 import * as fs from 'fs';
 import { isDev } from './utils/env';
 import { setupDatabaseIPCHandlers } from './ipc/database-handlers';
-import './ipc/db-check-status'; // Register db:checkStatus IPC handler
 import { setupMongoDBIpcHandlers } from './ipc/mongodb-handlers';
 
 // 🎯 Clara's Switchboard Architecture - Central Data Source Management
 import { getDataSourceManager } from './lib/DataSourceManager';
-
+import { MongoDBMemoryDataSource } from './lib/datasources/MongoDBMemoryDataSource';
 import { MongoDBAtlasDataSource } from './lib/datasources/MongoDBAtlasDataSource';
 
 // --- GTK / X11 fixes for Linux ---
@@ -28,7 +27,9 @@ if (process.platform === 'linux') {
 // Mark that we're in Electron
 process.env.ELECTRON_ENV = 'true';
 process.env.IS_ELECTRON = 'true';
-
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'development';
+}
 
 let mainWindow: BrowserWindow | null = null;
 let cacheCleanupInterval: NodeJS.Timeout | null = null;
@@ -181,7 +182,10 @@ async function initializeSwitchboard(): Promise<void> {
     // Get the singleton DataSourceManager
     const dataSourceManager = getDataSourceManager();
     
-
+    // Register MongoDB Memory Server data source (wraps existing local-db.ts)
+    const memoryDataSource = new MongoDBMemoryDataSource();
+    dataSourceManager.registerDataSource(memoryDataSource);
+    console.log('✅ [SWITCHBOARD] MongoDB Memory Server data source registered');
     
     // Register MongoDB Atlas data source (wraps existing Atlas connection)
     const atlasDataSource = new MongoDBAtlasDataSource();
@@ -288,10 +292,11 @@ app.whenReady().then(async () => {
     await initializeSwitchboard();
     console.log('✅ [SWITCHBOARD] Switchboard Architecture ready!');
     
-
+    // The database is now initialized by the 'npm run dev:electron' script
+    // before Electron starts. This block is redundant and has been removed.
     
     // Keep existing IPC handlers for backward compatibility during transition
-    console.log('🔌 [IPC] Setting up legacy database handlers...');
+    console.log('🔌 [IPC] Setting up database handlers...');
     setupDatabaseIPCHandlers();
     setupMongoDBIpcHandlers();
     console.log('✅ [IPC] All database handlers ready');
@@ -314,7 +319,7 @@ app.on('activate', () => {
 
 app.on('will-quit', async () => {
   console.log('👋 [HEALTHTRACK] Shutting down...');
-  
+  // stopLocalDatabase is deprecated; Switchboard manages its own connections.
   if (cacheCleanupInterval) {
     clearInterval(cacheCleanupInterval);
   }

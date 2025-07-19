@@ -1,99 +1,118 @@
-// Electron Main Process – Database IPC Handlers (Switchboard-only)
-// -----------------------------------------------------------------------------
-// Thin IPC bridge that forwards every database call to the DataSourceManager
-// (a.k.a. "Switchboard").  All legacy channels are preserved but simply map to
-// the unified IQuery shape.  There is NO local-database fallback anymore.
-// -----------------------------------------------------------------------------
-
-import { ipcMain } from 'electron';
-import type { IQuery } from '../lib/datasources/IDataSource';
-import { getDataSourceManager } from '../lib/DataSourceManager';
-
-const dsm = getDataSourceManager();
-
-// Throws if there is no active connected source.  Keeps legacy handlers honest.
-function assertConnected(): void {
-  const status = dsm.getActiveStatus();
-  if (!status.sourceId || status.status !== 'connected') {
-    throw new Error('No active data source connected. Please configure a remote database in Settings → Database.');
-  }
-}
-
 /**
- * Registers the IPC handlers.  Call this from `electron/main.ts` once, early in
- * the app lifecycle.
+ * Electron Main Process - Database IPC Handlers
+ * 
+ * This module registers IPC handlers for all database operations requested by the renderer process.
+ * It uses the centralized local database connection from 'local-db.ts'.
  */
-export function setupDatabaseIPCHandlers(): void {
-  console.log('🔌 [DB-IPC] Installing Switchboard-only IPC handlers…');
+import { ipcMain, IpcMainInvokeEvent } from 'electron';
+import { getDataSourceManager } from '../lib/DataSourceManager'; // Import the Switchboard
+import { IQuery } from '../lib/datasources/IDataSource'; // Import IQuery
+import {
+  Patient,
+  Encounter,
+  Observation,
+  Practitioner,
+  Medication,
+  MedicationRequest,
+  Appointment,
+  SOAPNote,
+  Task,
+  CodeMapping,
+  Setting,
+  LogEntry,
+} from '../types/database'; // Import types from the new location
 
-  // Generic entry – preferred path for new code.
-  ipcMain.handle('db:query', async (_e, query: IQuery) => {
-    assertConnected();
-    return dsm.executeActiveSourceQuery(query);
+const executeQuery = async <T>(query: IQuery): Promise<T> => {
+  const dataSourceManager = getDataSourceManager();
+  return dataSourceManager.executeActiveSourceQuery<T>(query);
+};
+
+export function setupDatabaseIPCHandlers() {
+  console.log('🔌 [DB-IPC] Registering database handlers with Switchboard...');
+
+  // Health check
+  ipcMain.handle('db:ready', async () => {
+    const dataSourceManager = getDataSourceManager();
+    const status = dataSourceManager.getActiveSourceStatus();
+    return status.status === 'connected';
   });
 
-  // Legacy wrappers ----------------------------------------------------------
-  ipcMain.handle('db:findOne', async (_e, collection: string, filter: Record<string, unknown>) => {
-    assertConnected();
-    return dsm.executeActiveSourceQuery({ type: `${collection}.findOne`, params: { filter } });
-  });
+  // Generic find operation
+  const find = async (collectionName: string, query: any = {}) => {
+    return executeQuery({ type: 'find', params: { collection: collectionName, query } });
+  };
 
-  ipcMain.handle('db:find', async (_e, collection: string, filter: Record<string, unknown> = {}, options: Record<string, unknown> = {}) => {
-    assertConnected();
-    return dsm.executeActiveSourceQuery({ type: `${collection}.find`, params: { filter, options } });
-  });
+  // Generic findOne operation
+  const findOne = async (collectionName:string, query: any) => {
+    return executeQuery({ type: 'findOne', params: { collection: collectionName, query } });
+  };
 
-  ipcMain.handle('db:insertOne', async (_e, collection: string, document: Record<string, unknown>) => {
-    assertConnected();
-    return dsm.executeActiveSourceQuery({ type: `${collection}.insertOne`, params: { document } });
-  });
+  // Generic insertOne operation
+  const insertOne = async (collectionName: string, doc: any) => {
+    return executeQuery({ type: 'insertOne', params: { collection: collectionName, payload: doc } });
+  };
 
-  ipcMain.handle('db:updateOne', async (_e, collection: string, filter: Record<string, unknown>, update: Record<string, unknown>, options: Record<string, unknown> = {}) => {
-    assertConnected();
-    return dsm.executeActiveSourceQuery({ type: `${collection}.updateOne`, params: { filter, update, options } });
-  });
-
-  ipcMain.handle('db:deleteOne', async (_e, collection: string, filter: Record<string, unknown>) => {
-    assertConnected();
-    return dsm.executeActiveSourceQuery({ type: `${collection}.deleteOne`, params: { filter } });
-  });
-
-  // Convenience helpers ------------------------------------------------------
-  ipcMain.handle('db:getPatients', async () => {
-    assertConnected();
-    return dsm.executeActiveSourceQuery({ type: 'patients.find', params: { filter: {} } });
-  });
-
-  ipcMain.handle('db:getPatientById', async (_e, id: string) => {
-    assertConnected();
-    return dsm.executeActiveSourceQuery({ type: 'patients.getById', params: { id } });
-  });
-
-  ipcMain.handle('db:findSimilarCases', async (_e, params: { patientData: Record<string, unknown>, filters?: Record<string, unknown> }) => {
-    assertConnected();
-    return dsm.executeActiveSourceQuery({ type: 'similar-cases.find', params });
-  });
-
-  // Remote-URI management -----------------------------------------------------
-  ipcMain.handle('db:setUserMongoUri', async (_e, uri: string) => {
-    // Delegate connection logic to the Switchboard.
-    await dsm.connectDataSource('mongodb-atlas', { uri, purpose: 'user-data', autoConnect: true });
-    return true;
-  });
-
+  // Status check --------------------------------------------------------------
   ipcMain.handle('db:checkStatus', () => {
+    const dsm = getDataSourceManager();
     return dsm.getActiveStatus();
   });
 
-  ipcMain.handle('db:health', async () => {
-    try {
-      assertConnected();
-      const info = await dsm.getActiveSourceConnectionInfo();
-      return { status: 'ok', sourceInfo: info };
-    } catch (err) {
-      return { status: 'error', error: (err as Error).message };
-    }
+  // Generic updateOne operation
+  const updateOne = async (collectionName: string, query: any, update: any, options?: any) => {
+    return executeQuery({ type: 'updateOne', params: { collection: collectionName, query, payload: update, options } });
+  };
+
+  // Generic deleteOne operation
+  const deleteOne = async (collectionName: string, query: any) => {
+    return executeQuery({ type: 'deleteOne', params: { collection: collectionName, query } });
+  };
+
+  // Refactored handlers
+  ipcMain.handle('db:getPatients', async (_event: IpcMainInvokeEvent, query: any = {}) => find('patients', query));
+  ipcMain.handle('db:getPatient', async (_event: IpcMainInvokeEvent, query: any) => findOne('patients', query));
+  ipcMain.handle('db:addPatient', async (_event: IpcMainInvokeEvent, patient: Patient) => insertOne('patients', patient));
+  ipcMain.handle('db:updatePatient', async (_event: IpcMainInvokeEvent, query: any, patient: Partial<Patient>) => updateOne('patients', query, { $set: patient }));
+  
+  ipcMain.handle('db:getEncounters', async (_event: IpcMainInvokeEvent, query: any = {}) => find('encounters', query));
+  ipcMain.handle('db:addEncounter', async (_event: IpcMainInvokeEvent, encounter: Encounter) => insertOne('encounters', encounter));
+
+  ipcMain.handle('db:getObservations', async (_event: IpcMainInvokeEvent, query: any = {}) => find('observations', query));
+  ipcMain.handle('db:addObservation', async (_event: IpcMainInvokeEvent, observation: Observation) => insertOne('observations', observation));
+
+  ipcMain.handle('db:getPractitioners', async (_event: IpcMainInvokeEvent, query: any = {}) => find('practitioners', query));
+  ipcMain.handle('db:addPractitioner', async (_event: IpcMainInvokeEvent, practitioner: Practitioner) => insertOne('practitioners', practitioner));
+
+  ipcMain.handle('db:getMedications', async (_event: IpcMainInvokeEvent, query: any = {}) => find('medications', query));
+  ipcMain.handle('db:addMedication', async (_event: IpcMainInvokeEvent, medication: Medication) => insertOne('medications', medication));
+
+  ipcMain.handle('db:getMedicationRequests', async (_event: IpcMainInvokeEvent, query: any = {}) => find('medicationRequests', query));
+  ipcMain.handle('db:addMedicationRequest', async (_event: IpcMainInvokeEvent, request: MedicationRequest) => insertOne('medicationRequests', request));
+
+  ipcMain.handle('db:getAppointments', async (_event: IpcMainInvokeEvent, query: any = {}) => find('appointments', query));
+  ipcMain.handle('db:addAppointment', async (_event: IpcMainInvokeEvent, appointment: Appointment) => insertOne('appointments', appointment));
+  ipcMain.handle('db:updateAppointment', async (_event: IpcMainInvokeEvent, query: any, appointment: Partial<Appointment>) => updateOne('appointments', query, { $set: appointment }));
+  ipcMain.handle('db:deleteAppointment', async (_event: IpcMainInvokeEvent, query: any) => deleteOne('appointments', query));
+
+  ipcMain.handle('db:getSOAPNotes', async (_event: IpcMainInvokeEvent, query: any = {}) => find('soapNotes', query));
+  ipcMain.handle('db:addSOAPNote', async (_event: IpcMainInvokeEvent, note: SOAPNote) => insertOne('soapNotes', note));
+  ipcMain.handle('db:updateSOAPNote', async (_event: IpcMainInvokeEvent, query: any, note: Partial<SOAPNote>) => updateOne('soapNotes', query, { $set: note }));
+
+  ipcMain.handle('db:getTasks', async (_event: IpcMainInvokeEvent, query: any = {}) => find('tasks', query));
+  ipcMain.handle('db:addTask', async (_event: IpcMainInvokeEvent, task: Task) => insertOne('tasks', task));
+  ipcMain.handle('db:updateTask', async (_event: IpcMainInvokeEvent, query: any, task: Partial<Task>) => updateOne('tasks', query, { $set: task }));
+  ipcMain.handle('db:deleteTask', async (_event: IpcMainInvokeEvent, query: any) => deleteOne('tasks', query));
+
+  ipcMain.handle('db:getCodeMappings', async (_event: IpcMainInvokeEvent, query: any = {}) => find('codeMappings', query));
+  ipcMain.handle('db:addCodeMapping', async (_event: IpcMainInvokeEvent, mapping: CodeMapping) => insertOne('codeMappings', mapping));
+
+  ipcMain.handle('db:getSettings', async (_event: IpcMainInvokeEvent, query: any = {}) => find('settings', query));
+  ipcMain.handle('db:updateSetting', async (_event: IpcMainInvokeEvent, key: string, value: any) => {
+    return updateOne('settings', { key }, { $set: { value } }, { upsert: true });
   });
 
-  console.log('✅ [DB-IPC] Handlers ready (Switchboard-only).');
+  ipcMain.handle('db:getLogs', async (_event: IpcMainInvokeEvent, query: any = {}) => find('logs', query));
+  ipcMain.handle('db:addLog', async (_event: IpcMainInvokeEvent, log: LogEntry) => insertOne('logs', log));
+
+  console.log('✅ [DB-IPC] Database handlers registered successfully');
 }

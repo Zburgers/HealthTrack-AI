@@ -1,8 +1,8 @@
 /**
- * MongoDBAtlasDataSource - MongoDB Atlas Cloud Implementation
+ * MongoDBMemoryDataSource - MongoDB Memory Server Implementation
  * 
- * This data source wraps the existing, working MongoDB Atlas connection implementation
- * from src/lib/mongodb/connection.ts and makes it conform to the IDataSource interface.
+ * This data source wraps the existing, working MongoDB Memory Server implementation
+ * from local-db.ts and makes it conform to the IDataSource interface.
  * 
  * This preserves all existing functionality while enabling it to work
  * within Clara's Switchboard architecture.
@@ -16,19 +16,18 @@ import {
   DataSourceCapabilities 
 } from './IDataSource';
 import { 
-  connectToAtlas,
-  getAtlasDb,
-  getAtlasClient,
-  disconnectFromAtlas,
-  isAtlasConnected
-} from '../mongodb-atlas-bridge';
-import { Db, MongoClient } from 'mongodb';
+  startLocalDatabase, 
+  stopLocalDatabase, 
+  getLocalDb,
+  getLocalCollection
+} from '../local-db';
+import { Db } from 'mongodb';
 
-export class MongoDBAtlasDataSource implements IDataSource {
+export class MongoDBMemoryDataSource implements IDataSource {
   // IDataSource implementation
-  public readonly id = 'mongodb-atlas';
-  public readonly name = 'MongoDB Atlas Cloud';
-  public readonly description = 'Cloud-hosted MongoDB database for production use and remote access';
+  public readonly id = 'mongodb-memory';
+  public readonly name = 'Local MongoDB Memory Server';
+  public readonly description = 'In-memory MongoDB server for local development and offline usage';
   
   // State Management
   public status: ConnectionStatus = 'disconnected';
@@ -36,19 +35,17 @@ export class MongoDBAtlasDataSource implements IDataSource {
   public config?: Record<string, any>;
   
   private db: Db | null = null;
-  private client: MongoClient | null = null;
-  private connectionUri: string | null = null;
   
   /**
-   * Initialize the MongoDB Atlas data source
+   * Initialize the MongoDB Memory Server data source
    */
   async initialize(): Promise<void> {
-    console.log(`🔧 [${this.id}] Initializing MongoDB Atlas data source...`);
+    console.log(`🔧 [${this.id}] Initializing MongoDB Memory Server data source...`);
     this.status = 'initializing_source';
     
     try {
-      // No special initialization needed for MongoDB Atlas
-      // The actual connection happens in connect()
+      // No special initialization needed for MongoDB Memory Server
+      // The actual server start happens in connect()
       console.log(`✅ [${this.id}] Data source initialized successfully`);
     } catch (error) {
       this.status = 'error';
@@ -59,32 +56,23 @@ export class MongoDBAtlasDataSource implements IDataSource {
   }
   
   /**
-   * Connect to MongoDB Atlas
+   * Connect to MongoDB Memory Server
    */
   async connect(config: Record<string, any>): Promise<void> {
-    console.log(`🔌 [${this.id}] Connecting to MongoDB Atlas...`);
+    console.log(`🔌 [${this.id}] Connecting to MongoDB Memory Server...`);
     this.status = 'connecting';
     this.error = null;
     this.config = config; // Store configuration
     
     try {
-      this.status = 'validating_config';
+      // Use the existing working startLocalDatabase function
+      await startLocalDatabase();
       
-      // Extract connection URI from config
-      const uri = config.uri || config.mongoUri;
-      if (!uri) {
-        throw new Error('MongoDB Atlas URI is required in config');
-      }
-      
-      this.status = 'authenticating';
-      
-      // Use the bridge functions for Atlas connection
-      this.client = await connectToAtlas(uri);
-      this.db = getAtlasDb();
-      this.connectionUri = uri;
+      // Get the database instance
+      this.db = getLocalDb();
       
       this.status = 'connected';
-      console.log(`✅ [${this.id}] Successfully connected to MongoDB Atlas`);
+      console.log(`✅ [${this.id}] Successfully connected to MongoDB Memory Server`);
     } catch (error) {
       this.status = 'connection_failed';
       this.error = error as Error;
@@ -94,19 +82,16 @@ export class MongoDBAtlasDataSource implements IDataSource {
   }
   
   /**
-   * Disconnect from MongoDB Atlas
+   * Disconnect from MongoDB Memory Server
    */
   async disconnect(): Promise<void> {
-    console.log(`🔌 [${this.id}] Disconnecting from MongoDB Atlas...`);
+    console.log(`🔌 [${this.id}] Disconnecting from MongoDB Memory Server...`);
     
     try {
-      if (this.client) {
-        await disconnectFromAtlas();
-      }
+      // Use the existing working stopLocalDatabase function
+      await stopLocalDatabase();
       
-      this.client = null;
       this.db = null;
-      this.connectionUri = null;
       this.status = 'disconnected';
       this.error = null;
       
@@ -145,11 +130,6 @@ export class MongoDBAtlasDataSource implements IDataSource {
   private async routeQuery<T>(query: IQuery): Promise<T> {
     const { type, params, rawQuery } = query;
     
-    // Ensure we have a database connection
-    if (!this.db) {
-      throw new Error(`${this.id}: Database connection is null`);
-    }
-    
     // Handle raw queries (escape hatch for complex operations)
     if (type === 'raw' && rawQuery) {
       console.log(`🔧 [${this.id}] Executing raw query`);
@@ -164,7 +144,7 @@ export class MongoDBAtlasDataSource implements IDataSource {
     }
     
     // Get the MongoDB collection
-    const mongoCollection = this.db.collection(collection);
+    const mongoCollection = await getLocalCollection(collection);
     
     // Route to specific operations
     switch (operation) {
@@ -192,23 +172,6 @@ export class MongoDBAtlasDataSource implements IDataSource {
         
       case 'count':
         return mongoCollection.countDocuments(params.filter || {}) as T;
-        
-      case 'aggregate':
-        return mongoCollection.aggregate(params.pipeline || []).toArray() as T;
-        
-      case 'vectorSearch':
-        // Special handling for vector search operations
-        return mongoCollection.aggregate([
-          {
-            $vectorSearch: {
-              index: params.index || 'vector_index',
-              path: params.path || 'embedding',
-              queryVector: params.queryVector,
-              numCandidates: params.numCandidates || 100,
-              limit: params.limit || 10
-            }
-          }
-        ]).toArray() as T;
         
       default:
         throw new Error(`Unsupported operation: ${operation} on collection: ${collection}`);
@@ -249,19 +212,15 @@ export class MongoDBAtlasDataSource implements IDataSource {
       const collections = await this.db.listCollections().toArray();
       const collectionNames = collections.map(col => col.name);
       
-      // Get server info
-      const serverInfo = await this.db.admin().serverStatus();
-      
       return {
         isConnected: this.status === 'connected',
-        uri: this.sanitizeUri(this.connectionUri),
+        uri: 'mongodb://localhost:27018',  // MongoDB Memory Server default
         database: this.db.databaseName,
         collections: collectionNames,
         lastConnected: new Date(),
         serverInfo: {
-          type: 'MongoDB Atlas',
-          version: serverInfo.version,
-          host: serverInfo.host
+          type: 'MongoDB Memory Server',
+          version: 'In-Memory'
         }
       };
     } catch (error) {
@@ -273,14 +232,6 @@ export class MongoDBAtlasDataSource implements IDataSource {
   }
   
   /**
-   * Sanitize URI for display (hide credentials)
-   */
-  private sanitizeUri(uri: string | null): string | undefined {
-    if (!uri) return undefined;
-    return uri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@');
-  }
-  
-  /**
    * Get configuration capabilities (for dynamic UI generation)
    */
   getCapabilities(): DataSourceCapabilities {
@@ -288,19 +239,13 @@ export class MongoDBAtlasDataSource implements IDataSource {
       configSchema: {
         type: 'object',
         properties: {
-          uri: {
-            type: 'string',
-            description: 'MongoDB Atlas connection string',
-            pattern: '^mongodb(\\+srv)?://.*',
-            title: 'MongoDB URI'
-          },
-          database: {
-            type: 'string',
-            description: 'Database name (optional, can be in URI)',
-            title: 'Database Name'
+          // MongoDB Memory Server doesn't need configuration
+          autoStart: {
+            type: 'boolean',
+            description: 'Automatically start the memory server',
+            default: true
           }
-        },
-        required: ['uri']
+        }
       },
       supportedOperations: [
         'patient.getById',
@@ -308,27 +253,21 @@ export class MongoDBAtlasDataSource implements IDataSource {
         'patient.create',
         'patient.update',
         'patient.delete',
-        'patient.aggregate',
         'notes.getById',
         'notes.search',
-        'notes.create', 
+        'notes.create',
         'notes.update',
         'notes.delete',
         'ai_cache.getById',
         'ai_cache.create',
         'ai_cache.update',
-        'case_embeddings.vectorSearch',
-        'case_embeddings.search',
         'raw'
       ],
       features: [
-        'cloud-hosted',
-        'vector-search',
-        'full-text-search',
-        'aggregation-pipeline',
-        'atlas-search',
-        'production-ready',
-        'scalable'
+        'local-storage',
+        'offline-capable',
+        'in-memory',
+        'development-ready'
       ]
     };
   }

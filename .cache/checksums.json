@@ -1,7 +1,7 @@
 {
-  "package.json": "78d07ac6ebe0d2ca14036f0951e1fb40acd76b12e2fbd6afe4013b4135c06351",
+  "package.json": "cbca4e4cd227eb5e9aa88603cdb267482e5c21494f53b35278007c5bd002f80a",
   "next.config.ts": "71d1bcf32a52cf7a35ca886c0167671ae37804d8d0a1c8295d7f4410e0e139dc",
   "tsconfig.json": "e5a7f34c01bf2dbe9c84e3f8baab029c3e7c588748e15c48a8130b181a0b5b0e",
-  "electron/main.ts": "36fe9b2b8ed8ce5af6f8c6db09518cba10bc7ebb3c6d930a93728d9ffc1567ca",
+  "electron/main.ts": "eb958bf0b5b15d87859428d3fc9b7634ebee472ac3ccbf4cc6b64032ee9b5c09",
   "electron/preload.ts": "c07ada6f41437f5d41bfd411a2d63b6feb70b80d31c33c7ee036a28cc89ffbe8"
 }

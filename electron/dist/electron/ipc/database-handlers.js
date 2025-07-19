@@ -1,86 +1,85 @@
 "use strict";
-// Electron Main Process – Database IPC Handlers (Switchboard-only)
-// -----------------------------------------------------------------------------
-// Thin IPC bridge that forwards every database call to the DataSourceManager
-// (a.k.a. "Switchboard").  All legacy channels are preserved but simply map to
-// the unified IQuery shape.  There is NO local-database fallback anymore.
-// -----------------------------------------------------------------------------
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.setupDatabaseIPCHandlers = setupDatabaseIPCHandlers;
-const electron_1 = require("electron");
-const DataSourceManager_1 = require("../lib/DataSourceManager");
-const dsm = (0, DataSourceManager_1.getDataSourceManager)();
-// Throws if there is no active connected source.  Keeps legacy handlers honest.
-function assertConnected() {
-    const status = dsm.getActiveStatus();
-    if (!status.sourceId || status.status !== 'connected') {
-        throw new Error('No active data source connected. Please configure a remote database in Settings → Database.');
-    }
-}
 /**
- * Registers the IPC handlers.  Call this from `electron/main.ts` once, early in
- * the app lifecycle.
+ * Electron Main Process - Database IPC Handlers
+ *
+ * This module registers IPC handlers for all database operations requested by the renderer process.
+ * It uses the centralized local database connection from 'local-db.ts'.
  */
+const electron_1 = require("electron");
+const DataSourceManager_1 = require("../lib/DataSourceManager"); // Import the Switchboard
+const executeQuery = async (query) => {
+    const dataSourceManager = (0, DataSourceManager_1.getDataSourceManager)();
+    return dataSourceManager.executeActiveSourceQuery(query);
+};
 function setupDatabaseIPCHandlers() {
-    console.log('🔌 [DB-IPC] Installing Switchboard-only IPC handlers…');
-    // Generic entry – preferred path for new code.
-    electron_1.ipcMain.handle('db:query', async (_e, query) => {
-        assertConnected();
-        return dsm.executeActiveSourceQuery(query);
+    console.log('🔌 [DB-IPC] Registering database handlers with Switchboard...');
+    // Health check
+    electron_1.ipcMain.handle('db:ready', async () => {
+        const dataSourceManager = (0, DataSourceManager_1.getDataSourceManager)();
+        const status = dataSourceManager.getActiveSourceStatus();
+        return status.status === 'connected';
     });
-    // Legacy wrappers ----------------------------------------------------------
-    electron_1.ipcMain.handle('db:findOne', async (_e, collection, filter) => {
-        assertConnected();
-        return dsm.executeActiveSourceQuery({ type: `${collection}.findOne`, params: { filter } });
-    });
-    electron_1.ipcMain.handle('db:find', async (_e, collection, filter = {}, options = {}) => {
-        assertConnected();
-        return dsm.executeActiveSourceQuery({ type: `${collection}.find`, params: { filter, options } });
-    });
-    electron_1.ipcMain.handle('db:insertOne', async (_e, collection, document) => {
-        assertConnected();
-        return dsm.executeActiveSourceQuery({ type: `${collection}.insertOne`, params: { document } });
-    });
-    electron_1.ipcMain.handle('db:updateOne', async (_e, collection, filter, update, options = {}) => {
-        assertConnected();
-        return dsm.executeActiveSourceQuery({ type: `${collection}.updateOne`, params: { filter, update, options } });
-    });
-    electron_1.ipcMain.handle('db:deleteOne', async (_e, collection, filter) => {
-        assertConnected();
-        return dsm.executeActiveSourceQuery({ type: `${collection}.deleteOne`, params: { filter } });
-    });
-    // Convenience helpers ------------------------------------------------------
-    electron_1.ipcMain.handle('db:getPatients', async () => {
-        assertConnected();
-        return dsm.executeActiveSourceQuery({ type: 'patients.find', params: { filter: {} } });
-    });
-    electron_1.ipcMain.handle('db:getPatientById', async (_e, id) => {
-        assertConnected();
-        return dsm.executeActiveSourceQuery({ type: 'patients.getById', params: { id } });
-    });
-    electron_1.ipcMain.handle('db:findSimilarCases', async (_e, params) => {
-        assertConnected();
-        return dsm.executeActiveSourceQuery({ type: 'similar-cases.find', params });
-    });
-    // Remote-URI management -----------------------------------------------------
-    electron_1.ipcMain.handle('db:setUserMongoUri', async (_e, uri) => {
-        // Delegate connection logic to the Switchboard.
-        await dsm.connectDataSource('mongodb-atlas', { uri, purpose: 'user-data', autoConnect: true });
-        return true;
-    });
+    // Generic find operation
+    const find = async (collectionName, query = {}) => {
+        return executeQuery({ type: 'find', params: { collection: collectionName, query } });
+    };
+    // Generic findOne operation
+    const findOne = async (collectionName, query) => {
+        return executeQuery({ type: 'findOne', params: { collection: collectionName, query } });
+    };
+    // Generic insertOne operation
+    const insertOne = async (collectionName, doc) => {
+        return executeQuery({ type: 'insertOne', params: { collection: collectionName, payload: doc } });
+    };
+    // Status check --------------------------------------------------------------
     electron_1.ipcMain.handle('db:checkStatus', () => {
+        const dsm = (0, DataSourceManager_1.getDataSourceManager)();
         return dsm.getActiveStatus();
     });
-    electron_1.ipcMain.handle('db:health', async () => {
-        try {
-            assertConnected();
-            const info = await dsm.getActiveSourceConnectionInfo();
-            return { status: 'ok', sourceInfo: info };
-        }
-        catch (err) {
-            return { status: 'error', error: err.message };
-        }
+    // Generic updateOne operation
+    const updateOne = async (collectionName, query, update, options) => {
+        return executeQuery({ type: 'updateOne', params: { collection: collectionName, query, payload: update, options } });
+    };
+    // Generic deleteOne operation
+    const deleteOne = async (collectionName, query) => {
+        return executeQuery({ type: 'deleteOne', params: { collection: collectionName, query } });
+    };
+    // Refactored handlers
+    electron_1.ipcMain.handle('db:getPatients', async (_event, query = {}) => find('patients', query));
+    electron_1.ipcMain.handle('db:getPatient', async (_event, query) => findOne('patients', query));
+    electron_1.ipcMain.handle('db:addPatient', async (_event, patient) => insertOne('patients', patient));
+    electron_1.ipcMain.handle('db:updatePatient', async (_event, query, patient) => updateOne('patients', query, { $set: patient }));
+    electron_1.ipcMain.handle('db:getEncounters', async (_event, query = {}) => find('encounters', query));
+    electron_1.ipcMain.handle('db:addEncounter', async (_event, encounter) => insertOne('encounters', encounter));
+    electron_1.ipcMain.handle('db:getObservations', async (_event, query = {}) => find('observations', query));
+    electron_1.ipcMain.handle('db:addObservation', async (_event, observation) => insertOne('observations', observation));
+    electron_1.ipcMain.handle('db:getPractitioners', async (_event, query = {}) => find('practitioners', query));
+    electron_1.ipcMain.handle('db:addPractitioner', async (_event, practitioner) => insertOne('practitioners', practitioner));
+    electron_1.ipcMain.handle('db:getMedications', async (_event, query = {}) => find('medications', query));
+    electron_1.ipcMain.handle('db:addMedication', async (_event, medication) => insertOne('medications', medication));
+    electron_1.ipcMain.handle('db:getMedicationRequests', async (_event, query = {}) => find('medicationRequests', query));
+    electron_1.ipcMain.handle('db:addMedicationRequest', async (_event, request) => insertOne('medicationRequests', request));
+    electron_1.ipcMain.handle('db:getAppointments', async (_event, query = {}) => find('appointments', query));
+    electron_1.ipcMain.handle('db:addAppointment', async (_event, appointment) => insertOne('appointments', appointment));
+    electron_1.ipcMain.handle('db:updateAppointment', async (_event, query, appointment) => updateOne('appointments', query, { $set: appointment }));
+    electron_1.ipcMain.handle('db:deleteAppointment', async (_event, query) => deleteOne('appointments', query));
+    electron_1.ipcMain.handle('db:getSOAPNotes', async (_event, query = {}) => find('soapNotes', query));
+    electron_1.ipcMain.handle('db:addSOAPNote', async (_event, note) => insertOne('soapNotes', note));
+    electron_1.ipcMain.handle('db:updateSOAPNote', async (_event, query, note) => updateOne('soapNotes', query, { $set: note }));
+    electron_1.ipcMain.handle('db:getTasks', async (_event, query = {}) => find('tasks', query));
+    electron_1.ipcMain.handle('db:addTask', async (_event, task) => insertOne('tasks', task));
+    electron_1.ipcMain.handle('db:updateTask', async (_event, query, task) => updateOne('tasks', query, { $set: task }));
+    electron_1.ipcMain.handle('db:deleteTask', async (_event, query) => deleteOne('tasks', query));
+    electron_1.ipcMain.handle('db:getCodeMappings', async (_event, query = {}) => find('codeMappings', query));
+    electron_1.ipcMain.handle('db:addCodeMapping', async (_event, mapping) => insertOne('codeMappings', mapping));
+    electron_1.ipcMain.handle('db:getSettings', async (_event, query = {}) => find('settings', query));
+    electron_1.ipcMain.handle('db:updateSetting', async (_event, key, value) => {
+        return updateOne('settings', { key }, { $set: { value } }, { upsert: true });
     });
-    console.log('✅ [DB-IPC] Handlers ready (Switchboard-only).');
+    electron_1.ipcMain.handle('db:getLogs', async (_event, query = {}) => find('logs', query));
+    electron_1.ipcMain.handle('db:addLog', async (_event, log) => insertOne('logs', log));
+    console.log('✅ [DB-IPC] Database handlers registered successfully');
 }
 //# sourceMappingURL=database-handlers.js.map

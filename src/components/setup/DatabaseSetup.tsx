@@ -296,26 +296,7 @@ Thanks!
                       </div>
                       <div className="mt-6 flex justify-center">
                         <Button
-                          onClick={() => {
-                            // Call the parent component's callback and explicitly navigate
-                            console.log('🏠 [DB-SETUP] Proceeding to dashboard');
-                            
-                            // Try to use the router if available (Next.js approach)
-                            try {
-                              if (typeof window !== 'undefined') {
-                                // Call the success handler first to load data
-                                onConnectionSuccess();
-                                
-                                // Then force redirect to dashboard
-                                console.log('📱 [DB-SETUP] Redirecting to dashboard via window.location');
-                                window.location.href = '/dashboard';
-                              }
-                            } catch (err) {
-                              console.error('❌ [DB-SETUP] Navigation error:', err);
-                              // Fallback - try to call the success handler at least
-                              onConnectionSuccess();
-                            }
-                          }}
+                          onClick={onConnectionSuccess}
                           className="bg-blue-600 hover:bg-blue-700 text-white h-12 text-base font-medium px-8"
                         >
                           Proceed to Dashboard

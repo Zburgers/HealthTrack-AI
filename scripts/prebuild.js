@@ -158,6 +158,17 @@ class BuildValidator {
 }
 
 class FileManager {
+    static cleanDist() {
+        Logger.info('🧹 Cleaning old build artifacts...');
+        const distPath = path.join(CONFIG.PROJECT_ROOT, 'electron/dist');
+        if (fs.existsSync(distPath)) {
+            fs.rmSync(distPath, { recursive: true, force: true });
+            Logger.success('✅ Cleaned electron/dist directory');
+        } else {
+            Logger.info(' electron/dist directory not found, skipping cleanup.');
+        }
+    }
+
     static ensureDirectories() {
         Logger.info('📁 Creating required directories...');
         
@@ -396,6 +407,7 @@ async function main() {
         
         // Phase 3: File Management
         Logger.info('📁 Phase 3: File Management');
+        FileManager.cleanDist(); // Add this line
         FileManager.ensureDirectories();
         const buildInfo = FileManager.createBuildInfo();
         FileManager.generateChecksums();
@@ -407,6 +419,15 @@ async function main() {
         
         // Phase 5: Final Setup
         Logger.info('🎯 Phase 5: Final Setup');
+        
+        // Fix Electron entry point path
+        Logger.info('🔄 Fixing Electron entry point path...');
+        if (fs.existsSync('electron/dist/electron/main.js')) {
+            fs.copyFileSync('electron/dist/electron/main.js', 'electron/dist/main.js');
+            Logger.success('✅ Entry point file copied to correct location');
+        } else {
+            Logger.warn('Entry point file not found, skipping fix');
+        }
         
         const duration = Date.now() - startTime;
         
