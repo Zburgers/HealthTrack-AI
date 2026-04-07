@@ -27,6 +27,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { NewCaseFormValues, formSchema } from '@/types';
 import { 
   Loader2, 
   Send, 
@@ -60,28 +61,6 @@ const fadeInUp = {
   animate: { opacity: 1, y: 0 },
   transition: { duration: 0.5 }
 };
-
-const formSchema = z.object({
-  patientName: z.string().min(2, { message: 'Patient name must be at least 2 characters.' }).max(100),
-  age: z.coerce.number().int().min(1, { message: 'Age must be greater than 0.' }).max(120),
-  gender: z.enum(['Male', 'Female', 'Other'], { required_error: 'Gender is required.' }),
-  visitDate: z.date({ required_error: 'Visit date is required.' }),
-  primaryComplaint: z.string().min(5, { message: 'Primary complaint must be at least 5 characters.' }).max(1000),
-  previousConditions: z.string().max(1000).optional(),
-  allergies: z.string().max(1000).optional(),
-  medications: z.string().max(1000).optional(),
-  bp: z.string().max(20).optional(),
-  hr: z.string().max(10).optional(),
-  rr: z.string().max(10).optional(),
-  temp: z.string().max(10).optional(),
-  spo2: z.string().max(10).optional(),
-  severityLevel: z.enum(['Low', 'Moderate', 'High', 'Not Specified']).default('Not Specified'),
-  caseType: z.enum(['Chronic', 'Acute', 'Follow-up', 'Consultation', 'Not Specified']).default('Not Specified'),
-  observations: z.string().max(5000).optional(),
-  clinicalNotes: z.string().max(5000).optional(),
-});
-
-export type NewCaseFormValues = z.infer<typeof formSchema>;
 
 const VITAL_RANGES = {
   bp: "Systolic <120 mmHg and Diastolic <80 mmHg",
@@ -207,32 +186,84 @@ export default function NewCaseForm() {
 
   async function onSubmit(values: NewCaseFormValues) {
     setIsSubmitting(true);
-    
+
     try {
-      const response = await fetch('/api/patients', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(values),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to submit the new case.');
+      // Check if we're in Electron environment
+      if (!window.electronAPI) {
+        throw new Error('This application requires the desktop version. Please download and use the Electron app.');
       }
 
+      // Transform form values to Patient object format expected by database (MongoDB schema)
+      const patientData = {
+        // Basic patient info (matching intended schema)
+        name: values.patientName,
+        age: values.age,
+        sex: values.gender, // Use 'sex' instead of 'gender' to match schema
+        
+        // Timestamps
+        createdAt: new Date(),
+        last_updated: new Date(),
+        
+        // Vitals (proper schema format with numeric values)
+        vitals: {
+          temp: values.temp ? parseFloat(values.temp) : null,
+          bp: values.bp || null,
+          hr: values.hr ? parseInt(values.hr) : null,
+          spo2: values.spo2 ? parseInt(values.spo2) : null,
+          rr: values.rr ? parseInt(values.rr) : null,
+        },
+        
+        // Medical information
+        symptoms: values.primaryComplaint ? [values.primaryComplaint] : [],
+        observations: values.observations || '',
+        
+        // Medical history arrays (split comma-separated values)
+        allergies: values.allergies ? values.allergies.split(',').map(a => a.trim()).filter(Boolean) : [],
+        current_medications: values.medications ? values.medications.split(',').map(m => m.trim()).filter(Boolean) : [],
+        previous_conditions: values.previousConditions ? values.previousConditions.split(',').map(c => c.trim()).filter(Boolean) : [],
+        primary_complaint: values.primaryComplaint || '',
+        
+        // AI and classification fields (empty initially)
+        icd_tags: [],
+        icd_tag_summary: [],
+        risk_predictions: [],
+        risk_score: 0,
+        soap_note: {
+          subjective: values.primaryComplaint || '',
+          objective: values.observations || '',
+          assessment: '',
+          plan: values.clinicalNotes || ''
+        },
+        matched_cases: [],
+        ai_metadata: {},
+        
+        // System fields
+        status: 'draft',
+        owner_uid: 'electron-user', // For Electron app users
+      };
+
+      console.log('🔄 [NEW_CASE] Creating patient record:', patientData);
+
+      // Use Electron IPC to create the patient record via Switchboard
+      const result = await window.electronAPI.database.createPatient(patientData);
+
+      if (!result || !result.patientId) {
+        throw new Error('Failed to create patient. Invalid response from database.');
+      }
+      
+      console.log('✅ [NEW_CASE] Patient created successfully:', result);
+      
       toast({
         title: '✅ Case Created Successfully',
         description: 'Redirecting to patient dashboard for AI analysis...',
         duration: 4000,
       });
-      
+
+      // Navigate to the patient detail page
       router.push(`/dashboard/patient/${result.patientId}`);
 
     } catch (error) {
-      console.error('Submission Error:', error);
+      console.error('❌ [NEW_CASE] Submission Error:', error);
       
       // Report error to error tracking service
       reportError(error as Error, {

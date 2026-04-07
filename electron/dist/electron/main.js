@@ -38,11 +38,12 @@ const path = __importStar(require("path"));
 const http = __importStar(require("http"));
 const fs = __importStar(require("fs"));
 const database_handlers_1 = require("./ipc/database-handlers");
-const mongodb_handlers_1 = require("./ipc/mongodb-handlers");
 // 🎯 Clara's Switchboard Architecture - Central Data Source Management
 const DataSourceManager_1 = require("./lib/DataSourceManager");
 const MongoDBMemoryDataSource_1 = require("./lib/datasources/MongoDBMemoryDataSource");
 const MongoDBAtlasDataSource_1 = require("./lib/datasources/MongoDBAtlasDataSource");
+// 📊 DataSourceManager Logging Integration
+const DataSourceStartupIntegration_1 = require("./lib/logging/DataSourceStartupIntegration");
 // --- GTK / X11 fixes for Linux ---
 if (process.platform === 'linux') {
     process.env.GDK_BACKEND = 'x11';
@@ -195,6 +196,8 @@ function stopCacheCleanupJob() {
 async function initializeSwitchboard() {
     console.log('🎯 [SWITCHBOARD] Initializing Clara\'s Switchboard Architecture...');
     try {
+        // 📊 Initialize DataSourceManager logging integration
+        await DataSourceStartupIntegration_1.DataSourceStartupIntegration.integrateWithMain();
         // Get the singleton DataSourceManager
         const dataSourceManager = (0, DataSourceManager_1.getDataSourceManager)();
         // Register MongoDB Memory Server data source (wraps existing local-db.ts)
@@ -209,8 +212,10 @@ async function initializeSwitchboard() {
         await dataSourceManager.initialize();
         console.log('🎯 [SWITCHBOARD] Switchboard Architecture initialized successfully!');
         console.log('📡 [SWITCHBOARD] Available data sources:', dataSourceManager.getAvailableSources().map(s => `${s.id} (${s.name})`).join(', '));
-        // 🎯 Auto-initialize case embeddings database if URI is available
-        await autoInitializeCaseEmbeddings(dataSourceManager);
+        // 🎯 Auto-initialize case embeddings database if URI is available (non-blocking)
+        autoInitializeCaseEmbeddings(dataSourceManager).catch(error => {
+            console.warn('⚠️ [CASE-EMBEDDINGS] Auto-initialization failed (continuing anyway):', error.message);
+        });
     }
     catch (error) {
         console.error('❌ [SWITCHBOARD] Failed to initialize Switchboard Architecture:', error);
@@ -295,7 +300,6 @@ electron_1.app.whenReady().then(async () => {
         // Keep existing IPC handlers for backward compatibility during transition
         console.log('🔌 [IPC] Setting up database handlers...');
         (0, database_handlers_1.setupDatabaseIPCHandlers)();
-        (0, mongodb_handlers_1.setupMongoDBIpcHandlers)();
         console.log('✅ [IPC] All database handlers ready');
         console.log('🖼️ [WINDOW] Creating application window...');
         await initializeApp();
@@ -314,6 +318,8 @@ electron_1.app.on('activate', () => {
 });
 electron_1.app.on('will-quit', async () => {
     console.log('👋 [HEALTHTRACK] Shutting down...');
+    // 📊 Setup graceful logging shutdown
+    DataSourceStartupIntegration_1.DataSourceStartupIntegration.setupLauncherHooks();
     // stopLocalDatabase is deprecated; Switchboard manages its own connections.
     if (cacheCleanupInterval) {
         clearInterval(cacheCleanupInterval);

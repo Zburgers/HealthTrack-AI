@@ -53,6 +53,7 @@ import {
   CheckCircle,
   MessageSquare
 } from 'lucide-react';
+import { deletePatient as deletePatientUtil } from '@/lib/electron-utils';
 
 // SOAP Section Component
 const SoapSection: React.FC<{ title: string; content?: string; icon?: React.ReactNode; color?: string }> = ({ 
@@ -236,15 +237,23 @@ export default function PatientDetailPage() {
 
     try {
       setError(null);
-      const response = await fetch(`/api/patients/${patientId}`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch patient details.');
+      const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
+      if (isElectron) {
+        const data = await (window as any).electronAPI.database.getPatient({ id: patientId });
+        setPatient(data);
+        setIsAnalyzing(data.status === 'analyzing');
+        return data;
+      } else {
+        const response = await fetch(`/api/patients/${patientId}`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to fetch patient details.');
+        }
+        const data = await response.json();
+        setPatient(data);
+        setIsAnalyzing(data.status === 'analyzing');
+        return data;
       }
-      const data = await response.json();
-      setPatient(data);
-      setIsAnalyzing(data.status === 'analyzing');
-      return data;
     } catch (e) {
       setError((e as Error).message);
       setIsAnalyzing(false);
@@ -295,29 +304,23 @@ export default function PatientDetailPage() {
     
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/patients/${patient.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          deletionReason: deletionReason.trim(),
-        }),
+      await deletePatientUtil(patient.id, deletionReason.trim(), 'System');
+      
+      toast({
+        title: 'Patient Deleted',
+        description: 'The patient record has been moved to archives.',
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to archive patient');
-      }
-
-      // Close the modal and redirect to dashboard
-      setIsDeleteModalOpen(false);
       router.push('/dashboard');
     } catch (error) {
-      console.error('Error archiving patient:', error);
-      throw error; // Re-throw to let the modal handle the error display
+      console.error('Error deleting patient:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete patient. Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setIsDeleting(false);
+      setConfirmDeleteOpen(false);
     }
   };
 

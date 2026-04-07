@@ -215,12 +215,19 @@ export default function ArchivedPatientsPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/patients?archivedOnly=true');
-        if (!response.ok) {
-          throw new Error('Failed to fetch archived patient data.');
+        const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
+        if (isElectron) {
+          const data = await (window as any).electronAPI.database.getArchivedPatients();
+          setArchivedPatients(data);
+        } else {
+          // Fallback for web environment if needed
+          const response = await fetch('/api/patients?archivedOnly=true');
+          if (!response.ok) {
+            throw new Error('Failed to fetch archived patient data.');
+          }
+          const data = await response.json();
+          setArchivedPatients(data);
         }
-        const data = await response.json();
-        setArchivedPatients(data);
       } catch (e) {
         setError((e as Error).message);
       } finally {

@@ -76,7 +76,7 @@ export function SQLiteExample() {
       
       try {
         // Check database health via IPC
-        const health = await (window as any).ipcRenderer.invoke('db-health');
+        const health = await (window as any).ipcRenderer.invoke('db:health');
         setDbHealth(health);
         
         // Load patients via IPC

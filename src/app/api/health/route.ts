@@ -24,7 +24,7 @@ export async function GET() {
       database: {
         type: isElectron ? 'sqlite' : 'mongodb',
         status: 'check-in-renderer',
-        checkCommand: 'window.ipcRenderer.invoke("db-health")'
+        checkCommand: 'window.ipcRenderer.invoke("db:health")'
       }
     };
 
@@ -33,7 +33,7 @@ export async function GET() {
       // In Electron environment, database access is only available via IPC from renderer
       healthData.database.message = 'SQLite health can only be checked from renderer process via IPC';
       healthData.database.architecture = {
-        correct: 'Use window.ipcRenderer.invoke("db-health") from client components',
+        correct: 'Use window.ipcRenderer.invoke("db:health") from client components',
         constraint: 'Node.js version mismatch prevents direct SQLite access from Next.js API routes'
       };
     } else {

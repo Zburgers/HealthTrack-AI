@@ -4,6 +4,8 @@
  * This module manages the in-memory MongoDB server instance for the Electron app.
  * It ensures that a single, consistent local database is available for the main process to access.
  */
+
+
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { MongoClient, Db } from 'mongodb';
 import { DATABASE_NAMES, MONGODB_CONFIG } from '../config/constants';

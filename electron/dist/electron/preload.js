@@ -33,6 +33,7 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
         insertOne: (c, d) => electron_1.ipcRenderer.invoke('db:insertOne', c, d),
         updateOne: (c, f, u, o) => electron_1.ipcRenderer.invoke('db:updateOne', c, f, u, o),
         deleteOne: (c, f) => electron_1.ipcRenderer.invoke('db:deleteOne', c, f),
+        deleteMany: (c, f) => electron_1.ipcRenderer.invoke('db:deleteMany', c, f),
         // Patient operations
         getPatients: () => electron_1.ipcRenderer.invoke('db:getPatients'),
         getPatient: (id) => electron_1.ipcRenderer.invoke('db:getPatient', id),
@@ -41,10 +42,10 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
         deletePatient: (id) => electron_1.ipcRenderer.invoke('db:deletePatient', id),
         // Status and URI management
         checkStatus: () => electron_1.ipcRenderer.invoke('db:checkStatus'),
-        health: () => electron_1.ipcRenderer.invoke('db-health'),
-        getUserMongoUri: () => electron_1.ipcRenderer.invoke('db-getUserMongoUri'),
-        setUserMongoUri: (uri) => electron_1.ipcRenderer.invoke('db-setUserMongoUri', uri),
-        testConnection: (uri) => electron_1.ipcRenderer.invoke('db-testConnection', uri),
+        health: () => electron_1.ipcRenderer.invoke('db:health'),
+        getUserMongoUri: () => electron_1.ipcRenderer.invoke('db:getUserMongoUri'),
+        setUserMongoUri: (uri) => electron_1.ipcRenderer.invoke('db:setUserMongoUri', uri),
+        testConnection: (uri) => electron_1.ipcRenderer.invoke('db:testConnection', uri),
     }
 });
 // Development helpers

@@ -122,6 +122,8 @@ class MongoDBMemoryDataSource {
         switch (operation) {
             case 'getById':
                 return mongoCollection.findOne({ _id: params.id });
+            case 'findOne':
+                return mongoCollection.findOne(params.filter || {}, params.options || {});
             case 'search':
             case 'find':
                 return mongoCollection.find(params.filter || {}, params.options || {}).toArray();
@@ -129,14 +131,23 @@ class MongoDBMemoryDataSource {
             case 'insertOne':
                 const insertResult = await mongoCollection.insertOne(params.document);
                 return { ...params.document, _id: insertResult.insertedId };
+            case 'insertMany':
+                const insertManyResult = await mongoCollection.insertMany(params.documents);
+                return insertManyResult;
             case 'update':
             case 'updateOne':
                 const updateResult = await mongoCollection.updateOne(params.filter, params.update);
                 return updateResult;
+            case 'updateMany':
+                const updateManyResult = await mongoCollection.updateMany(params.filter, params.update);
+                return updateManyResult;
             case 'delete':
             case 'deleteOne':
                 const deleteResult = await mongoCollection.deleteOne(params.filter);
                 return deleteResult;
+            case 'deleteMany':
+                const deleteManyResult = await mongoCollection.deleteMany(params.filter);
+                return deleteManyResult;
             case 'count':
                 return mongoCollection.countDocuments(params.filter || {});
             default:

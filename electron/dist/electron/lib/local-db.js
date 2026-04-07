@@ -1,16 +1,16 @@
 "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.startLocalDatabase = startLocalDatabase;
-exports.stopLocalDatabase = stopLocalDatabase;
-exports.isLocalDatabaseInitialized = isLocalDatabaseInitialized;
-exports.getLocalDb = getLocalDb;
-exports.getLocalCollection = getLocalCollection;
 /**
  * Electron Main Process - Local Database Manager
  *
  * This module manages the in-memory MongoDB server instance for the Electron app.
  * It ensures that a single, consistent local database is available for the main process to access.
  */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.startLocalDatabase = startLocalDatabase;
+exports.stopLocalDatabase = stopLocalDatabase;
+exports.isLocalDatabaseInitialized = isLocalDatabaseInitialized;
+exports.getLocalDb = getLocalDb;
+exports.getLocalCollection = getLocalCollection;
 const mongodb_memory_server_1 = require("mongodb-memory-server");
 const mongodb_1 = require("mongodb");
 const constants_1 = require("../config/constants");

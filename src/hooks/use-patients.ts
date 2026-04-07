@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiCache } from '@/lib/api-cache';
 import type { Patient } from '@/types';
+import { getDb } from '@/lib/db';
 
 interface PatientsData {
   activePatients: Patient[];
@@ -33,11 +34,19 @@ export function usePatients(): PatientsData {
     updateGlobalData({ isLoading: true, error: null });
     
     try {
-      // Use cached requests to prevent duplicates
-      const [activeData, archivedData] = await Promise.all([
-        apiCache.fetchWithCache<Patient[]>('/api/patients'),
-        apiCache.fetchWithCache<Patient[]>('/api/patients?archivedOnly=true')
-      ]);
+      // Always use the data source architecture through the centralized db module
+      console.log('[DataSource] Fetching patients via centralized Data Source');
+      
+      // Get active and archived patients using the db module
+      const activeData = await (window as any).electronAPI.dataSource.query({
+        type: 'patients.find', 
+        params: { filter: { isDeleted: { $ne: true } } }
+      });
+      
+      const archivedData = await (window as any).electronAPI.dataSource.query({
+        type: 'patients.find', 
+        params: { filter: { isDeleted: true } }
+      });
 
       updateGlobalData({
         activePatients: activeData,
@@ -90,11 +99,14 @@ export function usePatient(patientId: string | undefined) {
 
     try {
       setError(null);
-      const data = await apiCache.fetchWithCache<Patient>(
-        `/api/patients/${patientId}`,
-        undefined,
-        2000 // Shorter cache for individual patients
-      );
+      
+      console.log(`[DataSource] Fetching patient ${patientId} via Data Source`);
+      
+      // Use centralized data source architecture
+      const data = await (window as any).electronAPI.dataSource.query({
+        type: 'patients.findOne',
+        params: { filter: { id: patientId } }
+      });
       
       setPatient(data);
       setIsAnalyzing(data.status === 'analyzing');
@@ -118,12 +130,21 @@ export function usePatient(patientId: string | undefined) {
 
     const pollInterval = setInterval(async () => {
       try {
-        // Clear cache for this specific patient to get fresh data
-        const data = await fetch(`/api/patients/${patientId}`).then(res => res.json());
-        setPatient(data);
+        // Check if we're running in Electron
+        const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
         
-        if (data.status !== 'analyzing') {
-          setIsAnalyzing(false);
+        if (isElectron) {
+          // Use IPC for Electron
+          const data = await (window as any).electronAPI.dataSource.query({
+            type: 'patients.findOne',
+            params: { filter: { id: patientId } }
+          });
+          
+          setPatient(data);
+          
+          if (data.status !== 'analyzing') {
+            setIsAnalyzing(false);
+          }
         }
       } catch (error) {
         console.error('Polling error:', error);

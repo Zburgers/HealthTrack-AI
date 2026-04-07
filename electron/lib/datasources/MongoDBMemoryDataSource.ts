@@ -151,6 +151,9 @@ export class MongoDBMemoryDataSource implements IDataSource {
       case 'getById':
         return mongoCollection.findOne({ _id: params.id }) as T;
         
+      case 'findOne':
+        return mongoCollection.findOne(params.filter || {}, params.options || {}) as T;
+        
       case 'search':
       case 'find':
         return mongoCollection.find(params.filter || {}, params.options || {}).toArray() as T;
@@ -160,15 +163,27 @@ export class MongoDBMemoryDataSource implements IDataSource {
         const insertResult = await mongoCollection.insertOne(params.document);
         return { ...params.document, _id: insertResult.insertedId } as T;
         
+      case 'insertMany':
+        const insertManyResult = await mongoCollection.insertMany(params.documents);
+        return insertManyResult as T;
+        
       case 'update':
       case 'updateOne':
         const updateResult = await mongoCollection.updateOne(params.filter, params.update);
         return updateResult as T;
         
+      case 'updateMany':
+        const updateManyResult = await mongoCollection.updateMany(params.filter, params.update);
+        return updateManyResult as T;
+        
       case 'delete':
       case 'deleteOne':
         const deleteResult = await mongoCollection.deleteOne(params.filter);
         return deleteResult as T;
+        
+      case 'deleteMany':
+        const deleteManyResult = await mongoCollection.deleteMany(params.filter);
+        return deleteManyResult as T;
         
       case 'count':
         return mongoCollection.countDocuments(params.filter || {}) as T;

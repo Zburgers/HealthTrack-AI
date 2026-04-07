@@ -44,7 +44,6 @@ import {
   BarChart3
 } from 'lucide-react';
 import { parseISO, compareDesc, compareAsc, format, isToday, isYesterday, startOfWeek, endOfWeek } from 'date-fns';
-import DatabaseSetup from '@/components/setup/DatabaseSetup';
 
 // Helper function to get correct risk score (0-100)
 const getNormalizedRiskScore = (score: number): number => {
@@ -235,16 +234,35 @@ export default function DashboardPage() {  const [patients, setPatients] = useSt
       return true;
     }
     try {
+      // First check if there's an active connection via Switchboard
+      try {
+        const status = await (window as any).electronAPI.dataSource.getActiveStatus();
+        if (status && status.sourceId && status.status === 'connected') {
+          console.log('✅ [DASHBOARD] Active database connection found');
+          setDbStatus('connected');
+          return true;
+        }
+      } catch (switchboardError) {
+        console.warn('⚠️ [DASHBOARD] Failed to check Switchboard status:', switchboardError);
+      }
+      
+      // Fallback to legacy check
       const status = await (window as any).electronAPI.database.checkStatus();
       if (status === 'ready') {
         setDbStatus('connected');
         return true;
       }
+      
+      console.log('⚠️ [DASHBOARD] No active database connection, redirecting to setup...');
+      // Redirect to setup page if no connection is found
+      window.location.href = '/setup';
+      return false;
     } catch (e) {
-      // Will fall through to return false
+      console.error('❌ [DASHBOARD] Database connection error:', e);
     }
-    setDbStatus('error');
-    setError('Could not connect to the local database. Please ensure it is running correctly.');
+    
+    console.log('❌ [DASHBOARD] Database connection failed, redirecting to setup...');
+    window.location.href = '/setup';
     return false;
   };
 
@@ -263,9 +281,11 @@ export default function DashboardPage() {  const [patients, setPatients] = useSt
       
       if (isElectron) {
         console.log('📊 [DASHBOARD] Loading patients from local database...');
-        const activePatients = await (window as any).electronAPI.database.getPatients();
-        setPatients(activePatients || []);
-        console.log(`✅ [DASHBOARD] Loaded ${activePatients?.length || 0} patients`);
+        const rawPatients = await (window as any).electronAPI.database.getPatients();
+        
+        // The data is already formatted by the main process, so no need to map it here.
+        setPatients(rawPatients || []);
+        console.log(`✅ [DASHBOARD] Loaded and formatted ${rawPatients.length} patients`);
       } else {
         console.log('🌐 [DASHBOARD] Loading patients from API...');
         const response = await fetch('/api/patients');
@@ -606,10 +626,6 @@ export default function DashboardPage() {  const [patients, setPatients] = useSt
         </div>
       </div>
     );
-  }
-
-  if (dbStatus === 'error') {
-    return <DatabaseSetup onConnectionSuccess={fetchPatients} />;
   }
 
 

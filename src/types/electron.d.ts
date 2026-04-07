@@ -44,22 +44,48 @@ declare global {
 
       // Legacy database API (preserved for backward compatibility)
       database: {
+        // Generic database operations
         findOne: (collection: string, query: any) => Promise<any>;
         find: (collection: string, query: any, options?: any) => Promise<any[]>;
         insertOne: (collection: string, document: any) => Promise<any>;
         updateOne: (collection: string, filter: any, update: any, options?: any) => Promise<any>;
         deleteOne: (collection: string, filter: any) => Promise<any>;
+        deleteMany: (collection: string, filter: any) => Promise<any>;
         
-        getPatients: () => Promise<any[]>;
-        getPatient: (id: string) => Promise<any>;
+        // Patient operations
+        getPatients: (query?: any) => Promise<any[]>;
+        getPatient: (idOrQuery: string | any) => Promise<any>;
         createPatient: (patient: any) => Promise<any>;
-        updatePatient: (id: string, update: any) => Promise<any>;
-        deletePatient: (id: string) => Promise<any>;
-
+        updatePatient: (idOrQuery: string | any, update?: any) => Promise<any>;
+        deletePatient: (idOrObj: string | { id: string; reason: string; deletedBy: string }) => Promise<any>;
+        
+        // Encounter operations
+        getEncounters: (query?: any) => Promise<any[]>;
+        addEncounter: (encounter: any) => Promise<any>;
+        
+        // Observation operations
+        getObservations: (query?: any) => Promise<any[]>;
+        addObservation: (observation: any) => Promise<any>;
+        
+        // AI Cache operations
+        getAICache: (key: string) => Promise<any>;
+        setAICache: (key: string, workflow: string, input: any, output: any, expiryMs?: number) => Promise<boolean>;
+        
+        // Database management
+        getInfo: () => Promise<any>;
+        exportData: () => Promise<any>;
+        getStorageSettings: () => Promise<any>;
+        getStats: () => Promise<any>;
+        
+        // Status and health checks
+        ready: () => Promise<boolean>;
         checkStatus: () => Promise<any>;
         health: () => Promise<any>;
+        
+        // MongoDB URI management
         getUserMongoUri: () => Promise<string>;
         setUserMongoUri: (uri: string) => Promise<void>;
+        testConnection: (uri: string) => Promise<{ success: boolean; error?: string }>;
       };
     };
 

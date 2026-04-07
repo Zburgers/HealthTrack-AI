@@ -1,0 +1,250 @@
+import { ipcMain, dialog } from 'electron';
+import { MongoClient, Db, ServerApiVersion } from 'mongodb';
+import * as fs from 'fs';
+import * as path from 'path';
+import { app } from 'electron';
+import { getDataSourceManager } from '../lib/DataSourceManager';
+
+// 🎯 Use Switchboard for central database management
+const dataSourceManager = getDataSourceManager();
+
+// Legacy MongoDB connections for Electron main process (bridged to Switchboard)
+let defaultMongoClient: MongoClient | null = null; // For embeddings (always uses env URI)
+let defaultMongoDb: Db | null = null;
+
+let userMongoClient: MongoClient | null = null; // For user data (uses configurable URI)
+let userMongoDb: Db | null = null;
+
+// URI management
+let userMongoUri: string | null = null;
+const USER_URI_FILE_PATH = path.join(app.getPath('userData'), 'healthtrack-settings.json');
+
+/**
+ * Load user MongoDB URI from persistent storage
+ */
+function loadUserMongoUri(): string | null {
+  try {
+    // 1. Try to load from user data directory
+    if (fs.existsSync(USER_URI_FILE_PATH)) {
+      const data = JSON.parse(fs.readFileSync(USER_URI_FILE_PATH, 'utf-8'));
+      if (data.uri || data.mongoUri) {
+        console.log('📄 [MONGODB_IPC] Found MongoDB URI in user data settings');
+        return data.uri || data.mongoUri || null;
+      }
+    }
+    
+    // 2. Try to load from app root directory
+    const appRootPath = path.join(process.cwd(), 'healthtrack-settings.json');
+    if (fs.existsSync(appRootPath)) {
+      const data = JSON.parse(fs.readFileSync(appRootPath, 'utf-8'));
+      if (data.uri || data.mongoUri) {
+        console.log('📄 [MONGODB_IPC] Found MongoDB URI in app root settings');
+        return data.uri || data.mongoUri || null;
+      }
+    }
+  } catch (error) {
+    console.warn('❌ [MONGODB_IPC] Failed to load user MongoDB URI:', error);
+  }
+  return null;
+}
+
+/**
+ * Save user MongoDB URI to persistent storage
+ */
+function saveUserMongoUri(uri: string): void {
+  try {
+    // Save to both locations for backward compatibility
+    
+    // 1. Save to user data directory (for electron app persistence)
+    const dir = path.dirname(USER_URI_FILE_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    let data = {};
+    if (fs.existsSync(USER_URI_FILE_PATH)) {
+      try {
+        data = JSON.parse(fs.readFileSync(USER_URI_FILE_PATH, 'utf-8'));
+      } catch (e) {
+        console.warn('❌ [MONGODB_IPC] Failed to parse existing settings file, creating new one');
+      }
+    }
+    
+    data = { ...data, uri, mongoUri: uri };
+    fs.writeFileSync(USER_URI_FILE_PATH, JSON.stringify(data, null, 2));
+    
+    // 2. Save to app root directory (for backward compatibility)
+    const appRootPath = path.join(process.cwd(), 'healthtrack-settings.json');
+    data = {};
+    
+    if (fs.existsSync(appRootPath)) {
+      try {
+        data = JSON.parse(fs.readFileSync(appRootPath, 'utf-8'));
+      } catch (e) {
+        console.warn('❌ [MONGODB_IPC] Failed to parse existing app root settings file, creating new one');
+      }
+    }
+    
+    data = { ...data, uri, mongoUri: uri };
+    fs.writeFileSync(appRootPath, JSON.stringify(data, null, 2));
+    
+    console.log('✅ [MONGODB_IPC] User MongoDB URI saved to persistent storage');
+  } catch (error) {
+    console.error('❌ [MONGODB_IPC] Failed to save user MongoDB URI:', error);
+  }
+}
+
+/**
+ * Initialize default MongoDB connection for case embeddings
+ */
+async function initializeDefaultMongoDBConnection(): Promise<void> {
+  // Skip initialization if already connected
+  if (defaultMongoClient && defaultMongoDb) {
+    console.log('ℹ️ [MONGODB_IPC] Default MongoDB connection already initialized');
+    return;
+  }
+  
+  // This function is now deprecated as DB connections are managed by DataSourceManager
+  console.log('ℹ️ [MONGODB_IPC] Using Switchboard for DB connections');
+}
+
+/**
+ * Initialize user MongoDB connection
+ */
+async function initializeUserMongoDBConnection(): Promise<void> {
+  // Skip initialization if already connected
+  if (userMongoClient && userMongoDb) {
+    console.log('ℹ️ [MONGODB_IPC] User MongoDB connection already initialized');
+    return;
+  }
+  
+  // This function is now deprecated as DB connections are managed by DataSourceManager
+  console.log('ℹ️ [MONGODB_IPC] Using Switchboard for DB connections');
+}
+
+/**
+ * Get appropriate MongoDB database instance based on collection
+ */
+function getMongoDatabase(collection?: string): Db {
+  // This function is now deprecated as DB connections are managed by DataSourceManager
+  throw new Error('Use DataSourceManager.executeActiveSourceQuery instead of direct database access');
+}
+
+/**
+ * Helper function to check if an IPC handler is already registered
+ * to prevent duplicate handler registration errors
+ */
+function isHandlerRegistered(channel: string): boolean {
+  // Check if the channel exists in ipcMain's event registry
+  return !!(ipcMain as any)._events && !!(ipcMain as any)._events[channel];
+}
+
+/**
+ * Setup MongoDB-based IPC handlers
+ * This function is now deprecated as the handlers are now managed by database-handlers.ts
+ */
+export function setupMongoDBIpcHandlers(): void {
+  console.log('ℹ️ [MONGODB_IPC] MongoDB IPC handlers are now managed by database-handlers.ts');
+  console.log('ℹ️ [MONGODB_IPC] This function is kept for backward compatibility but does nothing');
+  
+  // This file is no longer used for IPC handlers
+  // All handlers are now registered in database-handlers.ts
+  return;
+}
+
+/**
+ * Close all MongoDB connections
+ */
+export async function closeMongoDBConnection(): Promise<void> {
+  console.log('🔌 [MONGODB_IPC] Closing MongoDB connections...');
+  
+  // Try to close via Switchboard first
+  try {
+    const dataSourceManager = getDataSourceManager();
+    const status = dataSourceManager.getActiveStatus();
+    if (status.sourceId === 'mongodb-atlas' || status.sourceId === 'mongodb-memory') {
+      await dataSourceManager.disconnectActiveSource();
+      console.log('✅ [MONGODB_IPC] Disconnected from MongoDB via Switchboard');
+    }
+  } catch (switchboardError) {
+    console.warn('⚠️ [MONGODB_IPC] Failed to disconnect via Switchboard:', switchboardError);
+  }
+  
+  // Also clean up legacy connections
+  const promises: Promise<void>[] = [];
+  
+  if (defaultMongoClient) {
+    promises.push(defaultMongoClient.close().then(() => {
+      defaultMongoClient = null;
+      defaultMongoDb = null;
+      console.log('✅ [MONGODB_IPC] Default MongoDB connection closed');
+    }));
+  }
+  
+  if (userMongoClient) {
+    promises.push(userMongoClient.close().then(() => {
+      userMongoClient = null;
+      userMongoDb = null;
+      console.log('✅ [MONGODB_IPC] User MongoDB connection closed');
+    }));
+  }
+  
+  await Promise.all(promises);
+  console.log('✅ [MONGODB_IPC] All MongoDB connections closed');
+}
+
+/**
+ * Health check for default MongoDB connection (embeddings)
+ */
+async function checkDefaultMongoHealth(): Promise<{ connected: boolean; error?: string; uri?: string }> {
+  try {
+    // Check via Switchboard
+    const dataSourceManager = getDataSourceManager();
+    const status = dataSourceManager.getActiveStatus();
+    if (status.sourceId === 'mongodb-atlas' && status.status === 'connected') {
+      return { 
+        connected: true, 
+        uri: 'Using Switchboard' 
+      };
+    }
+    
+    return { 
+      connected: false, 
+      error: 'No active connection via Switchboard',
+    };
+  } catch (error) {
+    console.error('❌ [MONGODB_IPC] Default MongoDB health check failed:', error);
+    return { 
+      connected: false, 
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Health check for user MongoDB connection (user data)
+ */
+async function checkUserMongoHealth(): Promise<{ connected: boolean; error?: string; uri?: string }> {
+  try {
+    // Check via Switchboard
+    const dataSourceManager = getDataSourceManager();
+    const status = dataSourceManager.getActiveStatus();
+    if (status.sourceId === 'mongodb-atlas' && status.status === 'connected') {
+      return { 
+        connected: true, 
+        uri: 'Using Switchboard' 
+      };
+    }
+    
+    return { 
+      connected: false, 
+      error: 'No active connection via Switchboard',
+    };
+  } catch (error) {
+    console.error('❌ [MONGODB_IPC] User MongoDB health check failed:', error);
+    return { 
+      connected: false, 
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}

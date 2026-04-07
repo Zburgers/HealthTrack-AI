@@ -1,0 +1,117 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir *)",
+      "Bash(test *)",
+      "Bash(git checkout *)",
+      "Bash(git add *)"
+    ]
+  },
+  "$version": 3,
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "claude-mem",
+            "type": "command",
+            "command": "\"/home/naki/.bun/bin/bun\" \"/home/naki/.claude/plugins/marketplaces/thedotmack/plugin/scripts/worker-service.cjs\" hook qwen-code context",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "claude-mem",
+            "type": "command",
+            "command": "\"/home/naki/.bun/bin/bun\" \"/home/naki/.claude/plugins/marketplaces/thedotmack/plugin/scripts/worker-service.cjs\" hook qwen-code user-message",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "claude-mem",
+            "type": "command",
+            "command": "\"/home/naki/.bun/bin/bun\" \"/home/naki/.claude/plugins/marketplaces/thedotmack/plugin/scripts/worker-service.cjs\" hook qwen-code observation",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "claude-mem",
+            "type": "command",
+            "command": "\"/home/naki/.bun/bin/bun\" \"/home/naki/.claude/plugins/marketplaces/thedotmack/plugin/scripts/worker-service.cjs\" hook qwen-code observation",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "claude-mem",
+            "type": "command",
+            "command": "\"/home/naki/.bun/bin/bun\" \"/home/naki/.claude/plugins/marketplaces/thedotmack/plugin/scripts/worker-service.cjs\" hook qwen-code observation",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "claude-mem",
+            "type": "command",
+            "command": "\"/home/naki/.bun/bin/bun\" \"/home/naki/.claude/plugins/marketplaces/thedotmack/plugin/scripts/worker-service.cjs\" hook qwen-code summarize",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "claude-mem",
+            "type": "command",
+            "command": "\"/home/naki/.bun/bin/bun\" \"/home/naki/.claude/plugins/marketplaces/thedotmack/plugin/scripts/worker-service.cjs\" hook qwen-code observation",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "claude-mem",
+            "type": "command",
+            "command": "\"/home/naki/.bun/bin/bun\" \"/home/naki/.claude/plugins/marketplaces/thedotmack/plugin/scripts/worker-service.cjs\" hook qwen-code session-complete",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}

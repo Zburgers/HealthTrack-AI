@@ -4,12 +4,14 @@ import * as http from 'http';
 import * as fs from 'fs';
 import { isDev } from './utils/env';
 import { setupDatabaseIPCHandlers } from './ipc/database-handlers';
-import { setupMongoDBIpcHandlers } from './ipc/mongodb-handlers';
 
 // 🎯 Clara's Switchboard Architecture - Central Data Source Management
 import { getDataSourceManager } from './lib/DataSourceManager';
 import { MongoDBMemoryDataSource } from './lib/datasources/MongoDBMemoryDataSource';
 import { MongoDBAtlasDataSource } from './lib/datasources/MongoDBAtlasDataSource';
+
+// 📊 DataSourceManager Logging Integration
+import { DataSourceStartupIntegration } from './lib/logging/DataSourceStartupIntegration';
 
 // --- GTK / X11 fixes for Linux ---
 if (process.platform === 'linux') {
@@ -179,6 +181,9 @@ async function initializeSwitchboard(): Promise<void> {
   console.log('🎯 [SWITCHBOARD] Initializing Clara\'s Switchboard Architecture...');
   
   try {
+    // 📊 Initialize DataSourceManager logging integration
+    await DataSourceStartupIntegration.integrateWithMain();
+    
     // Get the singleton DataSourceManager
     const dataSourceManager = getDataSourceManager();
     
@@ -199,8 +204,10 @@ async function initializeSwitchboard(): Promise<void> {
     console.log('📡 [SWITCHBOARD] Available data sources:', 
       dataSourceManager.getAvailableSources().map(s => `${s.id} (${s.name})`).join(', '));
     
-    // 🎯 Auto-initialize case embeddings database if URI is available
-    await autoInitializeCaseEmbeddings(dataSourceManager);
+    // 🎯 Auto-initialize case embeddings database if URI is available (non-blocking)
+    autoInitializeCaseEmbeddings(dataSourceManager).catch(error => {
+      console.warn('⚠️ [CASE-EMBEDDINGS] Auto-initialization failed (continuing anyway):', error.message);
+    });
       
   } catch (error) {
     console.error('❌ [SWITCHBOARD] Failed to initialize Switchboard Architecture:', error);
@@ -298,7 +305,6 @@ app.whenReady().then(async () => {
     // Keep existing IPC handlers for backward compatibility during transition
     console.log('🔌 [IPC] Setting up database handlers...');
     setupDatabaseIPCHandlers();
-    setupMongoDBIpcHandlers();
     console.log('✅ [IPC] All database handlers ready');
     
     console.log('🖼️ [WINDOW] Creating application window...');
@@ -319,6 +325,10 @@ app.on('activate', () => {
 
 app.on('will-quit', async () => {
   console.log('👋 [HEALTHTRACK] Shutting down...');
+  
+  // 📊 Setup graceful logging shutdown
+  DataSourceStartupIntegration.setupLauncherHooks();
+  
   // stopLocalDatabase is deprecated; Switchboard manages its own connections.
   if (cacheCleanupInterval) {
     clearInterval(cacheCleanupInterval);

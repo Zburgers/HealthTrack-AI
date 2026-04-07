@@ -11,6 +11,34 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MongoDBAtlasDataSource = void 0;
 const mongodb_atlas_bridge_1 = require("../mongodb-atlas-bridge");
+const mongodb_1 = require("mongodb");
+/**
+ * Utility function to serialize MongoDB documents for JSON transport
+ * Converts ObjectId instances to strings and handles nested objects
+ */
+function serializeDocument(doc) {
+    if (!doc)
+        return doc;
+    if (doc instanceof mongodb_1.ObjectId) {
+        return doc.toString();
+    }
+    if (Array.isArray(doc)) {
+        return doc.map(item => serializeDocument(item));
+    }
+    if (typeof doc === 'object' && doc !== null) {
+        const serialized = {};
+        for (const [key, value] of Object.entries(doc)) {
+            if (key === '_id' && value instanceof mongodb_1.ObjectId) {
+                serialized[key] = value.toString();
+            }
+            else {
+                serialized[key] = serializeDocument(value);
+            }
+        }
+        return serialized;
+    }
+    return doc;
+}
 class MongoDBAtlasDataSource {
     constructor() {
         // IDataSource implementation
@@ -57,18 +85,64 @@ class MongoDBAtlasDataSource {
             if (!uri) {
                 throw new Error('MongoDB Atlas URI is required in config');
             }
+            // Validate URI format
+            if (!uri.startsWith('mongodb://') && !uri.startsWith('mongodb+srv://')) {
+                throw new Error('Invalid MongoDB URI format. Must start with mongodb:// or mongodb+srv://');
+            }
+            // Ensure database name is in URI for Atlas connections
+            let validatedUri = uri;
+            const databaseName = config.database || 'healthtrack-base'; // Use healthtrack-base as default
+            if (!uri.includes('/', uri.indexOf('://') + 3)) {
+                // Add default database if not specified
+                const separator = uri.includes('?') ? '&' : '?';
+                validatedUri = uri.replace('?', `/${databaseName}?`).replace(/\/$/, `/${databaseName}`);
+                console.log(`📊 [${this.id}] Added database '${databaseName}' to URI`);
+            }
             this.status = 'authenticating';
-            // Use the bridge functions for Atlas connection
-            this.client = await (0, mongodb_atlas_bridge_1.connectToAtlas)(uri);
-            this.db = (0, mongodb_atlas_bridge_1.getAtlasDb)();
-            this.connectionUri = uri;
+            console.log(`🔌 [${this.id}] Attempting connection to Atlas...`);
+            // Use the bridge functions for Atlas connection with retry logic
+            let lastError = null;
+            let retryCount = 0;
+            const maxRetries = 3;
+            while (retryCount < maxRetries) {
+                try {
+                    this.client = await (0, mongodb_atlas_bridge_1.connectToAtlas)(validatedUri);
+                    this.db = (0, mongodb_atlas_bridge_1.getAtlasDb)();
+                    this.connectionUri = validatedUri;
+                    break; // Success, exit retry loop
+                }
+                catch (connectionError) {
+                    lastError = connectionError;
+                    retryCount++;
+                    if (retryCount < maxRetries) {
+                        console.log(`⚠️ [${this.id}] Connection attempt ${retryCount} failed, retrying in 2s...`);
+                        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+                    }
+                }
+            }
+            if (!this.client || !this.db) {
+                throw lastError || new Error('Failed to connect after all retries');
+            }
             this.status = 'connected';
             console.log(`✅ [${this.id}] Successfully connected to MongoDB Atlas`);
         }
         catch (error) {
             this.status = 'connection_failed';
             this.error = error;
+            // Enhanced error logging with troubleshooting tips
             console.error(`❌ [${this.id}] Connection failed:`, error);
+            if (error instanceof Error) {
+                if (error.message.includes('Server selection timed out')) {
+                    console.error(`💡 [${this.id}] Troubleshooting tips:`);
+                    console.error(`   - Check your internet connection`);
+                    console.error(`   - Verify your IP address is whitelisted in MongoDB Atlas`);
+                    console.error(`   - Ensure the cluster is active and not paused`);
+                    console.error(`   - Check if the connection string is correct`);
+                }
+                else if (error.message.includes('Authentication failed')) {
+                    console.error(`💡 [${this.id}] Authentication issue - check username/password`);
+                }
+            }
             throw error;
         }
     }
@@ -137,22 +211,99 @@ class MongoDBAtlasDataSource {
         // Route to specific operations
         switch (operation) {
             case 'getById':
-                return mongoCollection.findOne({ _id: params.id });
+                // Convert string ID to ObjectId if needed
+                const idFilter = typeof params.id === 'string' && params.id.match(/^[0-9a-fA-F]{24}$/)
+                    ? { _id: new mongodb_1.ObjectId(params.id) }
+                    : { _id: params.id };
+                const document = await mongoCollection.findOne(idFilter);
+                return serializeDocument(document);
+            case 'findOne':
+                const oneDoc = await mongoCollection.findOne(params.filter || {}, params.options || {});
+                return serializeDocument(oneDoc);
             case 'search':
             case 'find':
-                return mongoCollection.find(params.filter || {}, params.options || {}).toArray();
+                const cursor = mongoCollection.find(params.filter || {}, params.options || {});
+                if (params.limit)
+                    cursor.limit(params.limit);
+                if (params.skip)
+                    cursor.skip(params.skip);
+                if (params.sort)
+                    cursor.sort(params.sort);
+                const documents = await cursor.toArray();
+                return serializeDocument(documents);
             case 'create':
             case 'insertOne':
+                // Ensure document is valid for insertion
+                if (!params.document) {
+                    throw new Error('Document is required for insertOne operation');
+                }
                 const insertResult = await mongoCollection.insertOne(params.document);
-                return { ...params.document, _id: insertResult.insertedId };
+                return serializeDocument({
+                    acknowledged: insertResult.acknowledged,
+                    insertedId: insertResult.insertedId,
+                    ...params.document,
+                    _id: insertResult.insertedId
+                });
+            case 'insertMany':
+                if (!params.documents || !Array.isArray(params.documents)) {
+                    throw new Error('Documents array is required for insertMany operation');
+                }
+                const insertManyResult = await mongoCollection.insertMany(params.documents);
+                return {
+                    acknowledged: insertManyResult.acknowledged,
+                    insertedCount: insertManyResult.insertedCount,
+                    insertedIds: insertManyResult.insertedIds
+                };
             case 'update':
             case 'updateOne':
-                const updateResult = await mongoCollection.updateOne(params.filter, params.update);
-                return updateResult;
+                if (!params.filter) {
+                    throw new Error('Filter is required for updateOne operation');
+                }
+                if (!params.update) {
+                    throw new Error('Update is required for updateOne operation');
+                }
+                const updateResult = await mongoCollection.updateOne(params.filter, params.update, params.options || {});
+                return {
+                    acknowledged: updateResult.acknowledged,
+                    matchedCount: updateResult.matchedCount,
+                    modifiedCount: updateResult.modifiedCount,
+                    upsertedId: updateResult.upsertedId
+                };
+            case 'updateMany':
+                if (!params.filter) {
+                    throw new Error('Filter is required for updateMany operation');
+                }
+                if (!params.update) {
+                    throw new Error('Update is required for updateMany operation');
+                }
+                const updateManyResult = await mongoCollection.updateMany(params.filter, params.update, params.options || {});
+                return {
+                    acknowledged: updateManyResult.acknowledged,
+                    matchedCount: updateManyResult.matchedCount,
+                    modifiedCount: updateManyResult.modifiedCount,
+                    upsertedId: updateManyResult.upsertedId
+                };
+            case 'replaceOne':
+                if (!params.filter) {
+                    throw new Error('Filter is required for replaceOne operation');
+                }
+                if (!params.replacement) {
+                    throw new Error('Replacement document is required for replaceOne operation');
+                }
+                const replaceResult = await mongoCollection.replaceOne(params.filter, params.replacement, params.options || {});
+                return {
+                    acknowledged: replaceResult.acknowledged,
+                    matchedCount: replaceResult.matchedCount,
+                    modifiedCount: replaceResult.modifiedCount,
+                    upsertedId: replaceResult.upsertedId
+                };
             case 'delete':
             case 'deleteOne':
                 const deleteResult = await mongoCollection.deleteOne(params.filter);
                 return deleteResult;
+            case 'deleteMany':
+                const deleteManyResult = await mongoCollection.deleteMany(params.filter);
+                return deleteManyResult;
             case 'count':
                 return mongoCollection.countDocuments(params.filter || {});
             case 'aggregate':
@@ -260,21 +411,73 @@ class MongoDBAtlasDataSource {
             },
             supportedOperations: [
                 'patient.getById',
+                'patient.findOne',
                 'patient.search',
+                'patient.find',
                 'patient.create',
+                'patient.insertOne',
+                'patient.insertMany',
                 'patient.update',
+                'patient.updateOne',
+                'patient.updateMany',
+                'patient.replaceOne',
                 'patient.delete',
+                'patient.deleteOne',
+                'patient.deleteMany',
+                'patient.count',
                 'patient.aggregate',
+                'patients.getById',
+                'patients.findOne',
+                'patients.search',
+                'patients.find',
+                'patients.create',
+                'patients.insertOne',
+                'patients.insertMany',
+                'patients.update',
+                'patients.updateOne',
+                'patients.updateMany',
+                'patients.replaceOne',
+                'patients.delete',
+                'patients.deleteOne',
+                'patients.deleteMany',
+                'patients.count',
+                'patients.aggregate',
                 'notes.getById',
+                'notes.findOne',
                 'notes.search',
+                'notes.find',
                 'notes.create',
+                'notes.insertOne',
+                'notes.insertMany',
                 'notes.update',
+                'notes.updateOne',
+                'notes.updateMany',
+                'notes.replaceOne',
                 'notes.delete',
+                'notes.deleteOne',
+                'notes.deleteMany',
+                'notes.count',
+                'notes.aggregate',
                 'ai_cache.getById',
+                'ai_cache.findOne',
                 'ai_cache.create',
+                'ai_cache.insertOne',
                 'ai_cache.update',
+                'ai_cache.updateOne',
+                'ai_cache.replaceOne',
+                'ai_cache.delete',
+                'ai_cache.deleteOne',
+                'case_embeddings.findOne',
                 'case_embeddings.vectorSearch',
                 'case_embeddings.search',
+                'case_embeddings.find',
+                'case_embeddings.create',
+                'case_embeddings.insertOne',
+                'case_embeddings.update',
+                'case_embeddings.updateOne',
+                'case_embeddings.replaceOne',
+                'case_embeddings.delete',
+                'case_embeddings.deleteOne',
                 'raw'
             ],
             features: [

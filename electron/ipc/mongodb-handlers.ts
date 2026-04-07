@@ -24,9 +24,23 @@ const USER_URI_FILE_PATH = path.join(app.getPath('userData'), 'healthtrack-setti
  */
 function loadUserMongoUri(): string | null {
   try {
+    // 1. Try to load from user data directory
     if (fs.existsSync(USER_URI_FILE_PATH)) {
       const data = JSON.parse(fs.readFileSync(USER_URI_FILE_PATH, 'utf-8'));
-      return data.uri || null;
+      if (data.uri || data.mongoUri) {
+        console.log('📄 [MONGODB_IPC] Found MongoDB URI in user data settings');
+        return data.uri || data.mongoUri || null;
+      }
+    }
+    
+    // 2. Try to load from app root directory
+    const appRootPath = path.join(process.cwd(), 'healthtrack-settings.json');
+    if (fs.existsSync(appRootPath)) {
+      const data = JSON.parse(fs.readFileSync(appRootPath, 'utf-8'));
+      if (data.uri || data.mongoUri) {
+        console.log('📄 [MONGODB_IPC] Found MongoDB URI in app root settings');
+        return data.uri || data.mongoUri || null;
+      }
     }
   } catch (error) {
     console.warn('❌ [MONGODB_IPC] Failed to load user MongoDB URI:', error);
@@ -39,11 +53,59 @@ function loadUserMongoUri(): string | null {
  */
 function saveUserMongoUri(uri: string): void {
   try {
+    // Save to both locations for backward compatibility
+    
+    // 1. Save to user data directory (for electron app persistence)
     const dir = path.dirname(USER_URI_FILE_PATH);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    fs.writeFileSync(USER_URI_FILE_PATH, JSON.stringify({ uri }));
+    
+    // Load existing settings if available to preserve other settings
+    let userDataSettings = {};
+    if (fs.existsSync(USER_URI_FILE_PATH)) {
+      try {
+        userDataSettings = JSON.parse(fs.readFileSync(USER_URI_FILE_PATH, 'utf-8'));
+      } catch (parseError) {
+        console.warn('⚠️ [MONGODB_IPC] Failed to parse existing user data settings, creating new file');
+      }
+    }
+    
+    // Merge with existing settings
+    const updatedUserSettings = { 
+      ...userDataSettings,
+      uri, 
+      mongoUri: uri  // Store under both keys for compatibility
+    };
+    
+    fs.writeFileSync(USER_URI_FILE_PATH, JSON.stringify(updatedUserSettings, null, 2));
+    
+    // 2. Save to app root directory (for next.js server access)
+    const appRootPath = path.join(process.cwd(), 'healthtrack-settings.json');
+    
+    // Load existing app root settings if available
+    let appRootSettings = {};
+    if (fs.existsSync(appRootPath)) {
+      try {
+        appRootSettings = JSON.parse(fs.readFileSync(appRootPath, 'utf-8'));
+      } catch (parseError) {
+        console.warn('⚠️ [MONGODB_IPC] Failed to parse existing app root settings, creating new file');
+      }
+    }
+    
+    // Merge with existing settings
+    const updatedRootSettings = { 
+      ...appRootSettings,
+      uri, 
+      mongoUri: uri  // Store under both keys for compatibility
+    };
+    
+    fs.writeFileSync(appRootPath, JSON.stringify(updatedRootSettings, null, 2));
+    
+    // Update the local variable
+    userMongoUri = uri;
+    
+    console.log('💾 [MONGODB_IPC] Saved MongoDB URI to both user data and app root directories');
   } catch (error) {
     console.error('❌ [MONGODB_IPC] Failed to save user MongoDB URI:', error);
     throw error;
@@ -229,7 +291,7 @@ export function setupMongoDBIpcHandlers(): void {
       const activeStatus = dataSourceManager.getActiveStatus();
       const connectionInfo = await dataSourceManager.getActiveSourceConnectionInfo();
       
-      if (activeStatus.status === 'connected' && connectionInfo) {
+      if (activeStatus && activeStatus.status === 'connected' && connectionInfo) {
         console.log('✅ [MONGODB_IPC] MongoDB health via Switchboard: ok');
         return {
           status: 'ok',

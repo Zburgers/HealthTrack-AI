@@ -7,7 +7,7 @@
 // Database names
 export const DATABASE_NAMES = {
   LOCAL: 'healthtrack_local',
-  REMOTE: 'healthtrack',
+  REMOTE: 'healthtrack-base',
 } as const;
 
 // Collection definitions

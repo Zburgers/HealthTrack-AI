@@ -1,7 +1,76 @@
 'use client'
-import React from 'react';
-import { Bot, ArrowRight, TrendingUp, Zap, ShieldCheck, BrainCircuit, SearchCode, FileText, Activity, Sparkles, Database, BarChartBig, Users, Clock, Target, Heart, Stethoscope, ChevronRight } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Bot, ArrowRight, TrendingUp, Zap, ShieldCheck, BrainCircuit, SearchCode, FileText, Activity, Sparkles, Database, BarChartBig, Users, Clock, Target, Heart, Stethoscope, ChevronRight, Loader2 } from 'lucide-react';
 import { motion, useScroll, useTransform, useInView } from 'framer-motion';
+import { useRouter } from 'next/navigation';
+
+// Root component that handles redirection based on database configuration
+const RedirectManager = () => {
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkDatabaseConfig = async () => {
+      const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
+      
+      if (!isElectron) {
+        // In web mode, this is just a landing page
+        return;
+      }
+      
+      try {
+        // Check if there's an active connection
+        const status = await (window as any).electronAPI.dataSource.getActiveStatus();
+        
+        if (status && status.sourceId && status.status === 'connected') {
+          console.log('✅ [HOME] Active database connection found, redirecting to dashboard...');
+          router.push('/dashboard');
+          return;
+        }
+        
+        // No active connection, check for saved URI
+        const uri = await (window as any).electronAPI.database.getUserMongoUri();
+        
+        if (uri) {
+          // Found URI but not connected, try to connect
+          console.log('🔄 [HOME] Found URI but no active connection, attempting to connect...');
+          
+          try {
+            await (window as any).electronAPI.dataSource.connect('mongodb-atlas', {
+              uri: uri,
+              purpose: 'user-data'
+            });
+            
+            // Check if connection was successful
+            const updatedStatus = await (window as any).electronAPI.dataSource.getActiveStatus();
+            if (updatedStatus && updatedStatus.sourceId && updatedStatus.status === 'connected') {
+              console.log('✅ [HOME] Auto-connection successful, redirecting to dashboard...');
+              router.push('/dashboard');
+              return;
+            }
+          } catch (connectError) {
+            console.error('❌ [HOME] Auto-connection failed:', connectError);
+            // Fall through to setup
+          }
+        }
+        
+        // No valid connection, redirect to setup
+        console.log('➡️ [HOME] No valid connection, redirecting to setup...');
+        router.push('/setup');
+        
+      } catch (error) {
+        console.error('❌ [HOME] Error checking database config:', error);
+        // On error, default to setup page if in electron
+        if (isElectron) {
+          router.push('/setup');
+        }
+      }
+    };
+    
+    checkDatabaseConfig();
+  }, [router]);
+
+  return null; // This component just handles redirection
+};
 
 // Enhanced Feature Card with better animations
 const FeatureCard: React.FC<{
@@ -123,6 +192,9 @@ export default function LandingPageV2() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white relative overflow-x-hidden">
+      {/* Add the redirect manager for Electron app */}
+      <RedirectManager />
+      
       {/* Animated background elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <motion.div 

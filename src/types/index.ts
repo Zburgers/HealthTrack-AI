@@ -1,8 +1,30 @@
 import type { LucideProps } from "lucide-react";
 import React from "react";
-import type { NewCaseFormValues } from "@/components/new-case/NewCaseForm";
 import { ObjectId } from "mongodb";
 import type { SimilarCaseOutput } from '@/types/similar-cases';
+import * as z from 'zod';
+
+export const formSchema = z.object({
+  patientName: z.string().min(2, { message: 'Patient name must be at least 2 characters.' }).max(100),
+  age: z.coerce.number().int().min(1, { message: 'Age must be greater than 0.' }).max(120),
+  gender: z.enum(['Male', 'Female', 'Other'], { required_error: 'Gender is required.' }),
+  visitDate: z.date({ required_error: 'Visit date is required.' }),
+  primaryComplaint: z.string().min(5, { message: 'Primary complaint must be at least 5 characters.' }).max(1000),
+  previousConditions: z.string().max(1000).optional(),
+  allergies: z.string().max(1000).optional(),
+  medications: z.string().max(1000).optional(),
+  bp: z.string().max(20).optional(),
+  hr: z.string().max(10).optional(),
+  rr: z.string().max(10).optional(),
+  temp: z.string().max(10).optional(),
+  spo2: z.string().max(10).optional(),
+  severityLevel: z.enum(['Low', 'Moderate', 'High', 'Not Specified']).default('Not Specified'),
+  caseType: z.enum(['Chronic', 'Acute', 'Follow-up', 'Consultation', 'Not Specified']).default('Not Specified'),
+  observations: z.string().max(5000).optional(),
+  clinicalNotes: z.string().max(5000).optional(),
+});
+
+export type NewCaseFormValues = z.infer<typeof formSchema>;
 
 // Represents the data structure in the MongoDB 'patients' collection
 export interface PatientDocument {
@@ -160,6 +182,3 @@ export interface VitalDisplayInfo {
   label: string;
   icon: React.ElementType<LucideProps>;
 }
-
-// Export NewCaseFormValues to be used in other parts of the application
-export type { NewCaseFormValues };

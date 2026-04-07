@@ -40,10 +40,21 @@ async function connectToAtlas(uri) {
         console.log('📊 [ATLAS-BRIDGE] Connecting to Atlas...');
         const client = new mongodb_1.MongoClient(uri, {
             maxPoolSize: 10,
-            serverSelectionTimeoutMS: 5000,
+            serverSelectionTimeoutMS: 30000, // Increased from 5000ms to 30000ms
             socketTimeoutMS: 45000,
+            connectTimeoutMS: 30000, // Add explicit connect timeout
+            retryWrites: true, // Enable retry writes
+            retryReads: true, // Enable retry reads
+            maxIdleTimeMS: 300000, // 5 minutes
+            heartbeatFrequencyMS: 10000,
+            // Add specific options for Atlas connections
+            tls: true, // Ensure TLS is enabled for Atlas
+            tlsInsecure: false,
+            directConnection: false, // Allow driver to connect to replica set
         });
         await client.connect();
+        // Test the connection with a simple ping
+        await client.db().admin().ping();
         atlasClient = client;
         atlasDb = client.db(); // Use default database from URI
         atlasConnectedUri = uri;
@@ -52,6 +63,18 @@ async function connectToAtlas(uri) {
     }
     catch (error) {
         console.error('❌ [ATLAS-BRIDGE] Failed to connect to Atlas:', error);
+        // Add specific error messages for common issues
+        if (error instanceof Error) {
+            if (error.message.includes('Server selection timed out')) {
+                console.error('💡 [ATLAS-BRIDGE] Possible causes: Network connectivity, IP whitelist, or incorrect URI');
+            }
+            else if (error.message.includes('Authentication failed')) {
+                console.error('💡 [ATLAS-BRIDGE] Check username/password in connection string');
+            }
+            else if (error.message.includes('bad auth')) {
+                console.error('💡 [ATLAS-BRIDGE] Invalid authentication credentials');
+            }
+        }
         throw error;
     }
 }

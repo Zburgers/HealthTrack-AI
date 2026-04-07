@@ -1,11 +1,9 @@
 "use strict";
 /**
  * DataSourceManager - Central Orchestrator for Clara's Switchboard Architecture
- *
- * This singleton class manages all data sources, handles the active connection,
+ * * This singleton class manages all data sources, handles the active connection,
  * and provides the unified entry point for all data operations in HealthTrackAI.
- *
- * Key Responsibilities:
+ * * Key Responsibilities:
  * - Register and manage IDataSource implementations
  * - Handle active data source lifecycle
  * - Route executeQuery calls to the active source
@@ -15,7 +13,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDataSourceManager = exports.DataSourceManager = void 0;
 const events_1 = require("events");
-const electron_1 = require("electron");
+const electron_1 = require("electron"); // FIX: Added BrowserWindow for correct IPC broadcasting
+const DataSourceManagerLogger_1 = require("./logging/DataSourceManagerLogger");
 /**
  * Central manager for all data sources in the application
  */
@@ -37,6 +36,10 @@ class DataSourceManager extends events_1.EventEmitter {
         this.activeSource = null;
         // Manager state
         this.initialized = false;
+        this.logger = (0, DataSourceManagerLogger_1.getGlobalDataSourceLogger)();
+        this.logger.logDataSourceEvent('switchboard', 'register', {
+            message: 'Switchboard Architecture initializing...'
+        });
         this.setupIPCHandlers();
     }
     /**
@@ -46,35 +49,68 @@ class DataSourceManager extends events_1.EventEmitter {
         if (this.initialized) {
             return;
         }
+        const startTime = Date.now();
         console.log('🎯 [DATA_SOURCE_MANAGER] Initializing Switchboard Architecture...');
+        this.logger.logDataSourceEvent('switchboard', 'connect', {
+            operation: 'initialize',
+            timestamp: new Date().toISOString()
+        });
         // Initialize all registered data sources
         for (const [id, source] of this.dataSources) {
             try {
                 console.log(`🔧 [DATA_SOURCE_MANAGER] Initializing data source: ${id}`);
+                this.logger.logDataSourceEvent(id, 'connect', {
+                    operation: 'initialize',
+                    source_name: source.name
+                });
                 await source.initialize();
                 console.log(`✅ [DATA_SOURCE_MANAGER] Data source ${id} initialized successfully`);
+                this.logger.logDataSourceEvent(id, 'connect', {
+                    operation: 'initialize_success',
+                    source_name: source.name
+                });
             }
             catch (error) {
                 console.error(`❌ [DATA_SOURCE_MANAGER] Failed to initialize data source ${id}:`, error);
+                this.logger.logError(error, `DataSourceManager.initialize[${id}]`, {
+                    source_id: id,
+                    source_name: source.name,
+                    operation: 'initialize'
+                });
                 source.status = 'error';
                 source.error = error;
             }
         }
+        const duration = Date.now() - startTime;
         this.initialized = true;
         console.log('✅ [DATA_SOURCE_MANAGER] Switchboard Architecture initialized successfully');
+        this.logger.logPerformance('switchboard_initialization', duration, {
+            sources_count: this.dataSources.size,
+            success: true
+        });
     }
     /**
      * Register a new data source implementation
      */
     registerDataSource(source) {
         if (this.dataSources.has(source.id)) {
-            throw new Error(`Data source with ID '${source.id}' is already registered`);
+            const error = new Error(`Data source with ID '${source.id}' is already registered`);
+            this.logger.logError(error, 'DataSourceManager.registerDataSource', {
+                source_id: source.id,
+                source_name: source.name
+            });
+            throw error;
         }
         console.log(`📝 [DATA_SOURCE_MANAGER] Registering data source: ${source.id} (${source.name})`);
+        this.logger.logDataSourceEvent(source.id, 'register', {
+            source_name: source.name,
+            description: source.description,
+            initial_status: source.status
+        });
         this.dataSources.set(source.id, source);
         // Listen for status changes and broadcast them
         this.setupSourceEventListeners(source);
-    }
+    } // FIX: Removed duplicated closing brace and repeated code block.
     /**
      * Get all available data sources
      */
@@ -92,22 +128,59 @@ class DataSourceManager extends events_1.EventEmitter {
     async connectToSource(sourceId, config) {
         const source = this.dataSources.get(sourceId);
         if (!source) {
-            throw new Error(`Data source '${sourceId}' not found`);
+            const error = new Error(`Data source '${sourceId}' not found`);
+            this.logger.logError(error, 'DataSourceManager.connectToSource', {
+                requested_source_id: sourceId,
+                available_sources: Array.from(this.dataSources.keys())
+            });
+            throw error;
         }
+        const startTime = Date.now();
         console.log(`🔌 [DATA_SOURCE_MANAGER] Connecting to data source: ${sourceId}`);
+        this.logger.logConnection('connect', sourceId, {
+            source_name: source.name,
+            config_provided: !!config,
+            previous_status: source.status
+        });
+        // Disconnect current source if any. Let it throw if it fails.
+        // The disconnectActiveSource method will handle its own error state.
+        if (this.activeSource && this.activeSource !== source) {
+            this.logger.logConnection('disconnect', this.activeSource.id, {
+                reason: 'switching_to_new_source',
+                new_source: sourceId
+            });
+            await this.disconnectActiveSource();
+        }
+        // FIX: Wrapped connection logic in its own try/catch to correctly attribute errors.
+        // This prevents a failure in disconnecting an old source from incorrectly marking
+        // the new source as being in an error state.
         try {
-            // Disconnect current source if any
-            if (this.activeSource && this.activeSource !== source) {
-                await this.disconnectActiveSource();
-            }
             // Connect to new source
             await source.connect(config);
             this.activeSource = source;
+            const duration = Date.now() - startTime;
             console.log(`✅ [DATA_SOURCE_MANAGER] Successfully connected to: ${sourceId}`);
+            this.logger.logConnection('connect', sourceId, {
+                source_name: source.name,
+                success: true,
+                duration,
+                new_status: source.status
+            });
+            this.logger.logPerformance(`connection_${sourceId}`, duration, {
+                source_name: source.name,
+                success: true
+            });
             this.broadcastStatusChange(source, 'disconnected', 'connected');
         }
         catch (error) {
+            const duration = Date.now() - startTime;
             console.error(`❌ [DATA_SOURCE_MANAGER] Failed to connect to ${sourceId}:`, error);
+            this.logger.logError(error, `DataSourceManager.connectToSource[${sourceId}]`, {
+                source_id: sourceId,
+                source_name: source.name,
+                duration,
+                config_provided: !!config
+            });
             source.status = 'error';
             source.error = error;
             this.broadcastStatusChange(source, 'connecting', 'error');
@@ -120,20 +193,43 @@ class DataSourceManager extends events_1.EventEmitter {
     async disconnectActiveSource() {
         if (!this.activeSource) {
             console.log('ℹ️ [DATA_SOURCE_MANAGER] No active source to disconnect');
+            this.logger.logConnection('disconnect', 'none', {
+                reason: 'no_active_source'
+            });
             return;
         }
         const source = this.activeSource;
+        const startTime = Date.now();
         console.log(`🔌 [DATA_SOURCE_MANAGER] Disconnecting from: ${source.id}`);
+        this.logger.logConnection('disconnect', source.id, {
+            source_name: source.name,
+            previous_status: source.status
+        });
         try {
             await source.disconnect();
             this.activeSource = null;
+            const duration = Date.now() - startTime;
             console.log(`✅ [DATA_SOURCE_MANAGER] Disconnected from: ${source.id}`);
+            this.logger.logConnection('disconnect', source.id, {
+                source_name: source.name,
+                success: true,
+                duration
+            });
+            this.logger.logPerformance(`disconnection_${source.id}`, duration, {
+                source_name: source.name,
+                success: true
+            });
             this.broadcastStatusChange(source, 'connected', 'disconnected');
         }
         catch (error) {
             console.error(`❌ [DATA_SOURCE_MANAGER] Error disconnecting from ${source.id}:`, error);
+            this.logger.logError(error, `DataSourceManager.disconnectActiveSource[${source.id}]`, {
+                source_id: source.id,
+                source_name: source.name
+            });
             source.status = 'error';
             source.error = error;
+            // Note: activeSource is not cleared on failure, so its error state can be inspected.
             throw error;
         }
     }
@@ -142,21 +238,61 @@ class DataSourceManager extends events_1.EventEmitter {
      */
     async executeActiveSourceQuery(query) {
         if (!this.activeSource) {
-            throw new Error('No active data source. Please connect to a data source first.');
+            const error = new Error('No active data source. Please connect to a data source first.');
+            this.logger.logError(error, 'DataSourceManager.executeActiveSourceQuery', {
+                query_type: query.type,
+                has_active_source: false
+            });
+            throw error;
         }
         if (this.activeSource.status !== 'connected') {
-            throw new Error(`Active data source (${this.activeSource.id}) is not connected. Status: ${this.activeSource.status}`);
+            const error = new Error(`Active data source (${this.activeSource.id}) is not connected. Status: ${this.activeSource.status}`);
+            this.logger.logError(error, 'DataSourceManager.executeActiveSourceQuery', {
+                source_id: this.activeSource.id,
+                source_status: this.activeSource.status,
+                query_type: query.type
+            });
+            throw error;
         }
         console.log(`🎯 [DATA_SOURCE_MANAGER] Executing query type '${query.type}' on ${this.activeSource.id}`);
+        // Parse query for better logging
+        const [collection, operation] = query.type.split('.');
+        this.logger.logQuery(query.type, collection || 'unknown', 0, // Duration will be updated after execution
+        {
+            source_id: this.activeSource.id,
+            operation,
+            params_present: !!query.params,
+            raw_query: !!query.rawQuery
+        });
         try {
             const startTime = Date.now();
             const result = await this.activeSource.executeQuery(query);
             const executionTime = Date.now() - startTime;
             console.log(`✅ [DATA_SOURCE_MANAGER] Query executed successfully in ${executionTime}ms`);
+            // Log successful query execution
+            this.logger.logQuery(query.type, collection || 'unknown', executionTime, {
+                source_id: this.activeSource.id,
+                operation,
+                success: true,
+                result_type: typeof result,
+                has_data: !!result
+            });
+            // Log performance metrics
+            this.logger.logPerformance(`query_${operation}`, executionTime, {
+                source_id: this.activeSource.id,
+                collection,
+                query_type: query.type
+            });
             return result;
         }
         catch (error) {
             console.error(`❌ [DATA_SOURCE_MANAGER] Query execution failed:`, error);
+            this.logger.logError(error, `DataSourceManager.executeActiveSourceQuery[${query.type}]`, {
+                source_id: this.activeSource.id,
+                query_type: query.type,
+                collection,
+                operation
+            });
             throw error;
         }
     }
@@ -199,26 +335,29 @@ class DataSourceManager extends events_1.EventEmitter {
         }
         const purpose = config.purpose || 'user-data';
         console.log(`🔌 [DATA_SOURCE_MANAGER] Connecting to ${sourceId} for purpose: ${purpose}`);
+        // FIX: Logic bug where a failing disconnect of a previous source would incorrectly
+        // mark the new source as having an error. The logic is now separated.
         try {
-            // Enhanced config for specific purposes
+            // For auto-connect case embeddings, don't disconnect user database
+            if (config.autoConnect && purpose === 'case-embeddings') {
+                console.log('🎯 [DATA_SOURCE_MANAGER] Auto-connecting case embeddings (keeping user DB active)');
+                // Connect but do not set as active or disconnect previous
+            }
+            else if (this.activeSource && this.activeSource !== source && purpose !== 'case-embeddings') {
+                // For user databases, disconnect current source if different. Let it throw on failure.
+                await this.disconnectActiveSource();
+            }
             const enhancedConfig = {
                 ...config,
                 timestamp: Date.now(),
                 purpose,
                 autoConnect: config.autoConnect || false
             };
-            // For auto-connect case embeddings, don't disconnect user database
+            await source.connect(enhancedConfig);
             if (config.autoConnect && purpose === 'case-embeddings') {
-                console.log('🎯 [DATA_SOURCE_MANAGER] Auto-connecting case embeddings (keeping user DB active)');
-                await source.connect(enhancedConfig);
                 this.broadcastStatusChange(source, 'disconnected', 'connected');
                 return;
             }
-            // For user databases, disconnect current source if different
-            if (this.activeSource && this.activeSource !== source && purpose !== 'case-embeddings') {
-                await this.disconnectActiveSource();
-            }
-            await source.connect(enhancedConfig);
             // Set as active source only for user databases
             if (purpose !== 'case-embeddings') {
                 this.activeSource = source;
@@ -280,9 +419,13 @@ class DataSourceManager extends events_1.EventEmitter {
             timestamp: new Date()
         };
         console.log(`📡 [DATA_SOURCE_MANAGER] Broadcasting status change: ${source.id} ${previousStatus} → ${newStatus}`);
-        // Broadcast to all renderer processes
+        // FIX: Use the correct method to broadcast to all renderer processes.
+        // ipcMain.emit() only emits within the main process and does not send to renderers.
+        // BrowserWindow.getAllWindows().forEach(...) is the correct way to do this.
         try {
-            electron_1.ipcMain.emit('data-source:status-update', event);
+            electron_1.BrowserWindow.getAllWindows().forEach(win => {
+                win.webContents.send('data-source:status-update', event);
+            });
         }
         catch (error) {
             console.error('❌ [DATA_SOURCE_MANAGER] Failed to broadcast status change:', error);
