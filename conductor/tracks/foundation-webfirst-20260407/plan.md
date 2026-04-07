@@ -84,20 +84,20 @@
 
 ## Phase 6: Patient Management API & Database Migration
 
-- [ ] Task: Write Tests — Verify patient CRUD operations, org scoping via Clerk tokens, fuzzy search, pagination
-- [ ] Task: Create Drizzle migration — rename `firebase_uid` → `clerk_user_id` in users table
-- [ ] Task: Create Drizzle migration — drop `users.organization_id` column and FK constraint
-- [ ] Task: Create Drizzle migration — drop `organizations` table entirely
-- [ ] Task: Create Drizzle migration — change `patients.organization_id` from UUID FK to TEXT (Clerk org ID)
-- [ ] Task: Update indexes — rename `firebaseUidUniqueIdx` → `clerkUserIdUniqueIdx`, drop obsolete org indexes
-- [ ] Task: Update seed script — remove org creation, use Clerk test org ID placeholder for patient data
-- [ ] Task: Run migrations against PostgreSQL database
-- [x] Task: Patient list endpoint with pagination (DONE — placeholder org ID, needs Clerk wiring)
-- [x] Task: Patient detail endpoint (DONE — placeholder org ID, needs Clerk wiring)
-- [x] Task: Patient CRUD endpoints (DONE — placeholder org ID, needs Clerk wiring)
-- [x] Task: Fuzzy search endpoint (DONE — uses `ilike`, needs Clerk wiring)
-- [ ] Task: Wire all patient endpoints to extract `organizationId` from Clerk token instead of placeholder
-- [ ] Task: Add Zod validation to all patient API request/response bodies
+- [x] Task: Write Tests — Verify patient CRUD operations, org scoping via Clerk tokens, fuzzy search, pagination (12 tests)
+- [x] Task: Create Drizzle migration — rename `firebase_uid` → `clerk_user_id` in users table (Phase 5)
+- [x] Task: Create Drizzle migration — drop `users.organization_id` column and FK constraint
+- [x] Task: Create Drizzle migration — drop `organizations` table entirely
+- [x] Task: Create Drizzle migration — change `patients.organization_id` from UUID FK to TEXT (Clerk org ID)
+- [x] Task: Update indexes — rename `firebaseUidUniqueIdx` → `clerkUserIdUniqueIdx`, drop obsolete org indexes
+- [x] Task: Update seed script — remove org creation, use Clerk test org ID placeholder for patient data
+- [x] Task: Run migrations against PostgreSQL database
+- [x] Task: Patient list endpoint with pagination (DONE — Clerk org-scoped via guards)
+- [x] Task: Patient detail endpoint (DONE — Clerk org-scoped via guards)
+- [x] Task: Patient CRUD endpoints (DONE — Clerk org-scoped via guards)
+- [x] Task: Fuzzy search endpoint (DONE — uses `ilike`, Clerk org-scoped via guards)
+- [x] Task: Wire all patient endpoints to extract `organizationId` from Clerk token instead of placeholder
+- [x] Task: Add Zod validation to all patient API request/response bodies
 - [ ] Task: Conductor - User Manual Verification 'Phase 6: Patient Management API & Database Migration' (Protocol in workflow.md)
 
 ---
