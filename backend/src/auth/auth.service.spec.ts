@@ -144,7 +144,7 @@ describe('AuthService', () => {
         }),
       });
 
-      const result = await service.findOrCreateUser(mockToken, 'org_xyz789');
+      const result = await service.findOrCreateUser(mockToken);
 
       expect(result).toEqual(mockUser);
       expect(mockDrizzlePg.db.insert).not.toHaveBeenCalled();
@@ -166,7 +166,7 @@ describe('AuthService', () => {
         }),
       });
 
-      const result = await service.findOrCreateUser(mockToken, 'org_xyz789');
+      const result = await service.findOrCreateUser(mockToken);
 
       expect(result).toEqual(newUser);
       expect(mockDrizzlePg.db.insert).toHaveBeenCalledWith(users);

@@ -8,6 +8,13 @@
       "when": 1775581938978,
       "tag": "0000_open_puck",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775585400000,
+      "tag": "0001_clerk_orgs_migration",
+      "breakpoints": true
     }
   ]
 }

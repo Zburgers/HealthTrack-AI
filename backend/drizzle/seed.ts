@@ -1,7 +1,10 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
-import { organizations, users, patients } from './schema';
+import { users, patients } from './schema';
+
+// Clerk test organization ID — replace with real org ID after creating org in Clerk dashboard
+const CLERK_ORG_ID = process.env.CLERK_TEST_ORG_ID || 'org_test_placeholder';
 
 async function seed() {
   const pool = new Pool({
@@ -11,19 +14,14 @@ async function seed() {
   const db = drizzle(pool, { schema });
 
   try {
-    // Create sample organization (placeholder — will use Clerk org IDs in Phase 6)
-    const [org] = await db.insert(organizations).values({
-      name: 'Sample Clinic',
-    }).returning();
-    console.log('Created organization:', org.name);
+    console.log('Seeding with Clerk org ID:', CLERK_ORG_ID);
 
-    // Create sample users
+    // Create sample users (no organizationId — org managed by Clerk)
     const [admin] = await db.insert(users).values({
       email: 'admin@sampleclinic.com',
       clerkUserId: 'clerk-test-admin-uid-001',
       name: 'Dr. Admin',
       role: 'org_admin',
-      organizationId: org.id,
     }).returning();
     console.log('Created admin user:', admin.name);
 
@@ -32,7 +30,6 @@ async function seed() {
       clerkUserId: 'clerk-test-doctor-uid-002',
       name: 'Dr. Smith',
       role: 'doctor',
-      organizationId: org.id,
     }).returning();
     console.log('Created doctor user:', doctor.name);
 
@@ -41,11 +38,10 @@ async function seed() {
       clerkUserId: 'clerk-test-nurse-uid-003',
       name: 'Nurse Johnson',
       role: 'nurse',
-      organizationId: org.id,
     }).returning();
     console.log('Created nurse user:', nurse.name);
 
-    // Create sample patients
+    // Create sample patients (org ID from Clerk)
     const samplePatients = [
       { name: 'John Doe', dateOfBirth: '1985-03-15', gender: 'Male', email: 'john@example.com', phone: '555-0101' },
       { name: 'Jane Smith', dateOfBirth: '1990-07-22', gender: 'Female', email: 'jane@example.com', phone: '555-0102' },
@@ -60,11 +56,14 @@ async function seed() {
     ];
 
     for (const patient of samplePatients) {
-      const [p] = await db.insert(patients).values({
-        ...patient,
-        organizationId: org.id,
-        createdBy: doctor.id,
-      }).returning();
+      const [p] = await (db as any)
+        .insert(patients)
+        .values({
+          ...patient,
+          organizationId: CLERK_ORG_ID,
+          createdBy: doctor.id,
+        })
+        .returning();
       console.log('Created patient:', p.name);
     }
 

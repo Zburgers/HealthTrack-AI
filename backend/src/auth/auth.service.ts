@@ -45,7 +45,7 @@ export class AuthService {
     return result[0] || null;
   }
 
-  async findOrCreateUser(decoded: ClerkDecodedToken, organizationId: string) {
+  async findOrCreateUser(decoded: ClerkDecodedToken) {
     const existing = await this.dbService.db
       .select()
       .from(users)
@@ -56,12 +56,13 @@ export class AuthService {
       return existing[0];
     }
 
-    const newUser = await this.dbService.db
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newUser = await (this.dbService.db as any)
       .insert(users)
       .values({
         email: decoded.email || '',
         clerkUserId: decoded.userId,
-        organizationId,
+        name: decoded.name || null,
       })
       .returning();
 
