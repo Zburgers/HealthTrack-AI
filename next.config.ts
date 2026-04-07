@@ -5,17 +5,9 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 
 const nextConfig: NextConfig = {
   /* config options here */
-  output: 'standalone', // Optimize for Electron packaging
+  output: 'standalone', // Optimize for Docker deployments
   reactStrictMode: false, // Disable in development to prevent double useEffect calls
-  
-  // Electron-specific optimizations
-  ...(process.env.ELECTRON_ENV && {
-    trailingSlash: true,
-    // Remove assetPrefix for development to avoid routing issues
-    // assetPrefix: './', // Commented out - causes 404s on navigation
-    distDir: '.next',
-  }),
-  
+
   typescript: {
     // Set to false for production builds to enforce type checking
     ignoreBuildErrors: process.env.NODE_ENV === 'development',

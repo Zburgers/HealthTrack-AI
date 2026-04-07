@@ -1,6 +1,6 @@
 /**
  * Enhanced Smart Caching System for HealthTrack AI
- * 
+ *
  * Features:
  * - Multi-tier caching (memory + database)
  * - LRU eviction for memory cache
@@ -9,7 +9,44 @@
  * - Intelligent cache invalidation
  */
 
-import { getAICache, setAICache, makeAICacheKey } from '@/../../electron/lib/shared/aiCache';
+// TODO: Replace with proper API-based cache functions when NestJS backend is ready
+// Previously imported from electron/lib/shared/aiCache
+interface AICacheResult {
+  output: unknown;
+}
+
+export async function getAICache(_context: unknown, key: string): Promise<AICacheResult | null> {
+  try {
+    const response = await fetch(`/api/cache/${encodeURIComponent(key)}`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function setAICache(
+  _context: unknown,
+  key: string,
+  workflow: string,
+  input: unknown,
+  output: unknown,
+  expiryMs?: number
+): Promise<void> {
+  const response = await fetch('/api/cache', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key, workflow, input, output, expiryMs }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to set cache: ${response.statusText}`);
+  }
+}
+
+export function makeAICacheKey(workflow: string, input: unknown): string {
+  return `${workflow}:${JSON.stringify(input)}`;
+}
 
 interface CacheEntry<T = unknown> {
   data: T;
@@ -90,12 +127,13 @@ class SmartCacheManager {
       const dbResult = await getAICache(undefined, key);
       if (dbResult) {
         // Store in memory cache for future access
-        this.setMemoryCache(key, dbResult, workflow);
+        const data = dbResult.output;
+        this.setMemoryCache(key, data, workflow);
         this.metrics.hits++;
         this.metrics.databaseHits++;
-        
+
         console.log(`💾 Database cache HIT for ${workflow}`);
-        return dbResult as T;
+        return data as T;
       }
 
       // Cache miss

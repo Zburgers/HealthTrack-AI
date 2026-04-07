@@ -1,0 +1,8 @@
+{
+  "track_id": "foundation-webfirst-20260407",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-04-07T00:00:00Z",
+  "updated_at": "2026-04-07T00:00:00Z",
+  "description": "Foundation & Web-First Migration: Infrastructure, Auth, and Basic Patient Management. Covers immediate cleanup, Docker Compose setup, Firebase auth with org creation, basic patient CRUD with PostgreSQL/Drizzle, and Mastra scaffolding (AI workflows deferred)."
+}

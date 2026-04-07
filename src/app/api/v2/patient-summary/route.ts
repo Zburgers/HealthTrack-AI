@@ -7,7 +7,7 @@
 // DEPRECATED: Use /api/v2/analyze-and-summarize instead.
 import { NextRequest, NextResponse } from 'next/server';
 import { summarizePatientCondition, SummarizePatientConditionInputSchema } from '@/vertex-ai';
-import { makeAICacheKey, getAICache, setAICache } from '@/../../electron/lib/shared/aiCache';
+import { makeAICacheKey, getAICache, setAICache } from '@/lib/smartCache';
 
 export async function POST(req: NextRequest) {
   return NextResponse.json({ error: 'This endpoint is deprecated. Use /api/v2/analyze-and-summarize.' }, { status: 410 });

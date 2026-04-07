@@ -14,13 +14,13 @@ interface VertexAIConfig {
 
 // Default configuration
 const DEFAULT_CONFIG: VertexAIConfig = {
-  projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || 'healthtrack-hack',
-  location: process.env.GOOGLE_CLOUD_REGION || 'us-central1',
-  modelName: 'gemini-2.0-flash-001',
-  maxOutputTokens: 2048,
-  temperature: 0.1, // Low temperature for consistent medical responses
-  topP: 0.8,
-  topK: 40,
+  projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.GCLOUD_PROJECT || "",
+  location: process.env.GOOGLE_CLOUD_REGION || process.env.GOOGLE_CLOUD_LOCATION || "us-central1",
+  modelName: process.env.VERTEX_AI_MODEL_NAME || "gemini-2.0-flash-001",
+  maxOutputTokens: parseInt(process.env.VERTEX_AI_MAX_OUTPUT_TOKENS || "2048", 10),
+  temperature: parseFloat(process.env.VERTEX_AI_TEMPERATURE || "0.1"),
+  topP: parseFloat(process.env.VERTEX_AI_TOP_P || "0.8"),
+  topK: parseInt(process.env.VERTEX_AI_TOP_K || "40", 10),
 };
 
 // Vertex AI wrapper for medical AI workflows

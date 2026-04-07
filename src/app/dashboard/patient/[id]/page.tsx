@@ -53,7 +53,8 @@ import {
   CheckCircle,
   MessageSquare
 } from 'lucide-react';
-import { deletePatient as deletePatientUtil } from '@/lib/electron-utils';
+// TODO: Replace with proper API route call when NestJS backend is ready
+// import { deletePatient as deletePatientUtil } from '@/lib/electron-utils';
 
 // SOAP Section Component
 const SoapSection: React.FC<{ title: string; content?: string; icon?: React.ReactNode; color?: string }> = ({ 
@@ -301,26 +302,28 @@ export default function PatientDetailPage() {
 
   const handleDeletePatient = async (deletionReason: string) => {
     if (!patient) return;
-    
+
     setIsDeleting(true);
     try {
-      await deletePatientUtil(patient.id, deletionReason.trim(), 'System');
-      
-      toast({
-        title: 'Patient Deleted',
-        description: 'The patient record has been moved to archives.',
+      // TODO: Replace with proper API route call when NestJS backend is ready
+      // For now, use fetch to call the API endpoint directly
+      const response = await fetch(`/api/patients/${patient.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: deletionReason.trim(), deletedBy: 'System' }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete patient');
+      }
+
+      console.log('Patient deleted successfully');
       router.push('/dashboard');
     } catch (error) {
       console.error('Error deleting patient:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete patient. Please try again.',
-        variant: 'destructive',
-      });
     } finally {
       setIsDeleting(false);
-      setConfirmDeleteOpen(false);
+      setIsDeleteModalOpen(false);
     }
   };
 

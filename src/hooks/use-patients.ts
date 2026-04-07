@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiCache } from '@/lib/api-cache';
 import type { Patient } from '@/types';
-import { getDb } from '@/lib/db';
 
 interface PatientsData {
   activePatients: Patient[];
@@ -32,21 +31,22 @@ export function usePatients(): PatientsData {
 
   const fetchPatients = useCallback(async () => {
     updateGlobalData({ isLoading: true, error: null });
-    
+
     try {
-      // Always use the data source architecture through the centralized db module
-      console.log('[DataSource] Fetching patients via centralized Data Source');
-      
-      // Get active and archived patients using the db module
-      const activeData = await (window as any).electronAPI.dataSource.query({
-        type: 'patients.find', 
-        params: { filter: { isDeleted: { $ne: true } } }
-      });
-      
-      const archivedData = await (window as any).electronAPI.dataSource.query({
-        type: 'patients.find', 
-        params: { filter: { isDeleted: true } }
-      });
+      console.log('[DataSource] Fetching patients via API routes');
+
+      // Use API endpoints instead of Electron IPC
+      const [activeResponse, archivedResponse] = await Promise.all([
+        fetch('/api/patients?status=active'),
+        fetch('/api/patients?status=archived'),
+      ]);
+
+      if (!activeResponse.ok || !archivedResponse.ok) {
+        throw new Error('Failed to fetch patients from API');
+      }
+
+      const activeData = await activeResponse.json();
+      const archivedData = await archivedResponse.json();
 
       updateGlobalData({
         activePatients: activeData,
@@ -66,12 +66,12 @@ export function usePatients(): PatientsData {
   useEffect(() => {
     const subscriber = (data: PatientsData) => setLocalData(data);
     globalSubscribers.add(subscriber);
-    
+
     // Initial fetch if no data exists
     if (!globalPatientsData) {
       fetchPatients();
     }
-    
+
     return () => {
       globalSubscribers.delete(subscriber);
     };
@@ -99,15 +99,16 @@ export function usePatient(patientId: string | undefined) {
 
     try {
       setError(null);
-      
-      console.log(`[DataSource] Fetching patient ${patientId} via Data Source`);
-      
-      // Use centralized data source architecture
-      const data = await (window as any).electronAPI.dataSource.query({
-        type: 'patients.findOne',
-        params: { filter: { id: patientId } }
-      });
-      
+
+      console.log(`[DataSource] Fetching patient ${patientId} via API route`);
+
+      // Use API endpoint instead of Electron IPC
+      const response = await fetch(`/api/patients/${patientId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch patient: ${response.statusText}`);
+      }
+
+      const data = await response.json();
       setPatient(data);
       setIsAnalyzing(data.status === 'analyzing');
       return data;
@@ -130,18 +131,12 @@ export function usePatient(patientId: string | undefined) {
 
     const pollInterval = setInterval(async () => {
       try {
-        // Check if we're running in Electron
-        const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
-        
-        if (isElectron) {
-          // Use IPC for Electron
-          const data = await (window as any).electronAPI.dataSource.query({
-            type: 'patients.findOne',
-            params: { filter: { id: patientId } }
-          });
-          
+        // Use API endpoint for polling
+        const response = await fetch(`/api/patients/${patientId}`);
+        if (response.ok) {
+          const data = await response.json();
           setPatient(data);
-          
+
           if (data.status !== 'analyzing') {
             setIsAnalyzing(false);
           }

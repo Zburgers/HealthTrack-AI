@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { enhanceSoapNotes, EnhanceSoapNotesInputSchema } from '@/vertex-ai';
-import { makeAICacheKey, getAICache, setAICache } from '@/../../electron/lib/shared/aiCache';
+import { makeAICacheKey, getAICache, setAICache } from '@/lib/smartCache';
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,10 +31,11 @@ export async function POST(req: NextRequest) {
     const cacheKey = makeAICacheKey('enhance-notes', validationResult.data);
     const cached = await getAICache(undefined, cacheKey);
     if (cached) {
+      const cachedOutput = cached.output as Record<string, unknown>;
       return NextResponse.json({
-        ...cached,
+        ...cachedOutput,
         metadata: {
-          ...cached.metadata,
+          ...(cachedOutput.metadata as Record<string, unknown>),
           cache: 'hit',
           cacheKey,
         }

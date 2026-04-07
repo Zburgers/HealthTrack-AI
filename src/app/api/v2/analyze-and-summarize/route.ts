@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AnalyzeAndSummarizeInputSchema, analyzeAndSummarizePatient } from '@/ai/flows/analyze-and-summarize';
-import { makeAICacheKey, getAICache, setAICache } from '@/../../electron/lib/shared/aiCache';
+import { makeAICacheKey, getAICache, setAICache } from '@/lib/smartCache';
 import stringify from 'json-stable-stringify';
 
 export async function POST(req: NextRequest) {

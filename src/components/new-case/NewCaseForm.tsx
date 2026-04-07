@@ -188,22 +188,17 @@ export default function NewCaseForm() {
     setIsSubmitting(true);
 
     try {
-      // Check if we're in Electron environment
-      if (!window.electronAPI) {
-        throw new Error('This application requires the desktop version. Please download and use the Electron app.');
-      }
-
       // Transform form values to Patient object format expected by database (MongoDB schema)
       const patientData = {
         // Basic patient info (matching intended schema)
         name: values.patientName,
         age: values.age,
         sex: values.gender, // Use 'sex' instead of 'gender' to match schema
-        
+
         // Timestamps
-        createdAt: new Date(),
-        last_updated: new Date(),
-        
+        createdAt: new Date().toISOString(),
+        last_updated: new Date().toISOString(),
+
         // Vitals (proper schema format with numeric values)
         vitals: {
           temp: values.temp ? parseFloat(values.temp) : null,
@@ -212,17 +207,17 @@ export default function NewCaseForm() {
           spo2: values.spo2 ? parseInt(values.spo2) : null,
           rr: values.rr ? parseInt(values.rr) : null,
         },
-        
+
         // Medical information
         symptoms: values.primaryComplaint ? [values.primaryComplaint] : [],
         observations: values.observations || '',
-        
+
         // Medical history arrays (split comma-separated values)
         allergies: values.allergies ? values.allergies.split(',').map(a => a.trim()).filter(Boolean) : [],
         current_medications: values.medications ? values.medications.split(',').map(m => m.trim()).filter(Boolean) : [],
         previous_conditions: values.previousConditions ? values.previousConditions.split(',').map(c => c.trim()).filter(Boolean) : [],
         primary_complaint: values.primaryComplaint || '',
-        
+
         // AI and classification fields (empty initially)
         icd_tags: [],
         icd_tag_summary: [],
@@ -236,23 +231,35 @@ export default function NewCaseForm() {
         },
         matched_cases: [],
         ai_metadata: {},
-        
+
         // System fields
         status: 'draft',
-        owner_uid: 'electron-user', // For Electron app users
+        owner_uid: 'web-user',
       };
 
       console.log('🔄 [NEW_CASE] Creating patient record:', patientData);
 
-      // Use Electron IPC to create the patient record via Switchboard
-      const result = await window.electronAPI.database.createPatient(patientData);
+      // Use API route to create the patient record
+      const response = await fetch('/api/patients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patientData),
+      });
 
-      if (!result || !result.patientId) {
-        throw new Error('Failed to create patient. Invalid response from database.');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || 'Failed to create patient. Invalid response from server.');
       }
-      
+
+      const result = await response.json();
+      const patientId = result.id || result._id || result.patientId;
+
+      if (!patientId) {
+        throw new Error('Failed to create patient. No ID returned from server.');
+      }
+
       console.log('✅ [NEW_CASE] Patient created successfully:', result);
-      
+
       toast({
         title: '✅ Case Created Successfully',
         description: 'Redirecting to patient dashboard for AI analysis...',
@@ -260,7 +267,7 @@ export default function NewCaseForm() {
       });
 
       // Navigate to the patient detail page
-      router.push(`/dashboard/patient/${result.patientId}`);
+      router.push(`/dashboard/patient/${patientId}`);
 
     } catch (error) {
       console.error('❌ [NEW_CASE] Submission Error:', error);

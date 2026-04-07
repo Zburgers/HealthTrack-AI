@@ -12,79 +12,51 @@ export const DATABASE_NAMES = {
 
 // Collection definitions
 export const COLLECTIONS = {
-  // Local-primary collections (stored locally in Electron, remotely in Web)
+  // Primary collections (stored in remote MongoDB)
   PATIENTS: 'patients',
   AI_CACHE: 'ai_cache',
   NOTES: 'notes',
-  
-  // Remote-only collections (always stored remotely)
+
+  // Remote-only collections
   CASE_EMBEDDINGS: 'case_embeddings',
-  
-  // Local-only collections (only in Electron)
+
+  // Metadata collections
   LOCAL_EMBEDDINGS: 'local_embeddings',
   DB_METADATA: 'db_metadata',
 } as const;
 
 // Collection distribution strategy
+// Note: In a web-first architecture, all collections route to remote MongoDB
 export const COLLECTION_DISTRIBUTION = {
-  [COLLECTIONS.PATIENTS]: 'local-primary',
-  [COLLECTIONS.AI_CACHE]: 'local-primary', 
-  [COLLECTIONS.NOTES]: 'local-primary',
-  [COLLECTIONS.CASE_EMBEDDINGS]: 'remote-only',
-  [COLLECTIONS.LOCAL_EMBEDDINGS]: 'local-only',
-  [COLLECTIONS.DB_METADATA]: 'local-only',
+  [COLLECTIONS.PATIENTS]: 'remote',
+  [COLLECTIONS.AI_CACHE]: 'remote',
+  [COLLECTIONS.NOTES]: 'remote',
+  [COLLECTIONS.CASE_EMBEDDINGS]: 'remote',
+  [COLLECTIONS.LOCAL_EMBEDDINGS]: 'remote',
+  [COLLECTIONS.DB_METADATA]: 'remote',
 } as const;
 
 export type CollectionDistribution = typeof COLLECTION_DISTRIBUTION;
 export type CollectionName = keyof CollectionDistribution;
-export type DistributionType = 'local-primary' | 'remote-only' | 'local-only';
+export type DistributionType = 'remote';
 
 /**
- * Environment detection - Consistent with main db router
+ * Environment detection.
+ * Always returns false in a web-only architecture.
  */
 export function isElectronEnvironment(): boolean {
-  // Primary detection: Check for Electron runtime
-  if (typeof process !== 'undefined' && process.versions && process.versions.electron) {
-    return true;
-  }
-  
-  // Secondary detection: Environment variables set by Electron main process
-  if (process.env.IS_ELECTRON === 'true' || process.env.ELECTRON_ENV === 'true') {
-    return true;
-  }
-  
-  // Tertiary detection: Electron API in renderer process
-  if (typeof window !== 'undefined' && (window as { electronAPI?: unknown }).electronAPI) {
-    return true;  
-  }
-  
   return false;
 }
 
 export function isWebEnvironment(): boolean {
-  return !isElectronEnvironment();
+  return true;
 }
 
 /**
- * Determine which database to use for a collection
+ * Determine which database to use for a collection.
+ * In a web-first architecture, all collections route to remote.
  */
-export function getDatabaseTarget(collection: CollectionName): 'local' | 'remote' {
-  const distribution = COLLECTION_DISTRIBUTION[collection];
-  
-  if (distribution === 'remote-only') {
-    return 'remote';
-  }
-  
-  if (distribution === 'local-only') {
-    return 'local';
-  }
-  
-  // For local-primary collections
-  if (distribution === 'local-primary') {
-    return isElectronEnvironment() ? 'local' : 'remote';
-  }
-  
-  // Default fallback
+export function getDatabaseTarget(_collection: CollectionName): 'remote' {
   return 'remote';
 }
 
@@ -122,8 +94,8 @@ export function isValidCollection(collection: string): collection is CollectionN
 }
 
 /**
- * Get database name for target
+ * Get database name (kept for backward compatibility)
  */
-export function getDatabaseName(target: 'local' | 'remote'): string {
-  return target === 'local' ? DATABASE_NAMES.LOCAL : DATABASE_NAMES.REMOTE;
+export function getDatabaseName(): string {
+  return DATABASE_NAMES.REMOTE;
 }

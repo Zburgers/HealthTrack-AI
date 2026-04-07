@@ -2,8 +2,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import type { AppState, Patient, AIAnalysisOutput } from '@/types';
-import type { NewCaseFormValues } from '@/components/new-case/NewCaseForm';
+import type { AppState, Patient, AIAnalysisOutput, NewCaseFormValues } from '@/types';
 
 const AppStateContext = createContext<AppState | undefined>(undefined);
 
