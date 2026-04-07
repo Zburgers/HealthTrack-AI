@@ -1,5 +1,4 @@
 import { Agent } from '@mastra/core/agent';
-import { enhanceNotesTool } from '../tools/enhance-notes-tool';
 
 export const soapNotesAgent = new Agent({
   id: 'soap-notes-agent',
@@ -24,5 +23,4 @@ export const soapNotesAgent = new Agent({
     Never change the clinician's diagnosis or treatment plan—only enhance documentation quality.
   `,
   model: 'openrouter/openai/gpt-oss-20b:free',
-  tools: { enhanceNotesTool },
 });
