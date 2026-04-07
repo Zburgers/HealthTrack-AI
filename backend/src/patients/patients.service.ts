@@ -2,26 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DrizzlePgService } from '../database/drizzle-pg.service';
 import { patients } from '../../drizzle/schema';
 import { eq, and, ilike } from 'drizzle-orm';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type PatientRecord = Record<string, any>;
-
-export interface CreatePatientDto {
-  name: string;
-  dateOfBirth?: string;
-  gender?: string;
-  email?: string;
-  phone?: string;
-  notes?: string;
-}
-
-export interface UpdatePatientDto {
-  name?: string;
-  dateOfBirth?: string;
-  gender?: string;
-  email?: string;
-  phone?: string;
-  notes?: string;
-}
+import { CreatePatientDto, UpdatePatientDto } from './dto/patient.dto';
 
 @Injectable()
 export class PatientsService {

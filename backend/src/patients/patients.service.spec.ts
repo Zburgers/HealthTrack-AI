@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { PatientsService, CreatePatientDto, UpdatePatientDto } from './patients.service';
+import { PatientsService } from './patients.service';
+import { CreatePatientDto, UpdatePatientDto } from './dto/patient.dto';
 import { patients } from '../../drizzle/schema';
 
 describe('PatientsService', () => {

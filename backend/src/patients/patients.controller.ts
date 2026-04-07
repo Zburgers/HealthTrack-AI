@@ -10,7 +10,8 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { PatientsService, CreatePatientDto, UpdatePatientDto } from './patients.service';
+import { PatientsService } from './patients.service';
+import { CreatePatientDto, UpdatePatientDto } from './dto/patient.dto';
 import { ClerkAuthGuard, ClerkUser } from '../auth/guards/clerk-auth.guard';
 import { OrgScopedGuard } from '../auth/guards/org-scoped.guard';
 
