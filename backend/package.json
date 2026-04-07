@@ -17,6 +17,8 @@
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:e2e": "vitest run --config ./test/vitest-e2e.config.ts",
+    "mastra:dev": "mastra dev",
+    "mastra:build": "mastra build",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -24,6 +26,7 @@
   },
   "dependencies": {
     "@clerk/backend": "^3.2.7",
+    "@mastra/core": "^1.23.0",
     "@nestjs/cache-manager": "^2.0.0",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.0.0",
@@ -39,7 +42,7 @@
     "pg": "^8.11.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
-    "zod": "^3.23.0"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
@@ -55,6 +58,7 @@
     "@vitest/coverage-v8": "^2.0.0",
     "drizzle-kit": "^0.24.0",
     "eslint": "^8.0.0",
+    "mastra": "^1.4.0",
     "prettier": "^3.0.0",
     "supertest": "^7.0.0",
     "tsx": "^4.0.0",

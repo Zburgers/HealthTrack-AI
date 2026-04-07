@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { PatientsModule } from './patients/patients.module';
 import { DatabaseModule } from './database/database.module';
+import { AIModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { DatabaseModule } from './database/database.module';
     AuthModule,
     UsersModule,
     PatientsModule,
+    AIModule,
   ],
   controllers: [AppController],
 })
