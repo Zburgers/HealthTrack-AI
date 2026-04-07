@@ -24,6 +24,6 @@ export const patientAnalysisAgent = new Agent({
 
     Use the patient search tool to find relevant historical data when available.
   `,
-  model: 'google/gemini-2.5-pro',
+  model: 'openrouter/openai/gpt-oss-20b:free',
   tools: { patientSearchTool },
 });

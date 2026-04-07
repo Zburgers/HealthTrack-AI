@@ -23,6 +23,6 @@ export const soapNotesAgent = new Agent({
 
     Never change the clinician's diagnosis or treatment plan—only enhance documentation quality.
   `,
-  model: 'google/gemini-2.5-pro',
+  model: 'openrouter/openai/gpt-oss-20b:free',
   tools: { enhanceNotesTool },
 });
