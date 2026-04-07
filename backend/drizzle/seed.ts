@@ -5,13 +5,13 @@ import { organizations, users, patients } from './schema';
 
 async function seed() {
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/healthtrack',
+    connectionString: process.env.DATABASE_URL || 'postgresql://healthtrack:healthtrack@localhost:5432/healthtrack',
   });
-  
+
   const db = drizzle(pool, { schema });
 
   try {
-    // Create sample organization
+    // Create sample organization (placeholder — will use Clerk org IDs in Phase 6)
     const [org] = await db.insert(organizations).values({
       name: 'Sample Clinic',
     }).returning();
@@ -20,7 +20,7 @@ async function seed() {
     // Create sample users
     const [admin] = await db.insert(users).values({
       email: 'admin@sampleclinic.com',
-      firebaseUid: 'firebase-admin-uid-001',
+      clerkUserId: 'clerk-test-admin-uid-001',
       name: 'Dr. Admin',
       role: 'org_admin',
       organizationId: org.id,
@@ -29,7 +29,7 @@ async function seed() {
 
     const [doctor] = await db.insert(users).values({
       email: 'doctor@sampleclinic.com',
-      firebaseUid: 'firebase-doctor-uid-002',
+      clerkUserId: 'clerk-test-doctor-uid-002',
       name: 'Dr. Smith',
       role: 'doctor',
       organizationId: org.id,
@@ -38,7 +38,7 @@ async function seed() {
 
     const [nurse] = await db.insert(users).values({
       email: 'nurse@sampleclinic.com',
-      firebaseUid: 'firebase-nurse-uid-003',
+      clerkUserId: 'clerk-test-nurse-uid-003',
       name: 'Nurse Johnson',
       role: 'nurse',
       organizationId: org.id,

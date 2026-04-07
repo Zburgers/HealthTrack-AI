@@ -1,20 +1,14 @@
 import { Module } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { FirebaseStrategy } from './strategies/firebase.strategy';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
+import { ClerkAuthGuard } from './guards/clerk-auth.guard';
+import { OrgScopedGuard } from './guards/org-scoped.guard';
+import { RoleGuard } from './guards/role.guard';
 
 @Module({
-  imports: [
-    PassportModule.register({ defaultStrategy: 'firebase-jwt' }),
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'dev-secret-change-in-prod',
-      signOptions: { expiresIn: '1h' },
-    }),
-  ],
+  imports: [],
   controllers: [AuthController],
-  providers: [AuthService, FirebaseStrategy],
-  exports: [AuthService, PassportModule],
+  providers: [AuthService, ClerkAuthGuard, OrgScopedGuard, RoleGuard],
+  exports: [AuthService, ClerkAuthGuard, OrgScopedGuard, RoleGuard],
 })
 export class AuthModule {}

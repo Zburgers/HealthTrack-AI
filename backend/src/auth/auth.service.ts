@@ -1,13 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { verifyToken } from '@clerk/backend';
 import { DrizzlePgService } from '../database/drizzle-pg.service';
 import { users } from '../../drizzle/schema';
 import { eq } from 'drizzle-orm';
 
-export interface FirebaseDecodedToken {
-  uid: string;
+export interface ClerkDecodedToken {
+  userId: string;
   email?: string;
+  orgId?: string;
+  orgRole?: string;
   name?: string;
-  picture?: string;
   [key: string]: unknown;
 }
 
@@ -15,34 +17,39 @@ export interface FirebaseDecodedToken {
 export class AuthService {
   constructor(private readonly dbService: DrizzlePgService) {}
 
-  async verifyFirebaseToken(token: string): Promise<FirebaseDecodedToken> {
-    // TODO: Integrate firebase-admin to verify ID tokens
-    // For now, decode JWT payload (development only)
+  async verifyClerkToken(token: string): Promise<ClerkDecodedToken> {
     try {
-      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-      return payload as FirebaseDecodedToken;
+      const payload = await verifyToken(token, {
+        secretKey: process.env.CLERK_SECRET_KEY,
+      });
+
+      return {
+        userId: payload.sub,
+        email: payload.email as string | undefined,
+        orgId: payload.org_id,
+        orgRole: payload.org_role,
+        name: payload.name as string | undefined,
+      };
     } catch {
-      throw new Error('Invalid Firebase token');
+      throw new UnauthorizedException('Invalid Clerk token');
     }
   }
 
-  async getUserByFirebaseToken(token: string) {
-    const decoded = await this.verifyFirebaseToken(token);
-    
+  async getUserByClerkId(clerkUserId: string) {
     const result = await this.dbService.db
       .select()
       .from(users)
-      .where(eq(users.firebaseUid, decoded.uid))
+      .where(eq(users.clerkUserId, clerkUserId))
       .limit(1);
-    
+
     return result[0] || null;
   }
 
-  async findOrCreateUser(decoded: FirebaseDecodedToken, organizationId: string) {
+  async findOrCreateUser(decoded: ClerkDecodedToken, organizationId: string) {
     const existing = await this.dbService.db
       .select()
       .from(users)
-      .where(eq(users.firebaseUid, decoded.uid))
+      .where(eq(users.clerkUserId, decoded.userId))
       .limit(1);
 
     if (existing.length > 0) {
@@ -53,10 +60,8 @@ export class AuthService {
       .insert(users)
       .values({
         email: decoded.email || '',
-        firebaseUid: decoded.uid,
-        name: decoded.name || null,
-        role: 'doctor',
-        organizationId: organizationId,
+        clerkUserId: decoded.userId,
+        organizationId,
       })
       .returning();
 

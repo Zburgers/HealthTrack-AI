@@ -18,14 +18,14 @@ export const organizations = pgTable('organizations', {
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
   email: varchar('email', { length: 255 }).notNull(),
-  firebaseUid: varchar('firebase_uid', { length: 255 }).notNull(),
+  clerkUserId: varchar('clerk_user_id', { length: 255 }).notNull(),
   name: varchar('name', { length: 255 }),
   role: varchar('role', { length: 50 }).notNull().default('doctor'),
   organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
   emailUniqueIdx: uniqueIndex('users_email_unique_idx').on(table.email),
-  firebaseUidUniqueIdx: uniqueIndex('users_firebase_uid_unique_idx').on(table.firebaseUid),
+  clerkUserIdUniqueIdx: uniqueIndex('users_clerk_user_id_unique_idx').on(table.clerkUserId),
   orgRoleIdx: index('users_org_role_idx').on(table.organizationId, table.role),
 }));
 

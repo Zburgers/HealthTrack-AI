@@ -16,11 +16,11 @@ export class UsersService {
     return result[0] || null;
   }
 
-  async findByFirebaseUid(firebaseUid: string) {
+  async findByClerkUserId(clerkUserId: string) {
     const result = await this.dbService.db
       .select()
       .from(users)
-      .where(eq(users.firebaseUid, firebaseUid))
+      .where(eq(users.clerkUserId, clerkUserId))
       .limit(1);
     return result[0] || null;
   }

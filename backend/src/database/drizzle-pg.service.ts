@@ -10,7 +10,7 @@ export class DrizzlePgService implements OnModuleInit, OnModuleDestroy {
 
   constructor() {
     this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/healthtrack',
+      connectionString: process.env.DATABASE_URL || 'postgresql://healthtrack:healthtrack@localhost:5432/healthtrack',
     });
     this._db = drizzle(this.pool, { schema });
   }
@@ -26,9 +26,5 @@ export class DrizzlePgService implements OnModuleInit, OnModuleDestroy {
 
   get db() {
     return this._db;
-  }
-
-  get pool() {
-    return this.pool;
   }
 }

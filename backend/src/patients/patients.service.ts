@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { DrizzlePgService } from '../database/drizzle-pg.service';
 import { patients } from '../../drizzle/schema';
 import { eq, and, ilike } from 'drizzle-orm';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PatientRecord = Record<string, any>;
 
 export interface CreatePatientDto {
   name: string;
@@ -64,7 +66,8 @@ export class PatientsService {
   }
 
   async create(organizationId: string, data: CreatePatientDto, createdBy: string) {
-    const result = await this.dbService.db
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (this.dbService.db as any)
       .insert(patients)
       .values({
         ...data,
@@ -76,7 +79,8 @@ export class PatientsService {
   }
 
   async update(organizationId: string, id: string, data: UpdatePatientDto) {
-    const result = await this.dbService.db
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (this.dbService.db as any)
       .update(patients)
       .set({ ...data, updatedAt: new Date() })
       .where(and(
@@ -88,7 +92,8 @@ export class PatientsService {
   }
 
   async softDelete(organizationId: string, id: string, deletedBy: string, reason = 'User deleted') {
-    const result = await this.dbService.db
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (this.dbService.db as any)
       .update(patients)
       .set({
         isDeleted: true,

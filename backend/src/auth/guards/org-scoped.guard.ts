@@ -1,12 +1,16 @@
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 
 @Injectable()
 export class OrgScopedGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    // Ensures all queries are scoped to the user's organization
     const request = context.switchToHttp().getRequest();
-    // Organization ID should be extracted from JWT and attached to request
-    return !!request.user?.organizationId;
+    const user = request.user as { orgId?: string } | undefined;
+
+    if (!user?.orgId) {
+      throw new ForbiddenException('Organization context required. Please select or create an organization.');
+    }
+
+    // orgId is attached to request.user by ClerkAuthGuard
+    return true;
   }
 }

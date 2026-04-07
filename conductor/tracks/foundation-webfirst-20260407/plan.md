@@ -59,42 +59,64 @@
 
 ---
 
-## Phase 5: Authentication & Organization Setup
+## Phase 5: Authentication & Organization Setup (Clerk)
 
-- [ ] Task: Write Tests — Verify Firebase OAuth flow, organization auto-creation, session management, protected routes
-- [ ] Task: Configure Firebase Google OAuth in backend — verify ID tokens, extract user info
-- [ ] Task: Implement auto-organization creation on first user login
-- [ ] Task: Implement session management with Redis-backed sessions
-- [ ] Task: Create NestJS auth endpoints: `/auth/login`, `/auth/callback`, `/auth/logout`, `/auth/me`
-- [ ] Task: Create NestJS organization endpoints (scoped to authenticated user's org)
-- [ ] Task: Implement RBAC guard — role-based access control for routes
-- [ ] Task: Conductor - User Manual Verification 'Phase 5: Authentication & Organization Setup' (Protocol in workflow.md)
+- [ ] Task: Write Tests — Verify Clerk OAuth flow, org membership, protected routes, token verification
+- [ ] Task: Install Clerk skills — `npx skills add clerk/skills --all` (DONE — 18 skills installed)
+- [ ] Task: Install `@clerk/nextjs` in frontend — wrap root layout with `<ClerkProvider>`
+- [ ] Task: Configure Clerk environment variables — `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`
+- [ ] Task: Replace login page with Clerk SignIn component (Google OAuth via Clerk social connections)
+- [ ] Task: Rewrite `use-auth.ts` hook — use Clerk's `useUser()` internally, keep `{ user, loading, error }` interface
+- [ ] Task: Update `AuthListener.tsx` — use Clerk auth state for route guarding
+- [ ] Task: Add `<OrganizationSwitcher>` to Header for org switching
+- [ ] Task: Install `@clerk/backend` in NestJS backend — server-side token verification via JWKS
+- [ ] Task: Remove Firebase deps from backend — `firebase-admin`, `passport`, `passport-jwt`
+- [ ] Task: Create `ClerkStrategy` — Passport-style strategy using Clerk JWKS verification
+- [ ] Task: Implement real `JwtAuthGuard` — verify Clerk session tokens
+- [ ] Task: Implement real `OrgScopedGuard` — extract `org_id` from Clerk token claims, enforce org scoping
+- [ ] Task: Rewrite `auth.service.ts` — `verifyClerkToken()` replacing stub Firebase verification
+- [ ] Task: Update auth controller endpoints (`/auth/verify`, `/auth/me`) for Clerk user model
+- [ ] Task: Implement RBAC guard using Clerk org roles (admin, member, guest)
+- [ ] Task: Conductor - User Manual Verification 'Phase 5: Authentication & Organization Setup (Clerk)' (Protocol in workflow.md)
 
 ---
 
-## Phase 6: Patient Management API
+## Phase 6: Patient Management API & Database Migration
 
-- [ ] Task: Write Tests — Verify patient CRUD operations, organization scoping, fuzzy search, pagination
-- [ ] Task: Implement patient list endpoint with pagination and organization scoping
-- [ ] Task: Implement patient detail endpoint (GET /patients/:id)
-- [ ] Task: Implement patient create/update/delete endpoints with organization validation
-- [ ] Task: Implement fuzzy patient search endpoint (search by name)
+- [ ] Task: Write Tests — Verify patient CRUD operations, org scoping via Clerk tokens, fuzzy search, pagination
+- [ ] Task: Create Drizzle migration — rename `firebase_uid` → `clerk_user_id` in users table
+- [ ] Task: Create Drizzle migration — drop `users.organization_id` column and FK constraint
+- [ ] Task: Create Drizzle migration — drop `organizations` table entirely
+- [ ] Task: Create Drizzle migration — change `patients.organization_id` from UUID FK to TEXT (Clerk org ID)
+- [ ] Task: Update indexes — rename `firebaseUidUniqueIdx` → `clerkUserIdUniqueIdx`, drop obsolete org indexes
+- [ ] Task: Update seed script — remove org creation, use Clerk test org ID placeholder for patient data
+- [ ] Task: Run migrations against PostgreSQL database
+- [x] Task: Patient list endpoint with pagination (DONE — placeholder org ID, needs Clerk wiring)
+- [x] Task: Patient detail endpoint (DONE — placeholder org ID, needs Clerk wiring)
+- [x] Task: Patient CRUD endpoints (DONE — placeholder org ID, needs Clerk wiring)
+- [x] Task: Fuzzy search endpoint (DONE — uses `ilike`, needs Clerk wiring)
+- [ ] Task: Wire all patient endpoints to extract `organizationId` from Clerk token instead of placeholder
 - [ ] Task: Add Zod validation to all patient API request/response bodies
-- [ ] Task: Conductor - User Manual Verification 'Phase 6: Patient Management API' (Protocol in workflow.md)
+- [ ] Task: Conductor - User Manual Verification 'Phase 6: Patient Management API & Database Migration' (Protocol in workflow.md)
 
 ---
 
-## Phase 7: Frontend Pages & Auth Integration
+## Phase 7: Frontend Pages & Clerk Auth Integration
 
 - [ ] Task: Write Tests — Verify login flow, dashboard renders patient list, search works, mobile responsive
-- [ ] Task: Create login page with Google OAuth button and redirect handling
-- [ ] Task: Create auth context/provider — track authentication state and organization
-- [ ] Task: Create layout with auth guard — redirects to login if unauthenticated
-- [ ] Task: Create dashboard page — patient list with search, organization-scoped data
-- [ ] Task: Create patient detail page — display patient information
+- [ ] Task: Delete `src/lib/firebase.ts` — remove Firebase initialization entirely
+- [ ] Task: Update `src/config/index.ts` — remove Firebase config block, keep Clerk publishable key
+- [ ] Task: Update `src/app/layout.tsx` — wrap with `<ClerkProvider>`
+- [ ] Task: Ensure login page uses Clerk SignIn with Google OAuth (social connection configured in Clerk dashboard)
+- [ ] Task: Update auth context/provider — Clerk-based auth state tracking
+- [ ] Task: Update layout with auth guard — Clerk route protection, redirect to login if unauthenticated
+- [ ] Task: Update dashboard page — patient list with search, Clerk org-scoped data
+- [ ] Task: Update patient detail page — display patient information
 - [ ] Task: Ensure mobile-responsive design across all pages
 - [ ] Task: Replace all `console.log` with proper logging in frontend
-- [ ] Task: Conductor - User Manual Verification 'Phase 7: Frontend Pages & Auth Integration' (Protocol in workflow.md)
+- [ ] Task: Update API hooks (`use-patients.ts`) to send Clerk JWT in Authorization header on all requests
+- [ ] Task: Remove remaining `window.electronAPI` guards (dead code, harmless but clean up)
+- [ ] Task: Conductor - User Manual Verification 'Phase 7: Frontend Pages & Clerk Auth Integration' (Protocol in workflow.md)
 
 ---
 

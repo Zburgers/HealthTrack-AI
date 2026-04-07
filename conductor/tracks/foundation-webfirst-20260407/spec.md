@@ -32,35 +32,43 @@ Establish the foundational infrastructure for HealthTrack AI as a web-first, sel
 - [ ] `docker compose up` starts all services and they communicate correctly
 - [ ] `.env` file template documents all required environment variables
 
-### 4. Authentication & Organization Setup
-- [ ] Firebase Google OAuth configured via environment variables (no hardcoded credentials)
-- [ ] User signs in with Google → organization auto-created on first login
-- [ ] Role-based access control (RBAC) — roles: `org_admin`, `doctor`, `nurse`
-- [ ] Session management with Redis-backed sessions
-- [ ] Protected routes — unauthenticated users redirected to login
-- [ ] Organization ID attached to every authenticated request
+### 4. Authentication & Organization Setup (Clerk)
+- [ ] Clerk Google OAuth configured via social connections in Clerk dashboard (no hardcoded credentials)
+- [ ] User signs in with Google via Clerk → Clerk handles org membership and roles
+- [ ] Clerk Organizations — org membership, roles (admin, member, guest), org switching via `<OrganizationSwitcher>`
+- [ ] Protected routes — unauthenticated users redirected to `/login` via Clerk auth guards
+- [ ] Clerk organization ID (`org_id`) extracted from JWT token and attached to every backend request
+- [ ] Backend token verification via `@clerk/backend` JWKS verification (not stub)
+- [ ] `users` table: `firebase_uid` renamed to `clerk_user_id` (varchar 255, unique index)
+- [ ] `organizations` table dropped — Clerk owns org metadata
+- [ ] `users.organization_id` FK dropped — org scoping via Clerk token's `org_id` claim
+- [ ] All data-scoped tables (`patients`, etc.) use `organization_id` as TEXT (populated from Clerk org ID)
 
 ### 5. Database & Patient Management
 - [ ] PostgreSQL schema defined with Drizzle ORM
-- [ ] `organizations` table — id, name, created_at, updated_at
-- [ ] `users` table — id, email, firebase_uid, role, organization_id, created_at
-- [ ] `patients` table — id, organization_id, name, dob, gender, created_at, updated_at
-- [ ] All tables include `organization_id` for row-level multi-tenant isolation
-- [ ] Database migration system configured (Drizzle Kit)
-- [ ] Patient CRUD API endpoints (NestJS) — all scoped to authenticated user's organization
+- [ ] `users` table — id, email, clerk_user_id (unique), name, role, created_at
+- [ ] `patients` table — id, organization_id (TEXT, from Clerk org), name, dob, gender, created_at, updated_at
+- [ ] All tables include `organization_id` for row-level multi-tenant isolation (populated from Clerk token)
+- [ ] Database migration system configured (Drizzle Kit) — migration from Firebase → Clerk schema
+- [ ] Patient CRUD API endpoints (NestJS) — all scoped to authenticated user's Clerk organization
 - [ ] Patient search (fuzzy search by name)
 - [ ] Patient list endpoint with pagination
 - [ ] Patient detail endpoint
-- [ ] Seed script with sample data for development
+- [ ] Seed script with sample data for development (Clerk test org ID)
 
 ### 6. Frontend (Next.js)
 - [ ] Next.js App Router with Server Components by default
-- [ ] Login page with Google OAuth button
-- [ ] Dashboard page — shows patient list with search
+- [ ] `<ClerkProvider>` wraps root layout
+- [ ] Login page with Clerk SignIn component (Google OAuth via Clerk social connection)
+- [ ] Dashboard page — shows patient list with search, Clerk org-scoped data
 - [ ] Patient detail page — shows patient information
-- [ ] Layout with auth guard (redirects to login if unauthenticated)
+- [ ] Layout with Clerk auth guard (redirects to login if unauthenticated)
+- [ ] `<OrganizationSwitcher>` in header for org switching
+- [ ] `useAuth()` hook — Clerk-based, returns `{ user, loading, error }` interface
+- [ ] All API requests to NestJS backend include Clerk JWT in Authorization header
 - [ ] Clean, minimalist, modern design maintained
 - [ ] Mobile-responsive design
+- [ ] No Firebase imports remaining in frontend code
 
 ### 7. Mastra Integration (Scaffolding Only)
 - [ ] Mastra package installed and configured
