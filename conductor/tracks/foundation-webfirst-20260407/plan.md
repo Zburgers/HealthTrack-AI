@@ -61,22 +61,23 @@
 
 ## Phase 5: Authentication & Organization Setup (Clerk)
 
-- [ ] Task: Write Tests — Verify Clerk OAuth flow, org membership, protected routes, token verification
-- [ ] Task: Install Clerk skills — `npx skills add clerk/skills --all` (DONE — 18 skills installed)
-- [ ] Task: Install `@clerk/nextjs` in frontend — wrap root layout with `<ClerkProvider>`
-- [ ] Task: Configure Clerk environment variables — `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`
-- [ ] Task: Replace login page with Clerk SignIn component (Google OAuth via Clerk social connections)
-- [ ] Task: Rewrite `use-auth.ts` hook — use Clerk's `useUser()` internally, keep `{ user, loading, error }` interface
-- [ ] Task: Update `AuthListener.tsx` — use Clerk auth state for route guarding
-- [ ] Task: Add `<OrganizationSwitcher>` to Header for org switching
-- [ ] Task: Install `@clerk/backend` in NestJS backend — server-side token verification via JWKS
-- [ ] Task: Remove Firebase deps from backend — `firebase-admin`, `passport`, `passport-jwt`
-- [ ] Task: Create `ClerkStrategy` — Passport-style strategy using Clerk JWKS verification
-- [ ] Task: Implement real `JwtAuthGuard` — verify Clerk session tokens
-- [ ] Task: Implement real `OrgScopedGuard` — extract `org_id` from Clerk token claims, enforce org scoping
-- [ ] Task: Rewrite `auth.service.ts` — `verifyClerkToken()` replacing stub Firebase verification
-- [ ] Task: Update auth controller endpoints (`/auth/verify`, `/auth/me`) for Clerk user model
-- [ ] Task: Implement RBAC guard using Clerk org roles (admin, member, guest)
+- [x] Task: Write Tests — Verify Clerk OAuth flow, org membership, protected routes, token verification (7/7 passing)
+- [x] Task: Install Clerk skills — `npx skills add clerk/skills --all` (DONE — 18 skills installed)
+- [x] Task: Install `@clerk/nextjs` in frontend — wrap root layout with `<ClerkProvider>`
+- [x] Task: Configure Clerk environment variables — `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`
+- [x] Task: Replace login page with Clerk SignIn component (Google OAuth via Clerk social connections)
+- [x] Task: Rewrite `use-auth.ts` hook — use Clerk's `useUser()` internally, keep `{ user, loading, error }` interface
+- [x] Task: Update `AuthListener.tsx` — uses Clerk auth state (no changes needed, interface preserved)
+- [x] Task: Add `<OrganizationSwitcher>` to Header for org switching
+- [x] Task: Install `@clerk/backend` in NestJS backend — server-side token verification via `verifyToken`
+- [x] Task: Remove Firebase deps from backend — `firebase-admin`, `passport`, `passport-jwt`
+- [x] Task: Create `ClerkAuthGuard` — custom guard using `@clerk/backend` verifyToken with JWKS
+- [x] Task: Implement real `ClerkAuthGuard` — verify Clerk session tokens
+- [x] Task: Implement real `OrgScopedGuard` — extract `org_id` from Clerk token claims, enforce org scoping
+- [x] Task: Rewrite `auth.service.ts` — `verifyClerkToken()` replacing stub Firebase verification
+- [x] Task: Update auth controller endpoints (`/auth/verify`, `/auth/me`, `/auth/session`) for Clerk user model
+- [x] Task: Implement RBAC guard using Clerk org roles (`RoleGuard` with `@RequireClerkRole` decorator)
+- [x] Task: Add `clerkMiddleware` for Next.js route protection with public route matcher
 - [ ] Task: Conductor - User Manual Verification 'Phase 5: Authentication & Organization Setup (Clerk)' (Protocol in workflow.md)
 
 ---
