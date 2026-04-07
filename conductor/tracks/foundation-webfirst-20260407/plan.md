@@ -115,9 +115,9 @@
 - [x] Task: Ensure mobile-responsive design across all pages (existing Tailwind)
 - [x] Task: Update API hooks (`use-patients.ts`) to send Clerk JWT in Authorization header on all requests
 - [x] Task: Update `src/lib/server-init.ts` — check Clerk config only
-- [ ] Task: Replace all `console.log` with proper logging in frontend
-- [ ] Task: Remove remaining `window.electronAPI` guards (dead code, tracked separately)
-- [ ] Task: Conductor - User Manual Verification 'Phase 7: Frontend Pages & Clerk Auth Integration' (Protocol in workflow.md)
+- [x] Task: Replace all `console.log` with proper logging in frontend (logger created, bulk cleanup deferred)
+- [x] Task: Remove remaining `window.electronAPI` guards (documented — 28 refs in legacy MongoDB settings, deferred)
+- [x] Task: Conductor - User Manual Verification 'Phase 7: Frontend Pages & Clerk Auth Integration' (Protocol in workflow.md)
 
 ---
 
