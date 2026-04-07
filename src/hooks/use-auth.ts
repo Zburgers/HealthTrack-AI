@@ -1,36 +1,45 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
-import { getFirebaseAuth } from '@/lib/firebase';
+import { useUser, useAuth as useClerkAuth } from '@clerk/nextjs';
+
+interface AuthUser {
+  id: string;
+  email?: string;
+  name?: string;
+  imageUrl?: string;
+  orgId?: string | null;
+  orgRole?: string | null;
+}
 
 interface AuthState {
-  user: FirebaseUser | null;
+  user: AuthUser | null;
   loading: boolean;
   error: Error | null;
+  isSignedIn: boolean;
 }
 
 export function useAuth(): AuthState {
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    loading: true,
-    error: null,
-  });
+  const { user, isLoaded } = useUser();
+  const { isSignedIn, orgId, orgRole } = useClerkAuth();
 
-  useEffect(() => {
-    const authInstance = getFirebaseAuth(); // Initialize Firebase Auth only on the client-side after mount
-    const unsubscribe = onAuthStateChanged(
-      authInstance,
-      (user) => {
-        setAuthState({ user, loading: false, error: null });
-      },
-      (error) => {
-        setAuthState({ user: null, loading: false, error });
-      }
-    );
+  if (!isLoaded) {
+    return { user: null, loading: true, error: null, isSignedIn: false };
+  }
 
-    return () => unsubscribe();
-  }, []); // Empty dependency array ensures this runs once on mount
+  if (!isSignedIn || !user) {
+    return { user: null, loading: false, error: null, isSignedIn: false };
+  }
 
-  return authState;
+  const primaryEmail = user.primaryEmailAddress?.emailAddress;
+
+  const authUser: AuthUser = {
+    id: user.id,
+    email: primaryEmail,
+    name: user.fullName || user.firstName || undefined,
+    imageUrl: user.imageUrl,
+    orgId: orgId || null,
+    orgRole: orgRole || null,
+  };
+
+  return { user: authUser, loading: false, error: null, isSignedIn: true };
 }

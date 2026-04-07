@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getFirebaseAuth } from '@/lib/firebase';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth, useClerk, OrganizationSwitcher } from '@clerk/nextjs';
+import { useAuth as useAppAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -17,12 +17,13 @@ import {
 import { LogOut, Settings } from 'lucide-react';
 
 export default function Header() {
-  const { user } = useAuth();
+  const { user } = useAppAuth();
+  const { signOut } = useClerk();
+  const { isSignedIn } = useAuth();
   const router = useRouter();
-  const auth = getFirebaseAuth(); // Initialize auth here
 
   const handleSignOut = async () => {
-    await auth.signOut();
+    await signOut();
     router.push('/login');
   };
 
@@ -39,13 +40,25 @@ export default function Header() {
             HealthTrack
           </span>
         </Link>
-        <nav className="flex items-center space-x-4" role="navigation" aria-label="User account navigation">
+        <nav className="flex items-center space-x-4" role="navigation" aria-label="User account and organization navigation">
+          {isSignedIn && (
+            <div className="hidden sm:block">
+              <OrganizationSwitcher
+                appearance={{
+                  elements: {
+                    organizationSwitcherTrigger: 'border border-border/30 rounded-md px-3 py-1.5 text-sm hover:bg-muted/50 transition-colors',
+                    organizationSwitcherTriggerIcon: 'text-foreground',
+                  },
+                }}
+              />
+            </div>
+          )}
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background" aria-label="Open user menu">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || 'User'} />
+                    <AvatarImage src={user.imageUrl || undefined} alt={user.name || user.email || 'User'} />
                     <AvatarFallback className="font-medium">{user.email ? user.email[0].toUpperCase() : 'U'}</AvatarFallback>
                   </Avatar>
                 </Button>
@@ -53,7 +66,7 @@ export default function Header() {
               <DropdownMenuContent className="w-60 bg-popover border-border shadow-lg rounded-lg mt-2" align="end" forceMount role="menu" aria-label="User account options">
                 <DropdownMenuLabel className="font-normal px-3 py-2">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-semibold leading-none text-foreground">{user.displayName || 'User Name'}</p>
+                    <p className="text-sm font-semibold leading-none text-foreground">{user.name || 'User Name'}</p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {user.email}
                     </p>
