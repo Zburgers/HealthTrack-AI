@@ -1,160 +1,98 @@
+'use client';
+
 import { useState, useEffect, useCallback } from 'react';
-import { apiCache } from '@/lib/api-cache';
+import { useAuth } from '@clerk/nextjs';
+import { apiConfig } from '@/config';
 import type { Patient } from '@/types';
 
-interface PatientsData {
-  activePatients: Patient[];
-  archivedPatients: Patient[];
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => Promise<void>;
+const BACKEND_URL = apiConfig.backendUrl;
+
+async function fetchWithAuth(url: string, getToken: () => Promise<string | null>) {
+  const token = await getToken();
+  if (!token) throw new Error('Not authenticated');
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.statusText}`);
+  }
+
+  return response.json();
 }
 
-let globalPatientsData: PatientsData | null = null;
-let globalSubscribers: Set<(data: PatientsData) => void> = new Set();
-
-export function usePatients(): PatientsData {
-  const [localData, setLocalData] = useState<PatientsData>(
-    globalPatientsData || {
-      activePatients: [],
-      archivedPatients: [],
-      isLoading: true,
-      error: null,
-      refetch: async () => {},
-    }
-  );
-
-  const updateGlobalData = useCallback((newData: Partial<PatientsData>) => {
-    globalPatientsData = { ...globalPatientsData!, ...newData };
-    globalSubscribers.forEach(subscriber => subscriber(globalPatientsData!));
-  }, []);
+// Hook for patient list
+export function usePatientList() {
+  const { getToken, isSignedIn } = useAuth();
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchPatients = useCallback(async () => {
-    updateGlobalData({ isLoading: true, error: null });
+    if (!isSignedIn) return;
+
+    setIsLoading(true);
+    setError(null);
 
     try {
-      console.log('[DataSource] Fetching patients via API routes');
-
-      // Use API endpoints instead of Electron IPC
-      const [activeResponse, archivedResponse] = await Promise.all([
-        fetch('/api/patients?status=active'),
-        fetch('/api/patients?status=archived'),
-      ]);
-
-      if (!activeResponse.ok || !archivedResponse.ok) {
-        throw new Error('Failed to fetch patients from API');
-      }
-
-      const activeData = await activeResponse.json();
-      const archivedData = await archivedResponse.json();
-
-      updateGlobalData({
-        activePatients: activeData,
-        archivedPatients: archivedData,
-        isLoading: false,
-      });
-    } catch (error) {
-      console.error('Error fetching patients:', error);
-      updateGlobalData({
-        error: (error as Error).message,
-        isLoading: false,
-      });
+      const data = await fetchWithAuth(
+        `${BACKEND_URL}/patients`,
+        getToken,
+      );
+      setPatients(data);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setIsLoading(false);
     }
-  }, [updateGlobalData]);
+  }, [isSignedIn, getToken]);
 
-  // Subscribe to global updates
   useEffect(() => {
-    const subscriber = (data: PatientsData) => setLocalData(data);
-    globalSubscribers.add(subscriber);
-
-    // Initial fetch if no data exists
-    if (!globalPatientsData) {
-      fetchPatients();
-    }
-
-    return () => {
-      globalSubscribers.delete(subscriber);
-    };
+    fetchPatients();
   }, [fetchPatients]);
 
-  // Update refetch function
-  useEffect(() => {
-    if (globalPatientsData) {
-      globalPatientsData.refetch = fetchPatients;
-    }
-  }, [fetchPatients]);
-
-  return localData;
+  return { patients, isLoading, error, refetch: fetchPatients };
 }
 
-// Hook for individual patient with optimized polling
+// Hook for individual patient
 export function usePatient(patientId: string | undefined) {
+  const { getToken, isSignedIn } = useAuth();
   const [patient, setPatient] = useState<Patient | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const fetchPatient = useCallback(async () => {
-    if (!patientId) return null;
+    if (!patientId || !isSignedIn) return;
 
     try {
       setError(null);
-
-      console.log(`[DataSource] Fetching patient ${patientId} via API route`);
-
-      // Use API endpoint instead of Electron IPC
-      const response = await fetch(`/api/patients/${patientId}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch patient: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = await fetchWithAuth(
+        `${BACKEND_URL}/patients/${patientId}`,
+        getToken,
+      );
       setPatient(data);
       setIsAnalyzing(data.status === 'analyzing');
-      return data;
-    } catch (error) {
-      setError((error as Error).message);
+    } catch (err) {
+      setError((err as Error).message);
       setIsAnalyzing(false);
-      return null;
     } finally {
       setIsLoading(false);
     }
-  }, [patientId]);
+  }, [patientId, isSignedIn, getToken]);
 
   useEffect(() => {
     fetchPatient();
   }, [fetchPatient]);
 
-  // Optimized polling - only when analyzing
+  // Polling when analyzing
   useEffect(() => {
     if (!isAnalyzing || !patientId) return;
 
-    const pollInterval = setInterval(async () => {
-      try {
-        // Use API endpoint for polling
-        const response = await fetch(`/api/patients/${patientId}`);
-        if (response.ok) {
-          const data = await response.json();
-          setPatient(data);
-
-          if (data.status !== 'analyzing') {
-            setIsAnalyzing(false);
-          }
-        }
-      } catch (error) {
-        console.error('Polling error:', error);
-        setIsAnalyzing(false);
-      }
-    }, 8000); // Increased to 8 seconds to reduce load
-
+    const pollInterval = setInterval(fetchPatient, 8000);
     return () => clearInterval(pollInterval);
-  }, [isAnalyzing, patientId]);
+  }, [isAnalyzing, patientId, fetchPatient]);
 
-  return {
-    patient,
-    isLoading,
-    error,
-    isAnalyzing,
-    refetch: fetchPatient,
-  };
+  return { patient, isLoading, error, isAnalyzing, refetch: fetchPatient };
 }
