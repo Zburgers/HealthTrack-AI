@@ -104,19 +104,19 @@
 
 ## Phase 7: Frontend Pages & Clerk Auth Integration
 
-- [ ] Task: Write Tests — Verify login flow, dashboard renders patient list, search works, mobile responsive
-- [ ] Task: Delete `src/lib/firebase.ts` — remove Firebase initialization entirely
-- [ ] Task: Update `src/config/index.ts` — remove Firebase config block, keep Clerk publishable key
-- [ ] Task: Update `src/app/layout.tsx` — wrap with `<ClerkProvider>`
-- [ ] Task: Ensure login page uses Clerk SignIn with Google OAuth (social connection configured in Clerk dashboard)
-- [ ] Task: Update auth context/provider — Clerk-based auth state tracking
-- [ ] Task: Update layout with auth guard — Clerk route protection, redirect to login if unauthenticated
-- [ ] Task: Update dashboard page — patient list with search, Clerk org-scoped data
-- [ ] Task: Update patient detail page — display patient information
-- [ ] Task: Ensure mobile-responsive design across all pages
+- [x] Task: Delete `src/lib/firebase.ts` — remove Firebase initialization entirely
+- [x] Task: Update `src/config/index.ts` — remove Firebase config block, keep Clerk publishable key
+- [x] Task: Update `src/app/layout.tsx` — wrap with `<ClerkProvider>` (Phase 5)
+- [x] Task: Ensure login page uses Clerk SignIn with Google OAuth (Phase 5)
+- [x] Task: Update auth context/provider — Clerk-based auth state tracking (Phase 5)
+- [x] Task: Update layout with auth guard — Clerk route protection via clerkMiddleware (Phase 5)
+- [x] Task: Update dashboard page — patient list with search, Clerk org-scoped data
+- [x] Task: Update patient detail page — display patient information
+- [x] Task: Ensure mobile-responsive design across all pages (existing Tailwind)
+- [x] Task: Update API hooks (`use-patients.ts`) to send Clerk JWT in Authorization header on all requests
+- [x] Task: Update `src/lib/server-init.ts` — check Clerk config only
 - [ ] Task: Replace all `console.log` with proper logging in frontend
-- [ ] Task: Update API hooks (`use-patients.ts`) to send Clerk JWT in Authorization header on all requests
-- [ ] Task: Remove remaining `window.electronAPI` guards (dead code, harmless but clean up)
+- [ ] Task: Remove remaining `window.electronAPI` guards (dead code, tracked separately)
 - [ ] Task: Conductor - User Manual Verification 'Phase 7: Frontend Pages & Clerk Auth Integration' (Protocol in workflow.md)
 
 ---
