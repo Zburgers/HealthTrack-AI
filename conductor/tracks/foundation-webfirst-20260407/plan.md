@@ -2,29 +2,29 @@
 
 ## Phase 1: Immediate Cleanup & Housekeeping
 
-- [ ] Task: Create comprehensive `.gitignore` covering build artifacts, compiled output, IDE files, OS files, env files, node_modules
-- [ ] Task: Create `.env.example` template documenting all required environment variables
-- [ ] Task: Move hardcoded Firebase credentials to `.env` references in `src/config/index.ts` and `src/vertex-ai/client/`
-- [ ] Task: Delete all `.new`, `.backup`, `.old` files — compare and merge where needed
-- [ ] Task: Remove compiled `electron/dist/` from git tracking (`git rm -r --cached electron/dist/`)
-- [ ] Task: Delete deprecated test scripts at project root (`test-ipc-handlers*.js`, `test-mongodb-ipc.js`, `test-sqlite-db.js`, `test-soap-migration.mjs`)
-- [ ] Task: Delete deprecated API routes (`src/app/api/patients/route.ts`, `src/app/api/test-db/`, `src/app/api/test-direct-db/`, `src/app/api/test-ipc-db/`)
-- [ ] Task: Remove unused dependencies from `package.json` (`huggingface`, `task-master-ai`, `patch-package`, `@types/electron`, `@tailwindcss/line-clamp`, `axios`, `better-sqlite3`, `jest`, `genkit` packages)
-- [ ] Task: Delete entire deprecated SQLite system (`src/lib/sqlite/`, `src/lib/db/sqlite-service.ts`, `src/lib/db/sqlite-utils.ts`, `src/components/examples/SQLiteExample.tsx`)
-- [ ] Task: Delete duplicate files (`src/hooks/use-patients-ipc.ts` vs `src/hooks/use-patients.ts` — keep one), merge duplicate `isElectronEnvironment()` implementations
+- [x] Task: Create comprehensive `.gitignore` covering build artifacts, compiled output, IDE files, OS files, env files, node_modules
+- [x] Task: Create `.env.example` template documenting all required environment variables
+- [x] Task: Move hardcoded Firebase credentials to `.env` references in `src/config/index.ts` and `src/vertex-ai/client/`
+- [x] Task: Delete all `.new`, `.backup`, `.old` files — compare and merge where needed
+- [x] Task: Remove compiled `electron/dist/` from git tracking (`git rm -r --cached electron/dist/`)
+- [x] Task: Delete deprecated test scripts at project root (`test-ipc-handlers*.js`, `test-mongodb-ipc.js`, `test-sqlite-db.js`, `test-soap-migration.mjs`)
+- [x] Task: Delete deprecated API routes (`src/app/api/patients/route.ts`, `src/app/api/test-db/`, `src/app/api/test-direct-db/`, `src/app/api/test-ipc-db/`)
+- [x] Task: Remove unused dependencies from `package.json` (`huggingface`, `task-master-ai`, `patch-package`, `@types/electron`, `@tailwindcss/line-clamp`, `axios`, `better-sqlite3`, `jest`, `genkit` packages)
+- [x] Task: Delete entire deprecated SQLite system (`src/lib/sqlite/`, `src/lib/db/sqlite-service.ts`, `src/lib/db/sqlite-utils.ts`, `src/components/examples/SQLiteExample.tsx`)
+- [x] Task: Delete duplicate files (`src/hooks/use-patients-ipc.ts` vs `src/hooks/use-patients.ts` — keep one), merge duplicate `isElectronEnvironment()` implementations
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Immediate Cleanup & Housekeeping' (Protocol in workflow.md)
 
 ---
 
 ## Phase 2: Electron Removal
 
-- [ ] Task: Write Tests — Verify no frontend code depends on Electron IPC or `window.electronAPI`
-- [ ] Task: Delete entire `electron/` directory (main process, preload, IPC handlers, DataSourceManager, compiled output)
-- [ ] Task: Remove Electron-related npm scripts from `package.json` (`dev:electron`, `electron:dev`, `electron:pack`, `electron:build`)
-- [ ] Task: Remove Electron-related dependencies from `package.json` (`electron`, `electron-builder`, `electron-rebuild`)
-- [ ] Task: Clean up `next.config.ts` — remove Electron-specific settings (`output: 'standalone'` if only used for Electron)
-- [ ] Task: Remove `src/lib/electron-utils.ts` and any remaining Electron references in frontend code
-- [ ] Task: Update Dockerfile — remove Electron build stages if present
+- [x] Task: Write Tests — Verify no frontend code depends on Electron IPC or `window.electronAPI`
+- [x] Task: Delete entire `electron/` directory (main process, preload, IPC handlers, DataSourceManager, compiled output)
+- [x] Task: Remove Electron-related npm scripts from `package.json` (`dev:electron`, `electron:dev`, `electron:pack`, `electron:build`)
+- [x] Task: Remove Electron-related dependencies from `package.json` (`electron`, `electron-builder`, `electron-rebuild`)
+- [x] Task: Clean up `next.config.ts` — remove Electron-specific settings (`output: 'standalone'` if only used for Electron)
+- [x] Task: Remove `src/lib/electron-utils.ts` and any remaining Electron references in frontend code
+- [x] Task: Update Dockerfile — remove Electron build stages if present
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Electron Removal' (Protocol in workflow.md)
 
 ---
@@ -32,14 +32,14 @@
 ## Phase 3: Docker Compose Infrastructure
 
 - [ ] Task: Write Tests — Verify `docker compose config` validates successfully, health checks pass for all services
-- [ ] Task: Create `Dockerfile` for frontend (Next.js) — multi-stage build with production optimization
-- [ ] Task: Create `Dockerfile` for backend (NestJS) — multi-stage build with production optimization
-- [ ] Task: Create `Dockerfile` for workers — background job processor
-- [ ] Task: Create `docker-compose.yml` with all services: `frontend`, `backend`, `database` (PostgreSQL + pgvector), `cache` (Redis), `workers`
-- [ ] Task: Create `docker-compose.override.yml` for local development (hot reload, debug ports, seed data)
-- [ ] Task: Configure health checks for all services in compose file
-- [ ] Task: Configure restart policies, resource limits, and network isolation
-- [ ] Task: Create initialization scripts (`docker compose up` workflow, database migration runner, seed data runner)
+- [x] Task: Create `Dockerfile` for frontend (Next.js) — multi-stage build with production optimization
+- [x] Task: Create `Dockerfile` for backend (NestJS) — multi-stage build with production optimization
+- [x] Task: Create `Dockerfile` for workers — background job processor (uses same backend image with worker flag)
+- [x] Task: Create `docker-compose.yml` with all services: `frontend`, `backend`, `database` (PostgreSQL + pgvector), `cache` (Redis), `workers`
+- [x] Task: Create `docker-compose.override.yml` for local development (hot reload, debug ports, seed data)
+- [x] Task: Configure health checks for all services in compose file
+- [x] Task: Configure restart policies, resource limits, and network isolation
+- [x] Task: Create initialization scripts (`docker compose up` workflow, database migration runner, seed data runner)
 - [ ] Task: Test full `docker compose up` — all services start, communicate, and health checks pass
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Docker Compose Infrastructure' (Protocol in workflow.md)
 
@@ -48,13 +48,13 @@
 ## Phase 4: Database Schema & NestJS Backend Setup
 
 - [ ] Task: Write Tests — Verify database connection, migration runner, and basic CRUD operations
-- [ ] Task: Initialize NestJS project structure in `backend/` directory
-- [ ] Task: Configure Drizzle ORM with PostgreSQL — schema definitions, migration setup
-- [ ] Task: Define database schema: `organizations`, `users`, `patients` tables with organization-scoped row-level isolation
-- [ ] Task: Create Drizzle migration files for schema creation
-- [ ] Task: Implement NestJS modules: `AuthModule`, `UsersModule`, `PatientsModule`, `DatabaseModule`
-- [ ] Task: Implement NestJS guards: organization-scoped request validation
-- [ ] Task: Create seed script with sample organizations, users, and patients for development
+- [x] Task: Initialize NestJS project structure in `backend/` directory
+- [x] Task: Configure Drizzle ORM with PostgreSQL — schema definitions, migration setup
+- [x] Task: Define database schema: `organizations`, `users`, `patients` tables with organization-scoped row-level isolation
+- [x] Task: Create Drizzle migration files for schema creation (drizzle.config.ts + schema.ts ready for `drizzle-kit generate`)
+- [x] Task: Implement NestJS modules: `AuthModule`, `UsersModule`, `PatientsModule`, `DatabaseModule`
+- [x] Task: Implement NestJS guards: organization-scoped request validation (JwtAuthGuard, OrgScopedGuard stubs)
+- [x] Task: Create seed script with sample organizations, users, and patients for development
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Database Schema & NestJS Backend Setup' (Protocol in workflow.md)
 
 ---

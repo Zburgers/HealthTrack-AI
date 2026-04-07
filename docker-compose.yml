@@ -1,0 +1,234 @@
+version: "3.9"
+
+services:
+  # ============================================================
+  # Frontend - Next.js
+  # ============================================================
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_FIREBASE_API_KEY: ${NEXT_PUBLIC_FIREBASE_API_KEY}
+        NEXT_PUBLIC_FIREBASE_APP_ID: ${NEXT_PUBLIC_FIREBASE_APP_ID}
+        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+        NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}
+        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+        NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
+        HF_KEY: ${HF_KEY}
+    container_name: healthtrack-frontend
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
+      - NEXT_PUBLIC_FIREBASE_APP_ID=${NEXT_PUBLIC_FIREBASE_APP_ID}
+      - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+      - NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}
+      - NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
+      - NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+      - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
+      - HF_KEY=${HF_KEY}
+      - BACKEND_URL=http://backend:3000
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - healthtrack-net
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+
+  # ============================================================
+  # Backend - NestJS
+  # ============================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: healthtrack-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - DATABASE_URL=postgresql://${DB_USER:-healthtrack}:${DB_PASSWORD:-healthtrack}@database:5432/${DB_NAME:-healthtrack}
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-healthtrack}
+      - DB_PASSWORD=${DB_PASSWORD:-healthtrack}
+      - DB_NAME=${DB_NAME:-healthtrack}
+      - REDIS_HOST=cache
+      - REDIS_PORT=6379
+      - REDIS_URL=redis://cache:6379
+      - GOOGLE_CLOUD_PROJECT_ID=${GOOGLE_CLOUD_PROJECT_ID}
+      - GOOGLE_CLOUD_REGION=${GOOGLE_CLOUD_REGION:-us-central1}
+      - GCLOUD_PROJECT=${GCLOUD_PROJECT}
+      - VERTEX_AI_MODEL_NAME=${VERTEX_AI_MODEL_NAME:-gemini-2.0-flash-001}
+      - VERTEX_AI_MAX_OUTPUT_TOKENS=${VERTEX_AI_MAX_OUTPUT_TOKENS:-2048}
+      - VERTEX_AI_TEMPERATURE=${VERTEX_AI_TEMPERATURE:-0.1}
+      - VERTEX_AI_TOP_P=${VERTEX_AI_TOP_P:-0.8}
+      - VERTEX_AI_TOP_K=${VERTEX_AI_TOP_K:-40}
+      - VERTEX_AI_ENDPOINT_HOST=${VERTEX_AI_ENDPOINT_HOST:-us-central1-aiplatform.googleapis.com}
+      - VERTEX_AI_PROJECT_ID=${VERTEX_AI_PROJECT_ID}
+      - VERTEX_AI_LOCATION=${VERTEX_AI_LOCATION:-us-central1}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - MONGODB_URI=${MONGODB_URI}
+      - MONGODB_DB_NAME=${MONGODB_DB_NAME:-healthtrack}
+      - ATLAS_VECTOR_SEARCH_INDEX_NAME=${ATLAS_VECTOR_SEARCH_INDEX_NAME:-case_index}
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+    depends_on:
+      database:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - healthtrack-net
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+
+  # ============================================================
+  # Database - PostgreSQL with pgvector
+  # ============================================================
+  database:
+    image: pgvector/pgvector:pg16
+    container_name: healthtrack-database
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${DB_USER:-healthtrack}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-healthtrack}
+      - POSTGRES_DB=${DB_NAME:-healthtrack}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/init-scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-healthtrack} -d ${DB_NAME:-healthtrack}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - healthtrack-net
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+  # ============================================================
+  # Cache - Redis
+  # ============================================================
+  cache:
+    image: redis:7-alpine
+    container_name: healthtrack-cache
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - healthtrack-net
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+
+  # ============================================================
+  # Workers - Background job processors
+  # ============================================================
+  workers:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: healthtrack-workers
+    command: ["node", "dist/main", "--worker"]
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - DATABASE_URL=postgresql://${DB_USER:-healthtrack}:${DB_PASSWORD:-healthtrack}@database:5432/${DB_NAME:-healthtrack}
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-healthtrack}
+      - DB_PASSWORD=${DB_PASSWORD:-healthtrack}
+      - DB_NAME=${DB_NAME:-healthtrack}
+      - REDIS_HOST=cache
+      - REDIS_PORT=6379
+      - REDIS_URL=redis://cache:6379
+      - GOOGLE_CLOUD_PROJECT_ID=${GOOGLE_CLOUD_PROJECT_ID}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - MONGODB_URI=${MONGODB_URI}
+      - MONGODB_DB_NAME=${MONGODB_DB_NAME:-healthtrack}
+    depends_on:
+      database:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - healthtrack-net
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+
+# ============================================================
+# Volumes
+# ============================================================
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+
+# ============================================================
+# Networks
+# ============================================================
+networks:
+  healthtrack-net:
+    driver: bridge

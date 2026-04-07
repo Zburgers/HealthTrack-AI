@@ -1,0 +1,102 @@
+version: "3.9"
+
+# Local development overrides
+# These settings replace the production defaults in docker-compose.yml
+
+services:
+  # ============================================================
+  # Frontend - Hot reload, no resource limits
+  # ============================================================
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: npm run dev
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+    ports:
+      - "9002:9002"
+    volumes:
+      - .:/app:delegated
+      - /app/node_modules
+      - /app/.next
+    # Remove resource limits for local dev
+    deploy:
+      resources:
+        limits: {}
+        reservations: {}
+    # Override healthcheck for dev (less aggressive)
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9002"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ============================================================
+  # Backend - Debug port, hot reload, verbose logging
+  # ============================================================
+  backend:
+    command: npm run start:debug
+    environment:
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
+    ports:
+      - "3000:3000"
+      - "9229:9229"  # Node.js inspector
+    volumes:
+      - ./backend:/app:delegated
+      - /app/node_modules
+      - /app/dist
+    # Remove resource limits for local dev
+    deploy:
+      resources:
+        limits: {}
+        reservations: {}
+
+  # ============================================================
+  # Database - Expose port, mount init scripts
+  # ============================================================
+  database:
+    environment:
+      - POSTGRES_USER=healthtrack
+      - POSTGRES_PASSWORD=healthtrack
+      - POSTGRES_DB=healthtrack
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    # Remove resource limits for local dev
+    deploy:
+      resources:
+        limits: {}
+        reservations: {}
+
+  # ============================================================
+  # Cache - No resource limits for local dev
+  # ============================================================
+  cache:
+    command: redis-server --appendonly yes --loglevel verbose
+    # Remove resource limits for local dev
+    deploy:
+      resources:
+        limits: {}
+        reservations: {}
+
+  # ============================================================
+  # Workers - Debug mode, verbose logging
+  # ============================================================
+  workers:
+    command: ["node", "--inspect=0.0.0.0:9230", "dist/main", "--worker"]
+    environment:
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
+    ports:
+      - "9230:9230"  # Node.js inspector for workers
+    volumes:
+      - ./backend:/app:delegated
+      - /app/node_modules
+      - /app/dist
+    # Remove resource limits for local dev
+    deploy:
+      resources:
+        limits: {}
+        reservations: {}

@@ -1,0 +1,89 @@
+# Dependencies
+node_modules
+.next
+.cache
+dist
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+docs/
+documentation/
+
+# Tests
+__tests__
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+test/
+tests/
+coverage/
+.nyc_output
+jest.config.js
+jest.setup.js
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Conductor / Planning
+conductor/
+.plan*
+*.plan
+
+# Misc
+*.tgz
+*.tar.gz
+.cache
+.turbo
+.vercel
+.firebase
+.firebase/*
+!firebase.json
+
+# Docker
+Dockerfile
+Dockerfile.*
+docker-compose*.yml
+.dockerignore
+docker/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+cloudbuild.yaml
+
+# Misc config files
+.eslintrc.json
+.prettierrc
+prettier.config.js
+tsconfig.json
+tsconfig.*.json
+.editorconfig
+.babelrc
