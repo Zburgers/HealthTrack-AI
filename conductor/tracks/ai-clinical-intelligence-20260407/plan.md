@@ -2279,7 +2279,7 @@ Expected: Build succeeds.
 
 ---
 
-## Phase 6: Frontend Integration — Remove Electron IPC
+## Phase 6: Frontend Integration — Remove Electron IPC **[DONE]**
 
 ### Task 27: Update Dashboard Pages to Use Backend API
 
