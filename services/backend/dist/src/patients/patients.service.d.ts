@@ -1,0 +1,60 @@
+import { DrizzlePgService } from '../database/drizzle-pg.service';
+import { CreatePatientDto, UpdatePatientDto } from './dto/patient.dto';
+export declare class PatientsService {
+    private readonly dbService;
+    constructor(dbService: DrizzlePgService);
+    findAll(organizationId: string, page?: number, limit?: number, search?: string): Promise<{
+        id: string;
+        name: string;
+        email: string;
+        createdAt: Date;
+        organizationId: string;
+        dateOfBirth: string;
+        gender: string;
+        phone: string;
+        notes: string;
+        isDeleted: boolean;
+        deletedAt: Date;
+        deletedReason: string;
+        deletedBy: string;
+        createdBy: string;
+        updatedAt: Date;
+    }[]>;
+    findById(organizationId: string, id: string): Promise<{
+        id: string;
+        name: string;
+        email: string;
+        createdAt: Date;
+        organizationId: string;
+        dateOfBirth: string;
+        gender: string;
+        phone: string;
+        notes: string;
+        isDeleted: boolean;
+        deletedAt: Date;
+        deletedReason: string;
+        deletedBy: string;
+        createdBy: string;
+        updatedAt: Date;
+    }>;
+    create(organizationId: string, data: CreatePatientDto, createdBy: string): Promise<any>;
+    update(organizationId: string, id: string, data: UpdatePatientDto): Promise<any>;
+    softDelete(organizationId: string, id: string, deletedBy: string, reason?: string): Promise<any>;
+    search(organizationId: string, query: string): Promise<{
+        id: string;
+        name: string;
+        email: string;
+        createdAt: Date;
+        organizationId: string;
+        dateOfBirth: string;
+        gender: string;
+        phone: string;
+        notes: string;
+        isDeleted: boolean;
+        deletedAt: Date;
+        deletedReason: string;
+        deletedBy: string;
+        createdBy: string;
+        updatedAt: Date;
+    }[]>;
+}

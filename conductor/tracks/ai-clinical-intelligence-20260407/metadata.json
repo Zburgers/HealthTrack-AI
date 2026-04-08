@@ -1,0 +1,8 @@
+{
+  "track_id": "ai-clinical-intelligence-20260407",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-04-07T00:00:00Z",
+  "updated_at": "2026-04-07T00:00:00Z",
+  "description": "AI Clinical Intelligence & Code Reorganization: Monorepo restructure, pgvector similar case search with BioBERT embeddings, API route migration from Electron IPC to NestJS, Mastra workflow migration from Genkit, and frontend Electron cleanup."
+}

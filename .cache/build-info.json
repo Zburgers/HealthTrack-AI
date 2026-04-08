@@ -1,17 +1,17 @@
 {
-  "timestamp": "2025-08-06T10:55:51.458Z",
+  "timestamp": "2026-04-08T07:48:44.781Z",
   "version": "0.1.1",
   "nodeVersion": "v22.17.0",
   "platform": "linux",
   "arch": "x64",
   "environment": {
-    "isElectron": true,
+    "isElectron": false,
     "isProduction": false,
     "isCI": false
   },
   "git": {
-    "branch": "saved-work-20250718-113843",
-    "commit": "1bab4a7c5760ee6b0b4c5a5085cdf676c24a1ba1",
-    "shortCommit": "1bab4a7"
+    "branch": "dev/cleanup-2026",
+    "commit": "158fb03c7118873ef068f5cb68c0c78678c4e8ad",
+    "shortCommit": "158fb03"
   }
 }

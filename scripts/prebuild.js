@@ -375,6 +375,12 @@ class EnvironmentManager {
 // =============================================================================
 
 async function main() {
+    // Allow skipping prebuild in Docker/CI environments
+    if (process.env.SKIP_PREBUILD === 'true') {
+        console.log('⏭️  Prebuild skipped (SKIP_PREBUILD=true)');
+        return;
+    }
+
     const startTime = Date.now();
     
     try {

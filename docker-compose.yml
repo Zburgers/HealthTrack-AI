@@ -1,12 +1,10 @@
-version: "3.9"
-
 services:
   # ============================================================
   # Frontend - Next.js
   # ============================================================
   frontend:
     build:
-      context: .
+      context: ./services/frontend
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_FIREBASE_API_KEY: ${NEXT_PUBLIC_FIREBASE_API_KEY}
@@ -57,7 +55,7 @@ services:
   # ============================================================
   backend:
     build:
-      context: ./backend
+      context: ./services/backend
       dockerfile: Dockerfile
     container_name: healthtrack-backend
     ports:
@@ -180,10 +178,10 @@ services:
   # ============================================================
   workers:
     build:
-      context: ./backend
+      context: ./services/workers
       dockerfile: Dockerfile
     container_name: healthtrack-workers
-    command: ["node", "dist/main", "--worker"]
+    command: ["node", "dist/index.js"]
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - DATABASE_URL=postgresql://${DB_USER:-healthtrack}:${DB_PASSWORD:-healthtrack}@database:5432/${DB_NAME:-healthtrack}

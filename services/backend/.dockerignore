@@ -1,0 +1,51 @@
+# Dependencies
+node_modules
+dist
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Test files
+__tests__
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+test/
+tests/
+coverage/
+.nyc_output
+
+# Cache & temp
+.cache
+.turbo
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Large data files
+../codes_icd10_2026.json

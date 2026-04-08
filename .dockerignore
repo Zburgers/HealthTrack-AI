@@ -1,32 +1,71 @@
-# Dependencies
-node_modules
-.next
-.cache
-dist
+# Misc config files
+.eslintrc.json
+.prettierrc
+prettier.config.js
+.editorconfig
+.babelrc
 
-# Git
-.git
-.gitignore
-.gitattributes
+# AI/Code assistant tool directories (massive context bloat)
+.adal/
+.agents/
+.augment/
+.bob/
+.claude/
+.codebuddy/
+.commandcode/
+.continue/
+.cortex/
+.crush/
+.factory/
+.goose/
+.idx/
+.iflow/
+.junie/
+.kilocode/
+.kiro/
+.kode/
+.mcpjam/
+.mux/
+.neovate/
+.openhands/
+.pi/
+.pochi/
+.qoder/
+.qwen/
+.roo/
+.specify/
+.trae/
+.vibe/
+.windsurf/
+.zencoder/
 
-# Documentation
+# Conductor / Planning
+conductor/
+.plan*
+*.plan
+
+# Documentation & Handoff files
 *.md
 !README.md
 docs/
 documentation/
+HANDOFF-*.md
+Architectural_Violation_Report.md
+MVP-BUILD-READINESS.md
+UIPRD.md
+gemini1-sqllite.md
+HealthTrackAI_parsed_code_forgemini.json
+Ideaspit.md
+instructions-for-handoff-engineer.json
+mongodb-changelog-update.md
+mongodb-development-handoff.json
+Schema.P.json
+sqlite-local-backend-refactor-prd.md
+SOAP-MIGRATION-COMPLETE.md
+vertex-ai-config.json
 
-# Tests
-__tests__
-*.test.ts
-*.test.js
-*.spec.ts
-*.spec.js
-test/
-tests/
-coverage/
-.nyc_output
-jest.config.js
-jest.setup.js
+# Large data files
+codes_icd10_2026.json
 
 # IDE
 .idea/
@@ -34,6 +73,12 @@ jest.setup.js
 *.swp
 *.swo
 *~
+*.code-workspace
+
+# Git
+.git
+.gitignore
+.gitattributes
 
 # Environment
 .env
@@ -51,21 +96,6 @@ lerna-debug.log*
 .DS_Store
 Thumbs.db
 
-# Conductor / Planning
-conductor/
-.plan*
-*.plan
-
-# Misc
-*.tgz
-*.tar.gz
-.cache
-.turbo
-.vercel
-.firebase
-.firebase/*
-!firebase.json
-
 # Docker
 Dockerfile
 Dockerfile.*
@@ -78,12 +108,31 @@ docker/
 .gitlab-ci.yml
 .travis.yml
 cloudbuild.yaml
+apphosting.yaml
 
-# Misc config files
-.eslintrc.json
-.prettierrc
-prettier.config.js
-tsconfig.json
-tsconfig.*.json
-.editorconfig
-.babelrc
+# Test files (keep vitest config for build)
+__tests__
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+test/
+tests/
+coverage/
+.nyc_output
+
+# Cache & temp
+.cache
+.turbo
+.vercel
+.firebase
+.firebase/*
+!firebase.json
+temp/
+
+# Jupyter notebooks
+notebooks/
+
+# Skills (agent skills not needed for build)
+skills/
+skills-lock.json
