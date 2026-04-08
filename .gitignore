@@ -80,3 +80,14 @@ tasks/
 /healthtrack-settings.json
 
 /HealthTrackAI_parsed_code.json
+
+# Services build artifacts
+services/*/dist/
+services/*/node_modules/
+
+# Packages build
+packages/*/dist/
+packages/*/node_modules/
+
+# Cache
+.cache/
