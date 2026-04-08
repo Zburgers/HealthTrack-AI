@@ -2,7 +2,7 @@ import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { patients } from '../../drizzle/schema';
+import { patients } from '../../../drizzle/schema';
 import { ilike, or, and, eq } from 'drizzle-orm';
 
 /**
@@ -27,7 +27,6 @@ export const patientSearchTool = createTool({
         dateOfBirth: z.string().nullable(),
         gender: z.string().nullable(),
         email: z.string().nullable(),
-        primaryComplaint: z.string().nullable(),
       }),
     ),
     totalResults: z.number(),
@@ -64,7 +63,6 @@ export const patientSearchTool = createTool({
         dateOfBirth: patients.dateOfBirth,
         gender: patients.gender,
         email: patients.email,
-        primaryComplaint: patients.primaryComplaint,
       })
       .from(patients)
       .where(whereClause)
