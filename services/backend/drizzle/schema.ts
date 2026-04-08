@@ -18,10 +18,12 @@ import { relations, sql } from 'drizzle-orm';
 export const enableVectorExtension = sql`CREATE EXTENSION IF NOT EXISTS vector`;
 
 // Custom pgvector type for embeddings (768-dimensional)
-const vector = customType<{ data: number[]; config: { dimensions: number } }>({
+const vector = customType<{ data: number[]; driverData: string; config: { dimensions: number } }>({
   dataType: (config) => `vector(${config?.dimensions ?? 768})`,
-  toDriver: (value) => sql`array[${sql.join(value ?? [])}]::vector`,
-  fromDriver: (value: string) => {
+  toDriver: (value): string => {
+    return `[${value?.join(',') ?? ''}]`;
+  },
+  fromDriver: (value: string): number[] => {
     if (typeof value === 'string') {
       return value.slice(1, -1).split(',').map(Number);
     }

@@ -15,6 +15,10 @@ const users_module_1 = require("./users/users.module");
 const patients_module_1 = require("./patients/patients.module");
 const database_module_1 = require("./database/database.module");
 const ai_module_1 = require("./ai/ai.module");
+const case_details_module_1 = require("./case-details/case-details.module");
+const similar_cases_module_1 = require("./similar-cases/similar-cases.module");
+const export_module_1 = require("./export/export.module");
+const embeddings_module_1 = require("./embeddings/embeddings.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -30,6 +34,10 @@ exports.AppModule = AppModule = __decorate([
             users_module_1.UsersModule,
             patients_module_1.PatientsModule,
             ai_module_1.AIModule,
+            case_details_module_1.CaseDetailsModule,
+            similar_cases_module_1.SimilarCasesModule,
+            export_module_1.ExportModule,
+            embeddings_module_1.EmbeddingsModule,
         ],
         controllers: [app_controller_1.AppController],
     })

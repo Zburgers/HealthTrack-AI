@@ -22,9 +22,8 @@ export class CaseDetailsService {
       .select()
       .from(mimicCases)
       .where(eq(mimicCases.subjectId, subjectId))
-      .where(eq(mimicCases.hadmId, hadmId))
       .limit(1);
 
-    return results[0] || null;
+    return results.find(r => r.hadmId === hadmId) || null;
   }
 }

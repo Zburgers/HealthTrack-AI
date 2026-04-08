@@ -1,8 +1,21 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.patientsRelations = exports.usersRelations = exports.patients = exports.users = void 0;
+exports.caseEmbeddingsRelations = exports.mimicCasesRelations = exports.caseEmbeddings = exports.mimicCases = exports.patientsRelations = exports.usersRelations = exports.patients = exports.users = exports.enableVectorExtension = void 0;
 const pg_core_1 = require("drizzle-orm/pg-core");
 const drizzle_orm_1 = require("drizzle-orm");
+exports.enableVectorExtension = (0, drizzle_orm_1.sql) `CREATE EXTENSION IF NOT EXISTS vector`;
+const vector = (0, pg_core_1.customType)({
+    dataType: (config) => `vector(${config?.dimensions ?? 768})`,
+    toDriver: (value) => {
+        return `[${value?.join(',') ?? ''}]`;
+    },
+    fromDriver: (value) => {
+        if (typeof value === 'string') {
+            return value.slice(1, -1).split(',').map(Number);
+        }
+        return value;
+    },
+});
 exports.users = (0, pg_core_1.pgTable)('users', {
     id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
     email: (0, pg_core_1.varchar)('email', { length: 255 }).notNull(),
@@ -41,5 +54,44 @@ exports.usersRelations = (0, drizzle_orm_1.relations)(exports.users, ({ many }) 
 exports.patientsRelations = (0, drizzle_orm_1.relations)(exports.patients, ({ one }) => ({
     creator: one(exports.users, { fields: [exports.patients.createdBy], references: [exports.users.id], relationName: 'creator' }),
     deleter: one(exports.users, { fields: [exports.patients.deletedBy], references: [exports.users.id], relationName: 'deleter' }),
+}));
+exports.mimicCases = (0, pg_core_1.pgTable)('mimic_cases', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    subjectId: (0, pg_core_1.integer)('subject_id').notNull(),
+    hadmId: (0, pg_core_1.integer)('hadm_id').notNull(),
+    age: (0, pg_core_1.integer)('age').notNull(),
+    sex: (0, pg_core_1.varchar)('sex', { length: 10 }),
+    icd: (0, pg_core_1.jsonb)('icd').$type().notNull().default([]),
+    icdLabel: (0, pg_core_1.jsonb)('icd_label').$type().notNull().default([]),
+    note: (0, pg_core_1.text)('note').notNull(),
+    vitals: (0, pg_core_1.jsonb)('vitals').$type(),
+    outcomes: (0, pg_core_1.jsonb)('outcomes').$type(),
+    treatments: (0, pg_core_1.jsonb)('treatments').$type(),
+    diagnostics: (0, pg_core_1.jsonb)('diagnostics').$type(),
+    metadata: (0, pg_core_1.jsonb)('metadata').$type(),
+    createdAt: (0, pg_core_1.timestamp)('created_at').defaultNow().notNull(),
+    updatedAt: (0, pg_core_1.timestamp)('updated_at').defaultNow().notNull(),
+}, (table) => ({
+    subjectIdIdx: (0, pg_core_1.index)('mimic_cases_subject_id_idx').on(table.subjectId),
+    hadmIdIdx: (0, pg_core_1.index)('mimic_cases_hadm_id_idx').on(table.hadmId),
+    subjectHadmUniqueIdx: (0, pg_core_1.uniqueIndex)('mimic_cases_subject_hadm_unique_idx').on(table.subjectId, table.hadmId),
+    ageIdx: (0, pg_core_1.index)('mimic_cases_age_idx').on(table.age),
+    sexIdx: (0, pg_core_1.index)('mimic_cases_sex_idx').on(table.sex),
+}));
+exports.caseEmbeddings = (0, pg_core_1.pgTable)('case_embeddings', {
+    id: (0, pg_core_1.uuid)('id').defaultRandom().primaryKey(),
+    caseId: (0, pg_core_1.uuid)('case_id').notNull().references(() => exports.mimicCases.id),
+    embedding: vector('embedding', { dimensions: 768 }).notNull(),
+    model: (0, pg_core_1.varchar)('model', { length: 50 }).notNull().default('biobert-v1.1'),
+    createdAt: (0, pg_core_1.timestamp)('created_at').defaultNow().notNull(),
+}, (table) => ({
+    caseIdIdx: (0, pg_core_1.index)('case_embeddings_case_id_idx').on(table.caseId),
+    modelIdx: (0, pg_core_1.index)('case_embeddings_model_idx').on(table.model),
+}));
+exports.mimicCasesRelations = (0, drizzle_orm_1.relations)(exports.mimicCases, ({ one, many }) => ({
+    embeddings: many(exports.caseEmbeddings),
+}));
+exports.caseEmbeddingsRelations = (0, drizzle_orm_1.relations)(exports.caseEmbeddings, ({ one }) => ({
+    case: one(exports.mimicCases, { fields: [exports.caseEmbeddings.caseId], references: [exports.mimicCases.id] }),
 }));
 //# sourceMappingURL=schema.js.map
