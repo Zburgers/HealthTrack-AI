@@ -1,2 +1,2 @@
-// Types and schemas shared across services
-// Populated in Task 2
+export * from './types';
+export * from './schemas';
