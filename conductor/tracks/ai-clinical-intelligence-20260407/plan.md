@@ -86,13 +86,13 @@ packages/
 - Create: `packages/shared/tsconfig.json`
 - Create: `packages/shared/src/index.ts`
 
-- [ ] **Step 1: Create directory structure**
+- [x] **Step 1: Create directory structure**
 
 ```bash
 mkdir -p services packages/shared/src
 ```
 
-- [ ] **Step 2: Create packages/shared/package.json**
+- [x] **Step 2: Create packages/shared/package.json**
 
 ```json
 {
@@ -113,7 +113,7 @@ mkdir -p services packages/shared/src
 }
 ```
 
-- [ ] **Step 3: Create packages/shared/tsconfig.json**
+- [x] **Step 3: Create packages/shared/tsconfig.json**
 
 ```json
 {
@@ -139,14 +139,14 @@ mkdir -p services packages/shared/src
 }
 ```
 
-- [ ] **Step 4: Create packages/shared/src/index.ts (barrel, empty for now)**
+- [x] **Step 4: Create packages/shared/src/index.ts (barrel, empty for now)**
 
 ```typescript
 // Types and schemas shared across services
 // Populated in Task 2
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add services/ packages/
@@ -162,7 +162,7 @@ git commit -m "chore: create monorepo directory structure for services and share
 - Create: `packages/shared/src/schemas.ts`
 - Modify: `packages/shared/src/index.ts`
 
-- [ ] **Step 1: Create shared types from existing `types/similar-cases.ts`**
+- [x] **Step 1: Create shared types from existing `types/similar-cases.ts`**
 
 Read the existing file first: `cat types/similar-cases.ts`
 
@@ -234,7 +234,7 @@ export interface SimilarCaseSearchInput {
 }
 ```
 
-- [ ] **Step 2: Create shared Zod schemas**
+- [x] **Step 2: Create shared Zod schemas**
 
 ```typescript
 // packages/shared/src/schemas.ts
@@ -297,7 +297,7 @@ export const SimilarCaseOutputSchema: z.ZodType<import('./types').SimilarCaseOut
 }) as z.ZodType<import('./types').SimilarCaseOutput>;
 ```
 
-- [ ] **Step 3: Update barrel exports**
+- [x] **Step 3: Update barrel exports**
 
 ```typescript
 // packages/shared/src/index.ts
@@ -306,7 +306,7 @@ export * from './types';
 export * from './schemas';
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add packages/shared/
@@ -324,25 +324,25 @@ git commit -m "feat(shared): add shared TypeScript types and Zod schemas for sim
 - Modify: `docker-compose.yml` — update build contexts
 - Modify: `docker-compose.override.yml` — update build contexts
 
-- [ ] **Step 1: Move frontend source**
+- [x] **Step 1: Move frontend source**
 
 ```bash
 mv src services/frontend
 ```
 
-- [ ] **Step 2: Move backend**
+- [x] **Step 2: Move backend**
 
 ```bash
 mv backend services/backend
 ```
 
-- [ ] **Step 3: Move workers directory (currently empty)**
+- [x] **Step 3: Move workers directory (currently empty)**
 
 ```bash
 mv workers services/workers
 ```
 
-- [ ] **Step 4: Update docker-compose.yml build contexts**
+- [x] **Step 4: Update docker-compose.yml build contexts**
 
 ```yaml
 # Change these lines in docker-compose.yml:
@@ -367,24 +367,24 @@ workers:
   command: ["node", "dist/index.js"]  # was: ["node", "dist/main", "--worker"]
 ```
 
-- [ ] **Step 5: Update docker-compose.override.yml**
+- [x] **Step 5: Update docker-compose.override.yml**
 
 Update any path references in the override file to match new locations:
 - `./services/backend` instead of `./backend`
 - `./services/frontend` instead of `.`
 - Remove any `../docker/` references if they exist
 
-- [ ] **Step 6: Move root Dockerfile to services/frontend/**
+- [x] **Step 6: Move root Dockerfile to services/frontend/**
 
 ```bash
 mv Dockerfile services/frontend/Dockerfile
 ```
 
-- [ ] **Step 7: Update frontend Dockerfile context paths**
+- [x] **Step 7: Update frontend Dockerfile context paths**
 
 The frontend Dockerfile currently does `COPY . .` — update to work from `services/frontend/` context. The file should already work since the build context is now `./services/frontend/` which contains all the frontend source.
 
-- [ ] **Step 8: Verify directory structure**
+- [x] **Step 8: Verify directory structure**
 
 ```bash
 echo "=== Root ===" && ls -1
@@ -399,7 +399,7 @@ services/: frontend/, backend/, workers/
 packages/: shared/
 ```
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add services/ packages/ docker-compose.yml docker-compose.override.yml
@@ -416,14 +416,14 @@ git commit -m "refactor: reorganize codebase into monorepo layout (services/, pa
 - Modify: `services/frontend/package.json` — add `@healthtrack/shared` dependency
 - Modify: `services/frontend/next.config.ts` — verify no path issues
 
-- [ ] **Step 1: Add @healthtrack/shared to frontend dependencies**
+- [x] **Step 1: Add @healthtrack/shared to frontend dependencies**
 
 ```bash
 cd services/frontend
 npm install @healthtrack/shared@file:../../packages/shared
 ```
 
-- [ ] **Step 2: Update frontend tsconfig.json to resolve @healthtrack/shared**
+- [x] **Step 2: Update frontend tsconfig.json to resolve @healthtrack/shared**
 
 Read current `services/frontend/tsconfig.json` and add path mapping:
 
@@ -440,7 +440,7 @@ Read current `services/frontend/tsconfig.json` and add path mapping:
 }
 ```
 
-- [ ] **Step 3: Update frontend imports to use shared types**
+- [x] **Step 3: Update frontend imports to use shared types**
 
 In `services/frontend/src/types/index.ts`, replace the local `SimilarCaseOutput` import with:
 
@@ -448,7 +448,7 @@ In `services/frontend/src/types/index.ts`, replace the local `SimilarCaseOutput`
 import type { SimilarCaseOutput } from '@healthtrack/shared';
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add services/frontend/ packages/shared/
@@ -463,14 +463,14 @@ git commit -m "chore: update frontend imports to use @healthtrack/shared"
 - Modify: `services/backend/package.json` — add `@healthtrack/shared` dependency
 - Modify: `services/backend/tsconfig.json` — add path mapping
 
-- [ ] **Step 1: Add @healthtrack/shared to backend dependencies**
+- [x] **Step 1: Add @healthtrack/shared to backend dependencies**
 
 ```bash
 cd services/backend
 npm install @healthtrack/shared@file:../../packages/shared
 ```
 
-- [ ] **Step 2: Update backend tsconfig.json**
+- [x] **Step 2: Update backend tsconfig.json**
 
 ```json
 {
@@ -485,7 +485,7 @@ npm install @healthtrack/shared@file:../../packages/shared
 }
 ```
 
-- [ ] **Step 3: Update backend imports**
+- [x] **Step 3: Update backend imports**
 
 In any backend file that references similar case types, change to:
 
@@ -493,7 +493,7 @@ In any backend file that references similar case types, change to:
 import type { SimilarCaseOutput, SimilarCaseSearchInput } from '@healthtrack/shared';
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add services/backend/
@@ -509,19 +509,19 @@ git commit -m "chore: add @healthtrack/shared to backend and update imports"
 - Delete: `database/` directory (old SQLite files, deprecated)
 - Modify: Root `.gitignore` — add services build artifacts, .env
 
-- [ ] **Step 1: Verify no old directories exist at root**
+- [x] **Step 1: Verify no old directories exist at root**
 
 ```bash
 ls -d src backend workers 2>/dev/null && echo "WARNING: old directories still exist" || echo "Clean"
 ```
 
-- [ ] **Step 2: Delete deprecated database directory**
+- [x] **Step 2: Delete deprecated database directory**
 
 ```bash
 rm -rf database/
 ```
 
-- [ ] **Step 3: Update root .gitignore**
+- [x] **Step 3: Update root .gitignore**
 
 Add these entries to `.gitignore`:
 
@@ -559,7 +559,7 @@ logs/
 *.log
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add .gitignore
@@ -571,7 +571,7 @@ git commit -m "chore: update .gitignore, remove deprecated database/ directory"
 
 ### Task 7: Phase 1 Verification — Docker Compose Build Test
 
-- [ ] **Step 1: Validate docker-compose config**
+- [x] **Step 1: Validate docker-compose config**
 
 ```bash
 docker compose config
@@ -579,7 +579,7 @@ docker compose config
 
 Expected: Valid YAML output with all 5 services resolved. No errors.
 
-- [ ] **Step 2: Build all services (no start)**
+- [x] **Step 2: Build all services (no start)**
 
 ```bash
 docker compose build --no-cache
@@ -587,21 +587,21 @@ docker compose build --no-cache
 
 Expected: All 5 services build successfully. Frontend, backend, workers each produce images.
 
-- [ ] **Step 3: If build fails, debug and fix**
+- [x] **Step 3: If build fails, debug and fix**
 
 Common issues:
 - Missing `node_modules` in build context → ensure Dockerfile copies package.json and runs npm install
 - Path resolution errors → check tsconfig.json paths are relative to new locations
 - Missing dependencies → ensure `@healthtrack/shared` is accessible during build
 
-- [ ] **Step 4: Commit any fixes**
+- [x] **Step 4: Commit any fixes**
 
 ```bash
 git add .
 git commit -m "fix: resolve docker compose build issues after monorepo reorganization"
 ```
 
-- [ ] **Step 5: Conductor - User Manual Verification 'Phase 1: Monorepo Reorganization' (Protocol in workflow.md)**
+- [x] **Step 5: Conductor - User Manual Verification 'Phase 1: Monorepo Reorganization' (Protocol in workflow.md)**
 
 ---
 
