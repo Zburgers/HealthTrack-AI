@@ -1554,7 +1554,7 @@ curl http://localhost:3000/export/database
 
 ---
 
-## Phase 4: Workers Service — BioBERT Embedding Pipeline
+## Phase 4: Workers Service — BioBERT Embedding Pipeline **[DONE]**
 
 ### Task 19: Create Workers Service Foundation
 
@@ -1944,7 +1944,7 @@ Expected: Returns ranked similar cases from seed data with matchConfidence score
 
 ---
 
-## Phase 5: Mastra Workflow Migration — Genkit → Mastra
+## Phase 5: Mastra Workflow Migration **[DONE]** — Genkit → Mastra
 
 ### Task 23: Implement Existing Mastra Tool Stubs
 
