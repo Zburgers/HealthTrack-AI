@@ -41,7 +41,7 @@ export default function DatabaseSetupWelcome({ onRetryConnection, isRetrying = f
   const [showAdvanced, setShowAdvanced] = useState(false);
   
   // Check if we're in Electron environment
-  const isElectron = typeof window !== 'undefined' && window.electronAPI;
+  const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
 
   /**
    * Load available data sources from Switchboard

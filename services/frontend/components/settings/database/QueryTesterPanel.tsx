@@ -35,7 +35,7 @@ const QueryTesterPanel: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Check if we're in Electron environment
-  const isElectron = typeof window !== 'undefined' && window.electronAPI;
+  const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
 
   /**
    * Execute a query using the Switchboard

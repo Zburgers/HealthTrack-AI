@@ -58,7 +58,7 @@ const DatabaseConnectionCard: React.FC = () => {
   const [mongoUri, setMongoUri] = useState('');
   
   // Check if we're in Electron environment
-  const isElectron = typeof window !== 'undefined' && window.electronAPI;
+  const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
 
   /**
    * Load available data sources
