@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@clerk/backend": "^3.2.7",
+    "@huggingface/inference": "^4.13.15",
     "@mastra/core": "^1.23.0",
     "@nestjs/cache-manager": "^2.0.0",
     "@nestjs/common": "^10.0.0",

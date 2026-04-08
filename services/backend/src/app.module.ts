@@ -6,6 +6,10 @@ import { UsersModule } from './users/users.module';
 import { PatientsModule } from './patients/patients.module';
 import { DatabaseModule } from './database/database.module';
 import { AIModule } from './ai/ai.module';
+import { CaseDetailsModule } from './case-details/case-details.module';
+import { SimilarCasesModule } from './similar-cases/similar-cases.module';
+import { ExportModule } from './export/export.module';
+import { EmbeddingsModule } from './embeddings/embeddings.module';
 
 @Module({
   imports: [
@@ -18,6 +22,10 @@ import { AIModule } from './ai/ai.module';
     UsersModule,
     PatientsModule,
     AIModule,
+    CaseDetailsModule,
+    SimilarCasesModule,
+    ExportModule,
+    EmbeddingsModule,
   ],
   controllers: [AppController],
 })
