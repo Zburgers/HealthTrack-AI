@@ -33,19 +33,15 @@ services:
       start_period: 60s
 
   # ============================================================
-  # Backend - Debug port, hot reload, verbose logging
+  # Backend - Production mode for optimized container
   # ============================================================
   backend:
-    command: npx tsx src/main.ts
+    command: node dist/src/main
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - LOG_LEVEL=debug
     ports:
       - "3000:3000"
-      - "9229:9229"  # Node.js inspector
-    volumes:
-      - ./services/backend/src:/app/src:delegated
-      - ./services/backend/package.json:/app/package.json
     # Remove resource limits for local dev
     deploy:
       resources:
