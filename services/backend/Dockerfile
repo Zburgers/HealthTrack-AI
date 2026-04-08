@@ -5,7 +5,6 @@
 # Stage 1: Dependencies (production only)
 # ============================================================
 FROM node:18-alpine AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy package files for better cache utilization
@@ -23,7 +22,6 @@ COPY package.json package-lock.json* ./
 RUN npm ci --ignore-scripts
 
 # Copy source files (respects .dockerignore)
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Build the application
@@ -42,18 +40,18 @@ ENV PORT=3000
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nestjs
 
-# Copy production dependencies and built application
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package.json ./package.json
+# Copy production dependencies with ownership set directly
+COPY --chown=nestjs:nodejs --from=deps /app/node_modules ./node_modules
+# Copy built application with ownership set directly
+COPY --chown=nestjs:nodejs --from=builder /app/dist ./dist
 
-# Set proper permissions
-RUN chown -R nestjs:nodejs /app
+# Install curl for healthcheck (minimal package)
+RUN apk add --no-cache curl
+
+EXPOSE 3000
 
 # Use non-root user
 USER nestjs
-
-EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:3000/health || exit 1

@@ -5,13 +5,11 @@
 # Stage 1: Dependencies (production only)
 # ============================================================
 FROM node:18-alpine AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy only lock files for better cache utilization
 COPY package.json package-lock.json* ./
-RUN npm ci --only=production --ignore-scripts && \
-    cp -R node_modules node_modules_prod
+RUN npm ci --only=production --ignore-scripts
 
 # ============================================================
 # Stage 2: Build dependencies (all deps for compilation)
@@ -48,7 +46,6 @@ ENV NODE_ENV=production
 ENV SKIP_PREBUILD=true
 
 # Copy source files (respects .dockerignore)
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Build with standalone output for easier deployment
@@ -67,18 +64,19 @@ ENV PORT=8080
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy built artifacts and production dependencies
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+# Copy built artifacts and production dependencies with ownership
+COPY --chown=nextjs:nodejs --from=deps /app/node_modules ./node_modules
+COPY --chown=nextjs:nodejs --from=builder /app/.next/standalone ./
+COPY --chown=nextjs:nodejs --from=builder /app/.next/static ./.next/static
+COPY --chown=nextjs:nodejs --from=builder /app/public ./public
 
-# Set proper permissions
-RUN chown -R nextjs:nodejs /app
+# Install wget for healthcheck (smaller than curl on alpine)
+RUN apk add --no-cache wget
+
+EXPOSE 8080
 
 # Use non-root user
 USER nextjs
-
-EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1

@@ -1,0 +1,61 @@
+# Dependencies
+node_modules
+.next
+out
+dist
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Test files
+__tests__
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+test/
+tests/
+coverage/
+.nyc_output
+
+# Cache & temp
+.cache
+.turbo
+.vercel
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Electron artifacts (not needed in Docker)
+electron/
+dist-electron/
+release/
+
+# AI/assistant directories
+.qwen/
+.claude/
+.windsurf/

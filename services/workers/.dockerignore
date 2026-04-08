@@ -1,0 +1,42 @@
+# Dependencies
+node_modules
+dist
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Test files
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+
+# Cache & temp
+.cache
+.turbo
+
+# Documentation
+*.md
+!README.md
