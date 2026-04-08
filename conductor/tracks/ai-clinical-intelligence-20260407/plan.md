@@ -876,7 +876,7 @@ Expected: Returns rows (or empty if no embeddings yet — that's fine, we just n
 
 ---
 
-## Phase 3: API Route Migration — Disabled Routes to NestJS
+## Phase 3: API Route Migration — Disabled Routes to NestJS **[DONE]**
 
 ### Task 13: Create Case Details Controller and Service
 
@@ -885,7 +885,7 @@ Expected: Returns rows (or empty if no embeddings yet — that's fine, we just n
 - Create: `services/backend/src/case-details/case-details.controller.ts`
 - Create: `services/backend/src/case-details/case-details.service.ts`
 
-- [ ] **Step 1: Write case-details.service.ts**
+- [x] **Step 1: Write case-details.service.ts**
 
 ```typescript
 // services/backend/src/case-details/case-details.service.ts
