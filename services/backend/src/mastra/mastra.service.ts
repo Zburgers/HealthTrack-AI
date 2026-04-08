@@ -2,6 +2,9 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Mastra } from '@mastra/core';
 import { patientAnalysisAgent } from './agents/patient-analysis-agent';
 import { soapNotesAgent } from './agents/soap-notes-agent';
+import { symptomAnalysisAgent } from './agents/symptom-analysis-agent';
+import { noteEnhancementAgent } from './agents/note-enhancement-agent';
+import { patientSummaryAgent } from './agents/patient-summary-agent';
 
 @Injectable()
 export class MastraService implements OnModuleInit {
@@ -9,7 +12,13 @@ export class MastraService implements OnModuleInit {
 
   onModuleInit() {
     this.mastra = new Mastra({
-      agents: { patientAnalysisAgent, soapNotesAgent },
+      agents: {
+        patientAnalysisAgent,
+        soapNotesAgent,
+        symptomAnalysisAgent,
+        noteEnhancementAgent,
+        patientSummaryAgent,
+      },
     });
   }
 
