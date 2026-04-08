@@ -22,7 +22,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:seed": "tsx drizzle/seed.ts"
+    "db:seed": "tsx drizzle/seed.ts",
+    "db:seed:mimic": "tsx drizzle/seed-mimic.ts"
   },
   "dependencies": {
     "@clerk/backend": "^3.2.7",

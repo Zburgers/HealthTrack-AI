@@ -1,5 +1,33 @@
-import { pgTable, uuid, varchar, date, text, boolean, timestamp, index, uniqueIndex } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  date,
+  text,
+  boolean,
+  timestamp,
+  integer,
+  jsonb,
+  index,
+  uniqueIndex,
+  customType,
+} from 'drizzle-orm/pg-core';
+import { relations, sql } from 'drizzle-orm';
+
+// Extension setup for pgvector
+export const enableVectorExtension = sql`CREATE EXTENSION IF NOT EXISTS vector`;
+
+// Custom pgvector type for embeddings (768-dimensional)
+const vector = customType<{ data: number[]; config: { dimensions: number } }>({
+  dataType: (config) => `vector(${config?.dimensions ?? 768})`,
+  toDriver: (value) => sql`array[${sql.join(value ?? [])}]::vector`,
+  fromDriver: (value: string) => {
+    if (typeof value === 'string') {
+      return value.slice(1, -1).split(',').map(Number);
+    }
+    return value;
+  },
+});
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -43,4 +71,78 @@ export const usersRelations = relations(users, ({ many }) => ({
 export const patientsRelations = relations(patients, ({ one }) => ({
   creator: one(users, { fields: [patients.createdBy], references: [users.id], relationName: 'creator' }),
   deleter: one(users, { fields: [patients.deletedBy], references: [users.id], relationName: 'deleter' }),
+}));
+
+// MIMIC-IV clinical cases table
+export const mimicCases = pgTable('mimic_cases', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  subjectId: integer('subject_id').notNull(),
+  hadmId: integer('hadm_id').notNull(),
+  age: integer('age').notNull(),
+  sex: varchar('sex', { length: 10 }),
+  icd: jsonb('icd').$type<string[]>().notNull().default([]),
+  icdLabel: jsonb('icd_label').$type<string[]>().notNull().default([]),
+  note: text('note').notNull(),
+  vitals: jsonb('vitals').$type<{
+    bp: string | null;
+    hr: number | null;
+    rr: number | null;
+    spo2: number | null;
+    temp: number | null;
+  }>(),
+  outcomes: jsonb('outcomes').$type<{
+    result?: string;
+    followUp?: string;
+    dischargeStatus?: string;
+    lengthOfStay?: number;
+    complications?: string[];
+  }>(),
+  treatments: jsonb('treatments').$type<{
+    medications?: string[];
+    procedures?: string[];
+    interventions?: string[];
+    timeline?: Array<{ date: string; action: string }>;
+  }>(),
+  diagnostics: jsonb('diagnostics').$type<{
+    tests?: string[];
+    results?: string[];
+    imaging?: string[];
+    labs?: string[];
+  }>(),
+  metadata: jsonb('metadata').$type<{
+    complexityScore?: number;
+    outcomeClass?: string;
+    admissionType?: string;
+    caseDate?: Date;
+  }>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  subjectIdIdx: index('mimic_cases_subject_id_idx').on(table.subjectId),
+  hadmIdIdx: index('mimic_cases_hadm_id_idx').on(table.hadmId),
+  subjectHadmUniqueIdx: uniqueIndex('mimic_cases_subject_hadm_unique_idx').on(table.subjectId, table.hadmId),
+  ageIdx: index('mimic_cases_age_idx').on(table.age),
+  sexIdx: index('mimic_cases_sex_idx').on(table.sex),
+}));
+
+// Case embeddings with pgvector (768-dimensional BioBERT embeddings)
+export const caseEmbeddings = pgTable('case_embeddings', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  caseId: uuid('case_id').notNull().references(() => mimicCases.id),
+  // pgvector column: 768-dimensional BioBERT embeddings
+  embedding: vector('embedding', { dimensions: 768 }).notNull(),
+  model: varchar('model', { length: 50 }).notNull().default('biobert-v1.1'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  caseIdIdx: index('case_embeddings_case_id_idx').on(table.caseId),
+  modelIdx: index('case_embeddings_model_idx').on(table.model),
+}));
+
+// Relations
+export const mimicCasesRelations = relations(mimicCases, ({ one, many }) => ({
+  embeddings: many(caseEmbeddings),
+}));
+
+export const caseEmbeddingsRelations = relations(caseEmbeddings, ({ one }) => ({
+  case: one(mimicCases, { fields: [caseEmbeddings.caseId], references: [mimicCases.id] }),
 }));

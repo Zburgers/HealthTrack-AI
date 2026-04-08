@@ -611,100 +611,12 @@ git commit -m "fix: resolve docker compose build issues after monorepo reorganiz
 
 **Files:**
 - Modify: `services/backend/drizzle/schema.ts`
-- Create: `services/backend/drizzle/schema/mimic-cases.ts`
-- Create: `services/backend/drizzle/schema/case-embeddings.ts`
+- Create: `services/backend/drizzle/migrations/0002_mimic_cases_embeddings.sql`
 
-- [ ] **Step 1: Create mimic_cases table schema**
-
-```typescript
-// services/backend/drizzle/schema/mimic-cases.ts
-
-import { pgTable, uuid, varchar, integer, text, jsonb, timestamp, index } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
-import { caseEmbeddings } from './case-embeddings';
-
-export const mimicCases = pgTable('mimic_cases', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  subjectId: integer('subject_id').notNull(),
-  hadmId: integer('hadm_id').notNull(),
-  age: integer('age').notNull(),
-  sex: varchar('sex', { length: 20 }).notNull(),
-  admitTime: timestamp('admit_time').notNull(),
-  dischargeTime: timestamp('discharge_time'),
-  diagnoses: text('diagnoses').array(),
-  diagnosisLabels: text('diagnosis_labels').array(),
-  vitals: jsonb('vitals'),
-  diagnostics: jsonb('diagnostics'),
-  medications: text('medications').array(),
-  procedures: text('procedures').array(),
-  clinicalNote: text('clinical_note'),
-  lengthOfStay: integer('length_of_stay'),
-  dischargeStatus: varchar('discharge_status', { length: 100 }),
-  outcomeClass: varchar('outcome_class', { length: 100 }),
-  complexityScore: integer('complexity_score'),
-  organizationId: uuid('organization_id').default(null),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-}, (table) => [
-  index('idx_mimic_subject').on(table.subjectId),
-  index('idx_mimic_hadm').on(table.hadmId),
-  index('idx_mimic_org').on(table.organizationId),
-  index('idx_mimic_diagnoses').on(table.diagnoses),
-]);
-
-export const mimicCasesRelations = relations(mimicCases, ({ many }) => ({
-  embeddings: many(caseEmbeddings),
-}));
-```
-
-- [ ] **Step 2: Create case_embeddings table with pgvector**
-
-```typescript
-// services/backend/drizzle/schema/case-embeddings.ts
-
-import { pgTable, uuid, vector, varchar, timestamp, index, foreignKey } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
-import { mimicCases } from './mimic-cases';
-
-// pgvector dimension is configurable, default 768 for BioBERT
-export const caseEmbeddings = pgTable('case_embeddings', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  caseId: uuid('case_id').notNull(),
-  embedding: vector('embedding', { dimensions: 768 }),
-  model: varchar('model', { length: 100 }).default('biobert'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-}, (table) => [
-  foreignKey({
-    columns: [table.caseId],
-    foreignColumns: [mimicCases.id],
-    name: 'fk_embeddings_case',
-  }).onDelete('cascade'),
-  index('idx_embeddings_case').on(table.caseId),
-]);
-
-export const caseEmbeddingsRelations = relations(caseEmbeddings, ({ one }) => ({
-  case: one(mimicCases, {
-    fields: [caseEmbeddings.caseId],
-    references: [mimicCases.id],
-  }),
-}));
-```
-
-- [ ] **Step 3: Update main schema barrel file**
-
-```typescript
-// services/backend/drizzle/schema.ts (append to existing)
-
-export * from './schema/mimic-cases';
-export * from './schema/case-embeddings';
-```
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add services/backend/drizzle/
-git commit -m "feat(db): add mimic_cases and case_embeddings tables with pgvector support"
-```
+- [x] **Step 1: Create mimic_cases table schema**
+- [x] **Step 2: Create case_embeddings table with pgvector**
+- [x] **Step 3: Update main schema barrel file**
+- [x] **Step 4: Commit**
 
 ---
 
@@ -713,58 +625,12 @@ git commit -m "feat(db): add mimic_cases and case_embeddings tables with pgvecto
 **Files:**
 - Create: Migration file via Drizzle Kit
 
-- [ ] **Step 1: Generate migration**
-
-```bash
-cd services/backend
-npx drizzle-kit generate
-```
-
-- [ ] **Step 2: Review generated migration**
-
-```bash
-ls services/backend/drizzle/migrations/
-cat services/backend/drizzle/migrations/<latest>_*.sql
-```
-
-Verify it creates:
-- `mimic_cases` table with all columns and indexes
-- `case_embeddings` table with vector column and foreign key
-- pgvector extension (if not already enabled)
-
-- [ ] **Step 3: Add pgvector extension to migration if missing**
-
-If the migration doesn't include `CREATE EXTENSION IF NOT EXISTS vector;`, add it to the migration SQL:
-
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-```
-
-- [ ] **Step 4: Run migration against local database**
-
-```bash
-# Ensure docker compose database is running
-docker compose up -d database
-
-# Run migration
-cd services/backend
-npx drizzle-kit migrate
-```
-
-- [ ] **Step 5: Verify tables exist**
-
-```bash
-docker exec -it healthtrack-database psql -U healthtrack -d healthtrack -c "\dt"
-docker exec -it healthtrack-database psql -U healthtrack -d healthtrack -c "\d mimic_cases"
-docker exec -it healthtrack-database psql -U healthtrack -d healthtrack -c "\d case_embeddings"
-```
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add services/backend/drizzle/migrations/
-git commit -m "feat(db): generate and apply migration for mimic_cases and case_embeddings"
-```
+- [x] **Step 1: Generate migration**
+- [x] **Step 2: Review generated migration**
+- [x] **Step 3: Add pgvector extension to migration if missing**
+- [x] **Step 4: Run migration against local database**
+- [x] **Step 5: Verify tables exist**
+- [x] **Step 6: Commit**
 
 ---
 
@@ -773,9 +639,7 @@ git commit -m "feat(db): generate and apply migration for mimic_cases and case_e
 **Files:**
 - Create: `services/backend/drizzle/seed-mimic.ts`
 
-- [ ] **Step 1: Create MIMIC-IV seed script**
-
-```typescript
+- [x] **Step 1: Create MIMIC-IV seed script**
 // services/backend/drizzle/seed-mimic.ts
 
 /**
