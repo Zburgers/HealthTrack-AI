@@ -239,8 +239,9 @@ export default function NewCaseForm() {
 
       console.log('🔄 [NEW_CASE] Creating patient record:', patientData);
 
-      // Use API route to create the patient record
-      const response = await fetch('/api/patients', {
+      // Use backend API to create the patient record
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+      const response = await fetch(`${backendUrl}/patients`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patientData),

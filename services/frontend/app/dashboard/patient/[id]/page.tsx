@@ -298,9 +298,8 @@ export default function PatientDetailPage() {
 
     setIsDeleting(true);
     try {
-      // TODO: Replace with proper API route call when NestJS backend is ready
-      // For now, use fetch to call the API endpoint directly
-      const response = await fetch(`/api/patients/${patient.id}`, {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+      const response = await fetch(`${backendUrl}/patients/${patient.id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: deletionReason.trim(), deletedBy: 'System' }),
@@ -310,10 +309,10 @@ export default function PatientDetailPage() {
         throw new Error('Failed to delete patient');
       }
 
-      console.log('Patient deleted successfully');
+      console.log('✅ [PATIENT] Patient deleted successfully');
       router.push('/dashboard');
     } catch (error) {
-      console.error('Error deleting patient:', error);
+      console.error('❌ [PATIENT] Error deleting patient:', error);
     } finally {
       setIsDeleting(false);
       setIsDeleteModalOpen(false);
