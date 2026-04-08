@@ -178,8 +178,8 @@ services:
   # ============================================================
   workers:
     build:
-      context: ./services/workers
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/workers/Dockerfile
     container_name: healthtrack-workers
     command: ["node", "dist/index.js"]
     environment:

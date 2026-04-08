@@ -11,8 +11,7 @@
   "dependencies": {
     "@huggingface/inference": "^4.0.0",
     "drizzle-orm": "^0.38.0",
-    "pg": "^8.13.0",
-    "@healthtrack/shared": "file:../../packages/shared"
+    "pg": "^8.13.0"
   },
   "devDependencies": {
     "@types/pg": "^8.11.0",

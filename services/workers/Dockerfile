@@ -1,28 +1,30 @@
 # services/workers/Dockerfile
 FROM node:18-alpine AS builder
-WORKDIR /app
+WORKDIR /build
 
 # Install dependencies for building native modules
 RUN apk add --no-cache python3 make g++
 
-# Copy shared package first
-COPY packages/shared/ ./packages/shared/
-RUN cd packages/shared && npm install
+# Copy workers package files
+COPY services/workers/package.json /build/package.json
+COPY services/workers/package-lock.json /build/package-lock.json
+RUN cd /build && npm install --ignore-scripts
 
-# Copy workers package
-COPY services/workers/package.json services/workers/package-lock.json* ./services/workers/
-RUN cd services/workers && npm ci --ignore-scripts
+# Copy workers source files
+COPY services/workers/tsconfig.json /build/
+COPY services/workers/src/ /build/src/
 
-COPY services/workers/tsconfig.json services/workers/src/ ./services/workers/
-RUN cd services/workers && npm run build
+# Build workers
+RUN cd /build && npm run build
 
 # Production stage
 FROM node:18-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-COPY --from=builder /app/services/workers/node_modules ./node_modules
-COPY --from=builder /app/services/workers/dist ./dist
+# Copy dependencies and built application
+COPY --from=builder /build/node_modules ./node_modules
+COPY --from=builder /build/dist ./dist
 
 EXPOSE 8080
 
