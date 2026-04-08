@@ -19,8 +19,8 @@
     "noFallthroughCasesInSwitch": false,
     "paths": {
       "@/*": ["./src/*"],
-      "@healthtrack/shared": ["../../packages/shared/src/index.ts"],
-      "@healthtrack/shared/*": ["../../packages/shared/src/*"]
+      "@healthtrack/shared": ["./shared/src/index.ts"],
+      "@healthtrack/shared/*": ["./shared/src/*"]
     }
   }
 }

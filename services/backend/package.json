@@ -25,7 +25,6 @@
     "db:seed": "tsx drizzle/seed.ts"
   },
   "dependencies": {
-    "@healthtrack/shared": "file:../../packages/shared",
     "@clerk/backend": "^3.2.7",
     "@mastra/core": "^1.23.0",
     "@nestjs/cache-manager": "^2.0.0",
