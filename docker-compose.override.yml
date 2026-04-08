@@ -36,7 +36,7 @@ services:
   # Backend - Debug port, hot reload, verbose logging
   # ============================================================
   backend:
-    command: npm run start:debug
+    command: npx tsx src/main.ts
     environment:
       - NODE_ENV=development
       - LOG_LEVEL=debug
@@ -44,9 +44,8 @@ services:
       - "3000:3000"
       - "9229:9229"  # Node.js inspector
     volumes:
-      - ./services/backend:/app:delegated
-      - /app/node_modules
-      - /app/dist
+      - ./services/backend/src:/app/src:delegated
+      - ./services/backend/package.json:/app/package.json
     # Remove resource limits for local dev
     deploy:
       resources:
