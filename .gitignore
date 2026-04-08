@@ -84,6 +84,8 @@ tasks/
 # Services build artifacts
 services/*/dist/
 services/*/node_modules/
+services/frontend/.next/
+services/frontend/standalone/
 
 # Packages build
 packages/*/dist/
