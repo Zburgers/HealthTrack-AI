@@ -238,23 +238,16 @@ export default function PatientDetailPage() {
 
     try {
       setError(null);
-      const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
-      if (isElectron) {
-        const data = await (window as any).electronAPI.database.getPatient({ id: patientId });
-        setPatient(data);
-        setIsAnalyzing(data.status === 'analyzing');
-        return data;
-      } else {
-        const response = await fetch(`/api/patients/${patientId}`);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to fetch patient details.');
-        }
-        const data = await response.json();
-        setPatient(data);
-        setIsAnalyzing(data.status === 'analyzing');
-        return data;
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+      const response = await fetch(`${backendUrl}/patients/${patientId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch patient details.');
       }
+      const data = await response.json();
+      setPatient(data);
+      setIsAnalyzing(data.status === 'analyzing');
+      return data;
     } catch (e) {
       setError((e as Error).message);
       setIsAnalyzing(false);

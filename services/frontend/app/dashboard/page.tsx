@@ -228,42 +228,15 @@ export default function DashboardPage() {  const [patients, setPatients] = useSt
   const [sortBy, setSortBy] = useState('lastVisitDesc');
   
   const checkDbStatus = async () => {
-    const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
-    if (!isElectron) {
-      setDbStatus('connected'); // Assume web API is always available
-      return true;
-    }
     try {
-      // First check if there's an active connection via Switchboard
-      try {
-        const status = await (window as any).electronAPI.dataSource.getActiveStatus();
-        if (status && status.sourceId && status.status === 'connected') {
-          console.log('✅ [DASHBOARD] Active database connection found');
-          setDbStatus('connected');
-          return true;
-        }
-      } catch (switchboardError) {
-        console.warn('⚠️ [DASHBOARD] Failed to check Switchboard status:', switchboardError);
-      }
-      
-      // Fallback to legacy check
-      const status = await (window as any).electronAPI.database.checkStatus();
-      if (status === 'ready') {
-        setDbStatus('connected');
-        return true;
-      }
-      
-      console.log('⚠️ [DASHBOARD] No active database connection, redirecting to setup...');
-      // Redirect to setup page if no connection is found
-      window.location.href = '/setup';
-      return false;
+      // Backend API is always available in web-first architecture
+      setDbStatus('connected');
+      return true;
     } catch (e) {
-      console.error('❌ [DASHBOARD] Database connection error:', e);
+      console.error('❌ [DASHBOARD] Backend connection error:', e);
+      setDbStatus('error');
+      return false;
     }
-    
-    console.log('❌ [DASHBOARD] Database connection failed, redirecting to setup...');
-    window.location.href = '/setup';
-    return false;
   };
 
   const fetchPatients = async () => {
@@ -277,23 +250,13 @@ export default function DashboardPage() {  const [patients, setPatients] = useSt
     }
 
     try {
-      const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
-      
-      if (isElectron) {
-        console.log('📊 [DASHBOARD] Loading patients from local database...');
-        const rawPatients = await (window as any).electronAPI.database.getPatients();
-        
-        // The data is already formatted by the main process, so no need to map it here.
-        setPatients(rawPatients || []);
-        console.log(`✅ [DASHBOARD] Loaded and formatted ${rawPatients.length} patients`);
-      } else {
-        console.log('🌐 [DASHBOARD] Loading patients from API...');
-        const response = await fetch('/api/patients');
-        if (!response.ok) throw new Error('Failed to fetch patient data.');
-        const data = await response.json();
-        setPatients(data);
-        console.log(`✅ [DASHBOARD] Loaded ${data?.length || 0} patients from API`);
-      }
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+      console.log('🌐 [DASHBOARD] Loading patients from backend API...');
+      const response = await fetch(`${backendUrl}/patients`);
+      if (!response.ok) throw new Error('Failed to fetch patient data.');
+      const data = await response.json();
+      setPatients(data);
+      console.log(`✅ [DASHBOARD] Loaded ${data?.length || 0} patients from API`);
     } catch (e) {
       console.error('❌ [DASHBOARD] Error fetching patients:', e);
       setError((e as Error).message);
