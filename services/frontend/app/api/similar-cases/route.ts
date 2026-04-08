@@ -32,7 +32,7 @@ export async function GET() {
 import { NextRequest, NextResponse } from 'next/server';
 import { getEmbeddings } from '@/lib/embedding'; // Uses Hugging Face BioBERT model
 import { findSimilarCases, SimilarCasesFilterSort } from '@/lib/vectorSearch';
-import { SimilarCasesApiInput, SimilarCaseOutput } from '@/types/similar-cases';
+import { SimilarCasesApiInput, SimilarCaseOutput } from '@healthtrack/shared';
 import { z, ZodError } from 'zod';
 import { makeAICacheKey, getAICache, setAICache } from '@/lib/aiCache';
 import stringify from 'json-stable-stringify';

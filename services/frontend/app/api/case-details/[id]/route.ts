@@ -24,7 +24,7 @@ export async function GET() {
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
-import { CaseEmbeddingDocument } from '@/types/similar-cases';
+import { CaseEmbeddingDocument } from '@healthtrack/shared';
 
 export const dynamic = 'force-dynamic';
 

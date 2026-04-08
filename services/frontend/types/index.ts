@@ -1,7 +1,7 @@
 import type { LucideProps } from "lucide-react";
 import React from "react";
 import { ObjectId } from "mongodb";
-import type { SimilarCaseOutput } from '@/types/similar-cases';
+import type { SimilarCaseOutput } from '@healthtrack/shared';
 import * as z from 'zod';
 
 export const formSchema = z.object({

@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, BarChart3, Loader2, AlertCircle, FileText, TrendingUp, Calendar, UserCheck, Stethoscope, ChevronDown, ChevronUp, Info, ClipboardList, Award, Activity, Clock, CheckCircle2, XCircle, PlusCircle, FileSignature } from 'lucide-react';
-import { SimilarCaseOutput } from '@/types/similar-cases';
+import { SimilarCaseOutput } from '@healthtrack/shared';
 import { cn } from '@/lib/utils';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import React from 'react';

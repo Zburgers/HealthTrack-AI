@@ -61,3 +61,23 @@ export interface SimilarCaseSearchInput {
   limit?: number;
   minConfidence?: number;
 }
+
+// Input for the /api/similar-cases endpoint (current case data for querying)
+export interface SimilarCasesApiInput {
+  note: string;
+  age?: number;
+  sex?: string;
+  vitals?: Partial<CaseVitals>;
+}
+
+// Expected structure from Vertex AI embedding endpoint prediction
+export interface VertexAIEmbeddingPrediction {
+  embeddings: {
+    values: number[];
+  };
+}
+
+// Expected structure from Vertex AI embedding endpoint full response
+export interface VertexAIEmbeddingResponse {
+  predictions: VertexAIEmbeddingPrediction[];
+}

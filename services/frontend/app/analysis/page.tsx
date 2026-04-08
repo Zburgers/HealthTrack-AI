@@ -4,7 +4,7 @@ import { useAppState } from '@/context/AppStateContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { SimilarCaseOutput } from '@/types/similar-cases';
+import { SimilarCaseOutput } from '@healthtrack/shared';
 import { getDb } from '@/lib/db';
 import { Patient } from '@/types';
 
