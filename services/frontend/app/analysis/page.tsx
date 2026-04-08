@@ -44,14 +44,15 @@ export default function AnalysisPage() {
           console.log("🔍 [ANALYSIS] Fetching similar cases from backend API:", currentCaseDisplayData);
 
           const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+          const caseData = currentCaseDisplayData as any;
           const response = await fetch(`${backendUrl}/cases/similar`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              clinicalNote: currentCaseDisplayData?.observations || '',
-              patientInformation: currentCaseDisplayData?.patientInformation || '',
-              vitals: currentCaseDisplayData?.vitals,
-              diagnoses: currentCaseDisplayData?.icd_tags,
+              clinicalNote: caseData?.observations || '',
+              patientInformation: caseData?.patientInformation || '',
+              vitals: caseData?.vitals,
+              diagnoses: caseData?.icd_tags,
               limit: 5,
             }),
           });
