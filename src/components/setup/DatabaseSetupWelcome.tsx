@@ -50,10 +50,10 @@ export default function DatabaseSetupWelcome({ onRetryConnection, isRetrying = f
     if (!isElectron) return;
     
     try {
-      const sources = await window.electronAPI.dataSource.getAvailable();
+      const sources = await (window as any).electronAPI.dataSource.getAvailable();
       setDataSources(sources);
       
-      const status = await window.electronAPI.dataSource.getActiveStatus();
+      const status = await (window as any).electronAPI.dataSource.getActiveStatus();
       setActiveStatus(status);
       
       console.log('🎯 [ONBOARDING] Loaded data sources:', sources);
@@ -75,7 +75,7 @@ export default function DatabaseSetupWelcome({ onRetryConnection, isRetrying = f
     
     try {
       console.log(`🔌 [ONBOARDING] Connecting to ${sourceId}...`);
-      await window.electronAPI.dataSource.connect(sourceId, config);
+      await (window as any).electronAPI.dataSource.connect(sourceId, config);
       
       // Refresh status
       await loadDataSources();
@@ -138,7 +138,7 @@ export default function DatabaseSetupWelcome({ onRetryConnection, isRetrying = f
       loadDataSources();
       
       // Set up status update listener
-      const removeListener = window.electronAPI.dataSource.onStatusUpdate((event: any) => {
+      const removeListener = (window as any).electronAPI.dataSource.onStatusUpdate((event: any) => {
         console.log('🎯 [ONBOARDING] Status update:', event);
         loadDataSources(); // Refresh on any status change
       });

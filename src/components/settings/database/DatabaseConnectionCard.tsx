@@ -67,7 +67,7 @@ const DatabaseConnectionCard: React.FC = () => {
     if (!isElectron) return;
     
     try {
-      const sources = await window.electronAPI.dataSource.getAvailable();
+      const sources = await (window as any).electronAPI.dataSource.getAvailable();
       setDataSources(sources);
       console.log('📊 [DB_CONNECTION] Loaded data sources:', sources);
     } catch (error) {
@@ -83,11 +83,11 @@ const DatabaseConnectionCard: React.FC = () => {
     if (!isElectron) return;
     
     try {
-      const status = await window.electronAPI.dataSource.getActiveStatus();
+      const status = await (window as any).electronAPI.dataSource.getActiveStatus();
       setActiveStatus(status);
       
       if (status.sourceId) {
-        const info = await window.electronAPI.dataSource.getConnectionInfo();
+        const info = await (window as any).electronAPI.dataSource.getConnectionInfo();
         setConnectionInfo(info);
       } else {
         setConnectionInfo(null);
@@ -104,7 +104,7 @@ const DatabaseConnectionCard: React.FC = () => {
     if (!isElectron) return;
     
     try {
-      const uri = await window.electronAPI.database.getUserMongoUri();
+      const uri = await (window as any).electronAPI.database.getUserMongoUri();
       if (uri) {
         setMongoUri(uri);
       }
@@ -124,7 +124,7 @@ const DatabaseConnectionCard: React.FC = () => {
     
     try {
       console.log(`🔌 [DB_CONNECTION] Connecting to ${sourceId}...`);
-      await window.electronAPI.dataSource.connect(sourceId, config);
+      await (window as any).electronAPI.dataSource.connect(sourceId, config);
       
       // Refresh status
       await loadActiveStatus();
@@ -162,7 +162,7 @@ const DatabaseConnectionCard: React.FC = () => {
     setError(null);
     
     try {
-      await window.electronAPI.dataSource.disconnect();
+      await (window as any).electronAPI.dataSource.disconnect();
       
       // Refresh status
       await loadActiveStatus();
@@ -200,7 +200,7 @@ const DatabaseConnectionCard: React.FC = () => {
     setError(null);
     
     try {
-      const result = await window.electronAPI.database.testConnection(mongoUri);
+      const result = await (window as any).electronAPI.database.testConnection(mongoUri);
       
       if (result.success) {
         toast({
@@ -233,7 +233,7 @@ const DatabaseConnectionCard: React.FC = () => {
     if (!isElectron || !mongoUri) return;
     
     try {
-      await window.electronAPI.database.setUserMongoUri(mongoUri);
+      await (window as any).electronAPI.database.setUserMongoUri(mongoUri);
       
       toast({
         title: "URI Saved",
@@ -260,7 +260,7 @@ const DatabaseConnectionCard: React.FC = () => {
     setError(null);
     
     try {
-      const health = await window.electronAPI.database.health();
+      const health = await (window as any).electronAPI.database.health();
       
       if (health.status === 'ok') {
         toast({

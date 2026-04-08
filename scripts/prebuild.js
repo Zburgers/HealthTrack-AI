@@ -21,8 +21,6 @@ const CONFIG = {
     NODE_MIN_VERSION: '18.0.0',
     NPM_MIN_VERSION: '8.0.0',
     REQUIRED_DIRS: [
-        'electron/dist',
-        'electron/db', 
         'logs',
         'temp',
         '.cache'
@@ -30,14 +28,9 @@ const CONFIG = {
     REQUIRED_FILES: [
         'package.json',
         'next.config.ts',
-        'tsconfig.json',
-        'electron/main.ts',
-        'electron/preload.ts'
+        'tsconfig.json'
     ],
-    TYPESCRIPT_FILES: [
-        'electron/main.ts',
-        'electron/preload.ts'
-    ]
+    TYPESCRIPT_FILES: []
 };
 
 // Environment detection

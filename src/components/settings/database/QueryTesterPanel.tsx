@@ -64,7 +64,7 @@ const QueryTesterPanel: React.FC = () => {
       }
 
       // Execute query through Switchboard
-      const queryResult = await window.electronAPI.dataSource.query({
+      const queryResult = await (window as any).electronAPI.dataSource.query({
         type: queryType,
         params: params
       });

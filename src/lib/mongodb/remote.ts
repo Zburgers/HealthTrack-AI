@@ -1,12 +1,12 @@
 /**
- * Remote MongoDB Connection Module
- * 
- * Handles connections to MongoDB Atlas for remote-only collections
- * and web application database operations
+ * Remote MongoDB Connection Module — DEPRECATED
+ * MongoDB has been replaced by PostgreSQL (Drizzle ORM) in the NestJS backend.
+ * This module is kept for reference only.
  */
 
 import { MongoClient, Db, ServerApiVersion } from 'mongodb';
-import { MONGODB_URI as MONGODB_URI_FROM_CONFIG } from '@/config';
+
+const MONGODB_URI_FROM_CONFIG = process.env.MONGODB_URI || '';
 import { DATABASE_NAMES, MONGODB_CONFIG } from './config';
 
 let remoteClient: MongoClient | null = null;

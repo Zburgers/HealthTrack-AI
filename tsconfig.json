@@ -36,7 +36,15 @@
   ],
   "exclude": [
     "node_modules",
+    "backend/**",
     "tests/**",
-    "src/lib/sqlite/**"
+    "src/lib/sqlite/**",
+    ".agents/**",
+    ".qwen/**",
+    ".claude/**",
+    ".vibe/**",
+    ".adal/**",
+    "conductor/**",
+    "skills/**"
   ]
 }

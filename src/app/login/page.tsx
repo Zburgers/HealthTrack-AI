@@ -1,6 +1,6 @@
 'use client';
 
-import { SignInButton, useUser } from '@clerk/nextjs';
+import { SignIn, SignInButton, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import Link from 'next/link';
@@ -146,14 +146,9 @@ export default function LoginPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="px-8 pb-8 space-y-6">
-              <SignInButton mode="modal" redirectUrl="/dashboard">
-                <Button
-                  className="w-full bg-sky-600 hover:bg-sky-500 text-white text-lg font-semibold py-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 ease-in-out group transform hover:scale-105 focus:ring-4 focus:ring-sky-400/50"
-                >
-                  <GoogleIcon />
-                  Sign In with Google
-                </Button>
-              </SignInButton>
+              <div className="flex justify-center">
+                <SignIn forceRedirectUrl="/dashboard" />
+              </div>
               <p className="text-xs text-slate-500/70 text-center px-4">
                 By signing in, you agree to our
                 <a href="/terms-of-service" className="underline hover:text-sky-400 transition-colors"> Terms of Service </a>

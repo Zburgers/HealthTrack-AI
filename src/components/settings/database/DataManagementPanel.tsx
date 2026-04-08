@@ -20,29 +20,29 @@ const DataManagementPanel: React.FC = () => {
   const [isClearing, setIsClearing] = useState(false);
 
   // Check if we're in Electron environment
-  const isElectron = typeof window !== 'undefined' && window.electronAPI;
+  const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
 
   /**
    * Export database - now with real implementation
    */
   const exportDatabase = async () => {
     if (!isElectron) return;
-    
+
     setIsExporting(true);
-    
+
     try {
       console.log('📦 [DATA_MANAGEMENT] Starting database export...');
-      
+
       // Get all collections data
       const [patients, encounters, observations, practitioners, medications, appointments, soapNotes, tasks] = await Promise.all([
-        window.electronAPI.database.find('patients', {}),
-        window.electronAPI.database.find('encounters', {}),
-        window.electronAPI.database.find('observations', {}),
-        window.electronAPI.database.find('practitioners', {}),
-        window.electronAPI.database.find('medications', {}),
-        window.electronAPI.database.find('appointments', {}),
-        window.electronAPI.database.find('soapNotes', {}),
-        window.electronAPI.database.find('tasks', {}),
+        (window as any).electronAPI.database.find('patients', {}),
+        (window as any).electronAPI.database.find('encounters', {}),
+        (window as any).electronAPI.database.find('observations', {}),
+        (window as any).electronAPI.database.find('practitioners', {}),
+        (window as any).electronAPI.database.find('medications', {}),
+        (window as any).electronAPI.database.find('appointments', {}),
+        (window as any).electronAPI.database.find('soapNotes', {}),
+        (window as any).electronAPI.database.find('tasks', {}),
       ]);
 
       const exportData = {
@@ -109,11 +109,11 @@ const DataManagementPanel: React.FC = () => {
       console.log('🧹 [DATA_MANAGEMENT] Clearing local cache...');
       
       // Get cache info first
-      const cacheQuery = await window.electronAPI.database.find('ai_cache', {});
+      const cacheQuery = await (window as any).electronAPI.database.find('ai_cache', {});
       const cacheCount = cacheQuery.length;
       
       // Clear AI cache collection
-      await window.electronAPI.database.deleteMany('ai_cache', {});
+      await (window as any).electronAPI.database.deleteMany('ai_cache', {});
       
       console.log(`✅ [DATA_MANAGEMENT] Cleared ${cacheCount} cache entries`);
       
